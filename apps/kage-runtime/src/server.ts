@@ -4,6 +4,7 @@ import websocketPlugin from '@fastify/websocket';
 import type { HealthResponse, RuntimeStatus } from '@ninja/contracts';
 import { createLogger } from '@ninja/logging';
 import { eventBus } from '@ninja/events';
+import { parseEnv } from './env-schema.js';
 import { RUNTIME_NAME, RUNTIME_VERSION } from './constants.js';
 import { registerBusRoutes } from './bus-router.js';
 import { KageEngine, HttpController } from '@ninja/kage-engine';
@@ -35,6 +36,7 @@ import {
   StrategyEngine,
   ModelSelector,
   BudgetManager,
+  FallbackChain,
   createStrategyEngine,
 } from '@ninja/model-gateway';
 import { LearningHarvester, LearningPromoter, LearningEvaluator } from '@ninja/learning-loop';
@@ -70,6 +72,9 @@ const ALLOWED_ORIGINS = [
 ];
 
 export async function createServer(): Promise<FastifyInstance> {
+  // Re-parse env to get typed values — already validated by loadEnv() at boot (ADR-0004)
+  const env = parseEnv(process.env as Record<string, string | undefined>);
+
   const server = fastify({ logger: false }); // logging gestionado por @ninja/logging
 
   // ── CORS ────────────────────────────────────────────────────────────────────
@@ -192,6 +197,7 @@ export async function createServer(): Promise<FastifyInstance> {
   const mc = ModelCatalog.getInstance();
   const modelBudgetManager = BudgetManager.getInstance(eventBus);
   const modelSelector = new ModelSelector(mc, eventBus);
+  const fallbackChain = FallbackChain.getInstance(eventBus); // WP-B3: FallbackChain for LLM retry
 
   const strategyEngine = createStrategyEngine({
     selector: modelSelector,
@@ -221,7 +227,9 @@ export async function createServer(): Promise<FastifyInstance> {
     runRepo,
     artifactRepo,
     log,
-    modelSelector // Inyectar ModelSelector para selección dinámica
+    modelSelector,
+    fallbackChain,               // FallbackChain wired (WP-B3 / ADR-0003)
+    env.NINJA_LLM_FAIL_MODE,     // Feature flag from validated env (ADR-0003)
   );
 
   // ── Kage Engine ──────────────────────────────────────────────────────────────
