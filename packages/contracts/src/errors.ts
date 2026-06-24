@@ -65,6 +65,10 @@ export const ErrorCodes = {
   ROSTER_AGENT_NOT_FOUND: 'ROSTER_AGENT_NOT_FOUND' as ErrorCode,
   /** Agent definition is invalid or malformed */
   ROSTER_INVALID_DEFINITION: 'ROSTER_INVALID_DEFINITION' as ErrorCode,
+
+  // Budget / Model Gateway
+  /** Session token budget exceeded — operation blocked */
+  BUDGET_EXCEEDED: 'BUDGET_EXCEEDED' as ErrorCode,
 } as const;
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -201,8 +205,9 @@ export class LLMError extends NinjaError {
 }
 
 export class BudgetError extends NinjaError {
-  constructor(code: string, message: string, opts?: NinjaErrorOptions) {
-    super(code, message, 'budget', opts);
+  constructor(message: string, opts?: NinjaErrorOptions) {
+    super(ErrorCodes.BUDGET_EXCEEDED, message, 'budget', { httpStatus: 429, retryable: false, ...opts });
+    Object.defineProperty(this, 'name', { value: 'BudgetError' });
   }
 }
 

@@ -52,6 +52,7 @@ export const ErrorCodes = {
 | `ENGINE_COORDINATOR_FAILED` | `engine` | 500 | ✅ | Engine coordinator step failed |
 | `ROSTER_AGENT_NOT_FOUND` | `roster` | 404 | ❌ | Agent ID not found in the roster |
 | `ROSTER_INVALID_DEFINITION` | `roster` | 400 | ❌ | Agent definition is invalid or malformed |
+| `BUDGET_EXCEEDED` | `budget` | 500 | ❌ | Session token budget exceeded — operation blocked |
 
 ## Usage
 

@@ -114,6 +114,17 @@ describe('Error subclasses', () => {
     expect(e.retryable).toBe(true);
     expect(e.httpStatus).toBe(504);
   });
+
+  it('BudgetError — shape: code=BUDGET_EXCEEDED, httpStatus=429, retryable=false, name=BudgetError', () => {
+    const e = new BudgetError('Token budget exceeded for session s1 (limit: 5000)');
+    expect(e.code).toBe('BUDGET_EXCEEDED');
+    expect(e.httpStatus).toBe(429);
+    expect(e.retryable).toBe(false);
+    expect(e.name).toBe('BudgetError');
+    expect(e.domain).toBe('budget');
+    expect(e).toBeInstanceOf(NinjaError);
+    expect(e).toBeInstanceOf(BudgetError);
+  });
 });
 
 describe('isNinjaError helper (M2)', () => {
