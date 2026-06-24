@@ -15,3 +15,5 @@ Este directorio contiene los ADRs del Ninja AI Framework.
 |-----|--------|--------|
 | [0001](0001-ninja-error-hierarchy.md) | NinjaError hierarchy | accepted |
 | [0002](0002-error-migration-scope.md) | Error migration scope (B1) | accepted |
+| [0003](0003-llm-fallback-semantics.md) | LLM fallback semantics + NINJA_LLM_FAIL_MODE | accepted |
+| [0004](0004-env-validation-strategy.md) | Env validation strategy (WP-B2) | accepted |
