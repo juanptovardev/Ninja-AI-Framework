@@ -149,3 +149,6 @@ Ninja AI Framework v1.0.md
 AGENTS.md
 CLAUDE.md
 docs/
+!docs/adr/
+!docs/adr/**
+!docs/errors.md
