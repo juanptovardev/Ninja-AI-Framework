@@ -254,3 +254,82 @@ describe('AgentExecutor — FallbackChain wiring (WP-B3)', () => {
     expect((mockLogger.error as ReturnType<typeof vi.fn>).mock.calls.length).toBeGreaterThan(0);
   });
 });
+
+
+// ─── WP-B6: Formal closure ──────────────────────────────────────────────────
+
+describe('WP-B6: LLM failure → task failed (no fake success)', () => {
+  let mockEventBus: MockEventBus;
+  let mockLogger: ReturnType<typeof createMockLogger>;
+
+  const agentDef = {
+    id: 'planner',
+    name: 'Planner',
+    role: 'Planner' as const,
+    description: 'Plan',
+    promptBase: 'You are a planner',
+    allowedTools: [],
+    department: 'planning',
+    avatarKey: 'planner',
+    maxConcurrentTasks: 1,
+  };
+
+  const task = {
+    id: 't-b6',
+    agentInstanceId: 'inst-b6',
+    description: 'task',
+    input: {},
+    status: 'idle' as const,
+    createdAt: new Date().toISOString(),
+  };
+
+  beforeEach(() => {
+    mockEventBus = new MockEventBus();
+    mockLogger = createMockLogger();
+  });
+
+  it('without fallbackChain, mock LLM always throws → status:failed (not completed)', async () => {
+    const llm = new SequencedMockLLM([
+      { throw: new LLMError(ErrorCodes.LLM_SERVER, '500') },
+    ]);
+
+    const executor = new AgentExecutor(
+      llm as unknown as LLMClient, baseRepos.arsenalRegistry,
+      mockEventBus as unknown as import('@ninja/events').EventBus,
+      baseRepos.runRepository, baseRepos.artifactRepository,
+      mockLogger,
+      // no fallbackChain, no llmFailMode → strict default
+    );
+
+    const instance = executor.createInstance(agentDef, makeWorkflowContext());
+    const result = await executor.run(task, instance);
+
+    expect(result.status).toBe('failed');
+    expect(mockEventBus.getEvents('agent.task.completed').length).toBe(0);
+    const failedEvents = mockEventBus.getEvents('agent.task.failed');
+    expect(failedEvents.length).toBeGreaterThan(0);
+  });
+
+  it('with strict mode + chain exhausted → status:failed (not completed)', async () => {
+    const chains = new Map([['gpt-4o-mini', []]]); // no fallbacks
+    const fallbackChain = makeMockFallbackChain(chains);
+    const llm = new SequencedMockLLM([
+      { throw: new LLMError(ErrorCodes.LLM_RATE_LIMITED, '429', { retryable: true }) },
+    ]);
+
+    const executor = new AgentExecutor(
+      llm as unknown as LLMClient, baseRepos.arsenalRegistry,
+      mockEventBus as unknown as import('@ninja/events').EventBus,
+      baseRepos.runRepository, baseRepos.artifactRepository,
+      mockLogger, undefined, fallbackChain, 'strict',
+    );
+
+    const instance = executor.createInstance(agentDef, makeWorkflowContext());
+    const result = await executor.run(task, instance);
+
+    expect(result.status).toBe('failed');
+    expect(mockEventBus.getEvents('agent.task.completed').length).toBe(0);
+    const failedEvents = mockEventBus.getEvents('agent.task.failed');
+    expect(failedEvents.length).toBeGreaterThan(0);
+  });
+});

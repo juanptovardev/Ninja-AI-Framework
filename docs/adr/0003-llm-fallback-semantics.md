@@ -2,7 +2,7 @@
 
 ## Status
 
-`accepted`
+Accepted — WP-B3 ✅ WP-B6 ✅ (strict mode formally closes B6, 2026-06-24)
 
 ## Context
 
