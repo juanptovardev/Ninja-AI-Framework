@@ -2,6 +2,7 @@ import type { Logger } from '@ninja/logging';
 import type { EventBus } from '@ninja/events';
 import type { NinjaEvent } from '@ninja/contracts';
 import type { ID, Timestamp } from '@ninja/contracts';
+import { SentinelError, ErrorCodes } from '@ninja/contracts';
 import type { ApprovalRequest } from './schema';
 
 /**
@@ -410,19 +411,31 @@ export class ApprovalManager {
    */
   private validateApprover(approver: ApproverIdentity, agentId?: ID): void {
     if (!approver.id || approver.id.trim() === '') {
-      throw new Error('Approver identity id is required');
+      throw new SentinelError(ErrorCodes.APPROVAL_DENIED, 'Approver identity id is required', {
+        httpStatus: 400,
+      });
     }
 
     if (!approver.role || approver.role.trim() === '') {
-      throw new Error('Approver identity role is required');
+      throw new SentinelError(ErrorCodes.APPROVAL_DENIED, 'Approver identity role is required', {
+        httpStatus: 400,
+      });
     }
 
     if (!this.authorizedRoles.has(approver.role)) {
-      throw new Error(`Approver role "${approver.role}" is not authorized. Authorized roles: ${Array.from(this.authorizedRoles).join(', ')}`);
+      throw new SentinelError(
+        ErrorCodes.APPROVAL_DENIED,
+        `Approver role "${approver.role}" is not authorized. Authorized roles: ${Array.from(this.authorizedRoles).join(', ')}`,
+        { httpStatus: 403, context: { role: approver.role } },
+      );
     }
 
     if (approver.id === agentId) {
-      throw new Error(`Approver "${approver.id}" cannot approve their own request (agentId: ${agentId})`);
+      throw new SentinelError(
+        ErrorCodes.APPROVAL_DENIED,
+        `Approver "${approver.id}" cannot approve their own request (agentId: ${agentId})`,
+        { httpStatus: 403, context: { approverId: approver.id, agentId } },
+      );
     }
   }
 
@@ -433,11 +446,19 @@ export class ApprovalManager {
     const approval = this.approvals.get(approvalId);
 
     if (!approval) {
-      throw new Error(`Approval ${approvalId} not found`);
+      throw new SentinelError(
+        ErrorCodes.APPROVAL_NOT_FOUND,
+        `Approval ${approvalId} not found`,
+        { httpStatus: 404, context: { approvalId } },
+      );
     }
 
     if (approval.status !== 'pending') {
-      throw new Error(`Approval ${approvalId} is not pending (current status: ${approval.status})`);
+      throw new SentinelError(
+        ErrorCodes.APPROVAL_DENIED,
+        `Approval ${approvalId} is not pending (current status: ${approval.status})`,
+        { httpStatus: 409, context: { approvalId, status: approval.status } },
+      );
     }
 
     return approval;
