@@ -230,6 +230,8 @@ export async function createServer(): Promise<FastifyInstance> {
     modelSelector,
     fallbackChain,               // FallbackChain wired (WP-B3 / ADR-0003)
     env.NINJA_LLM_FAIL_MODE,     // Feature flag from validated env (ADR-0003)
+    modelBudgetManager,          // BudgetManager for pre-call enforcement (WP-B4)
+    env.NINJA_SESSION_TOKEN_BUDGET, // Per-session token budget (WP-B4)
   );
 
   // ── Kage Engine ──────────────────────────────────────────────────────────────
@@ -412,6 +414,9 @@ export async function createServer(): Promise<FastifyInstance> {
 
   server.post('/engine/submit', async (request, reply) => {
     const result = await httpController.handleSubmit({ body: request.body as any });
+    if (env.NINJA_SESSION_TOKEN_BUDGET && result.body && (result.body as any).sessionId) {
+      modelBudgetManager.setSessionBudget((result.body as any).sessionId, env.NINJA_SESSION_TOKEN_BUDGET);
+    }
     return reply.status(result.status).send(result.body);
   });
 
@@ -588,6 +593,15 @@ export async function createServer(): Promise<FastifyInstance> {
       catalogSize: mc.getAll().length,
       activeStrategy: 'dynamic-hybrid',
       stats: modelBudgetManager.getGlobalUsage(),
+    });
+  });
+
+  server.get('/api/budget/status', async (request, reply) => {
+    const { sessionId } = request.query as { sessionId?: string };
+    return reply.send({
+      global: modelBudgetManager.getGlobalUsage(),
+      session: sessionId ? (modelBudgetManager.getSessionSummary(sessionId) ?? null) : null,
+      limit: env.NINJA_SESSION_TOKEN_BUDGET ?? null,
     });
   });
 
