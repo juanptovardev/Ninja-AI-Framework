@@ -44,8 +44,5 @@ export type TokenUsage = {
   total_tokens: number;
 };
 
-export type LLMError = {
-  type: 'auth_error' | 'rate_limit' | 'server_error';
-  message: string;
-  code?: number;
-};
+// LLMError is now exported from @ninja/contracts (WP-B1)
+// Use: import { LLMError } from '@ninja/contracts';

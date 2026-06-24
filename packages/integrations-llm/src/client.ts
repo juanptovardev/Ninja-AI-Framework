@@ -1,4 +1,5 @@
-import { LLMProvider, LLMRequest, LLMResponse, LLMStreamChunk, LLMError } from './schema';
+import { LLMProvider, LLMRequest, LLMResponse, LLMStreamChunk } from './schema';
+import { LLMError, ErrorCodes } from '@ninja/contracts';
 import { eventBus, createEvent } from '@ninja/events';
 import { createLogger } from '@ninja/logging';
 
@@ -111,7 +112,10 @@ export class LLMClient {
         })
       );
       if (errObj.name === 'AbortError') {
-        throw new Error('Request timed out after 30 seconds');
+        throw new LLMError(ErrorCodes.LLM_TIMEOUT, 'Request timed out after 30 seconds', {
+          retryable: true,
+          httpStatus: 504,
+        });
       }
       throw errObj;
     }
@@ -157,7 +161,7 @@ export class LLMClient {
       }
 
       if (!response.body) {
-        throw new Error('Response body is null');
+        throw new LLMError(ErrorCodes.LLM_SERVER, 'Response body is null', { httpStatus: 502 });
       }
 
       const reader = response.body.getReader();
@@ -209,7 +213,10 @@ export class LLMClient {
         })
       );
       if (errObj.name === 'AbortError') {
-        throw new Error('Request timed out after 30 seconds');
+        throw new LLMError(ErrorCodes.LLM_TIMEOUT, 'Request timed out after 30 seconds', {
+          retryable: true,
+          httpStatus: 504,
+        });
       }
       throw errObj;
     }
@@ -218,24 +225,30 @@ export class LLMClient {
   private mapError(errorData: Record<string, unknown>, status: number): LLMError {
     const errorBody = errorData.error as Record<string, unknown> | undefined;
     const rawMsg = (errorBody?.message as string) || (errorData.message as string) || (errorData.detail as string) || (errorData._rawText as string) || JSON.stringify(errorData);
-    
+
     if (status === 401) {
-      return { type: 'auth_error', message: rawMsg || 'Invalid API key' };
+      return new LLMError(ErrorCodes.LLM_AUTH, rawMsg || 'Invalid API key', {
+        httpStatus: 401,
+        context: { provider: this.provider },
+      });
     }
     if (status === 429) {
-      return { type: 'rate_limit', message: rawMsg || 'Rate limit exceeded' };
+      return new LLMError(ErrorCodes.LLM_RATE_LIMITED, rawMsg || 'Rate limit exceeded', {
+        retryable: true,
+        httpStatus: 429,
+        context: { provider: this.provider },
+      });
     }
     if (status >= 500) {
-      return {
-        type: 'server_error',
-        message: rawMsg || 'LLM server error',
-        code: status,
-      };
+      return new LLMError(ErrorCodes.LLM_SERVER, rawMsg || 'LLM server error', {
+        retryable: true,
+        httpStatus: status,
+        context: { provider: this.provider, statusCode: status },
+      });
     }
-    return {
-      type: 'server_error',
-      message: rawMsg || 'Unknown error',
-      code: status,
-    };
+    return new LLMError(ErrorCodes.LLM_CALL_FAILED, rawMsg || 'Unknown error', {
+      httpStatus: status,
+      context: { provider: this.provider, statusCode: status },
+    });
   }
 }
