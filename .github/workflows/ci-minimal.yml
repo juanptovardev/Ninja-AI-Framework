@@ -22,4 +22,4 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm typecheck
       - run: pnpm test
-      # - run: pnpm errors:check   # habilitar tras commit 1.12
+      - run: pnpm errors:check

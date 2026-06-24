@@ -18,5 +18,26 @@ module.exports = {
     "@typescript-eslint/no-require-imports": "warn",
     "no-empty": "warn",
     "no-control-regex": "warn"
-  }
+  },
+  overrides: [
+    {
+      // WP-B1: Prevent regression to throw new Error() in migrated files
+      files: [
+        "packages/integrations-llm/src/client.ts",
+        "packages/sentinel/src/approval.ts",
+        "packages/kage-engine/src/intake.ts",
+        "packages/kage-engine/src/coordinator.ts",
+        "packages/roster/src/roster.ts",
+      ],
+      rules: {
+        "no-restricted-syntax": [
+          "error",
+          {
+            "selector": "ThrowStatement[argument.type='NewExpression'][argument.callee.name='Error']",
+            "message": "Use NinjaError or a subclass (ADR-0001). Plain 'throw new Error()' is forbidden in this file. See packages/contracts/src/errors.ts."
+          }
+        ]
+      }
+    }
+  ]
 };

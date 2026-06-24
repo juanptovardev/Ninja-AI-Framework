@@ -20,7 +20,9 @@
     "db:migrate": "pnpm --filter @ninja/workbench migrate",
     "db:studio": "pnpm --filter @ninja/storage studio",
     "test:e2e": "playwright test",
-    "scaffold:workspace": "node scripts/scaffold-workspace.mjs"
+    "scaffold:workspace": "node scripts/scaffold-workspace.mjs",
+    "errors:docs": "node --experimental-strip-types scripts/generate-error-docs.ts",
+    "errors:check": "node --experimental-strip-types scripts/generate-error-docs.ts --check"
   },
   "devDependencies": {
     "@playwright/test": "^1.49.0",
