@@ -315,7 +315,7 @@ export async function createServer(): Promise<FastifyInstance> {
   const auditor = new Auditor(eventBus, log);
   auditor.start();
 
-  const guardian = new Guardian(eventBus, log, approvalManager);
+  const guardian = new Guardian(eventBus, log, approvalManager, policyEngine);
   guardian.start();
 
   log.info('Sentinel System started');
