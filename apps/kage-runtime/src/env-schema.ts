@@ -21,6 +21,8 @@ export const EnvSchema = z.object({
    *  strict (default): throw LLMError → task.failed
    *  legacy: return fallback object for backward compat (WP-B6 transition) */
   NINJA_LLM_FAIL_MODE: z.enum(['strict', 'legacy']).default('strict'),
+  /** Per-session token budget for pre-call enforcement (WP-B4). Absent = unlimited. */
+  NINJA_SESSION_TOKEN_BUDGET: z.coerce.number().int().positive().optional(),
 });
 
 export type NinjaEnv = z.infer<typeof EnvSchema>;

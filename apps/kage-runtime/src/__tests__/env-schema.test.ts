@@ -41,6 +41,16 @@ describe('EnvSchema — valid cases', () => {
     expect(env.NINJA_LLM_FAIL_MODE).toBe('legacy');
   });
 
+  it('acepta NINJA_SESSION_TOKEN_BUDGET=5000 → número 5000', () => {
+    const env = parseEnv({ ...VALID_BASE, NINJA_SESSION_TOKEN_BUDGET: '5000' });
+    expect(env.NINJA_SESSION_TOKEN_BUDGET).toBe(5000);
+  });
+
+  it('NINJA_SESSION_TOKEN_BUDGET ausente → undefined', () => {
+    const env = parseEnv(VALID_BASE);
+    expect(env.NINJA_SESSION_TOKEN_BUDGET).toBeUndefined();
+  });
+
   it('acepta LOG_LEVEL enum completo', () => {
     for (const level of ['debug', 'info', 'warn', 'error', 'silent']) {
       expect(() => parseEnv({ ...VALID_BASE, LOG_LEVEL: level })).not.toThrow();
@@ -102,5 +112,13 @@ describe('EnvSchema — validation failures', () => {
 
   it('LIGHTRAG_API_URL inválida cuando presente → falla', () => {
     expect(() => parseEnv({ ...VALID_BASE, LIGHTRAG_API_URL: 'not-a-url' })).toThrow();
+  });
+
+  it('NINJA_SESSION_TOKEN_BUDGET=abc → falla validación', () => {
+    expect(() => parseEnv({ ...VALID_BASE, NINJA_SESSION_TOKEN_BUDGET: 'abc' })).toThrow();
+  });
+
+  it('NINJA_SESSION_TOKEN_BUDGET=0 → falla (debe ser positivo)', () => {
+    expect(() => parseEnv({ ...VALID_BASE, NINJA_SESSION_TOKEN_BUDGET: '0' })).toThrow();
   });
 });
