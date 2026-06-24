@@ -77,32 +77,31 @@ EPIC A — Estabilización base
 - [x] Test integración E2E: engine sobrevive LLM failure
 - [x] 56 tests agent-runtime + 2 integration tests verdes · ADR-0003
 
-#### WP-B4 · Budget enforcement pre-call
-- [ ] `isOverBudget()` invocado antes de cada `llmClient.complete()`
-- [ ] `throw new BudgetError('BUDGET_EXCEEDED', ...)` si supera límite
-- [ ] Endpoint `GET /api/budget/status` con datos por sesión
-- [ ] `NINJA_SESSION_TOKEN_BUDGET` env var opcional
-- [ ] Tests: bloqueo al superar límite, permiso bajo límite
+#### WP-B4 · Budget enforcement pre-call ✅
+- [x] `isOverBudget()` invocado antes de cada `llmClient.complete()`
+- [x] `throw new BudgetError('BUDGET_EXCEEDED', ...)` si supera límite
+- [x] Endpoint `GET /api/budget/status` con datos por sesión
+- [x] `NINJA_SESSION_TOKEN_BUDGET` env var opcional
+- [x] Tests: bloqueo al superar límite, permiso bajo límite (7 tests)
 
-#### WP-B5 · Guardian deny-by-default
-- [ ] Pasar `policyEngine` al constructor de `Guardian` en `server.ts:~310`
-- [ ] Cambiar default de `guardian.ts:54-57` a `return false` sin engine
-- [ ] Tests: sin engine deniega; con engine y política delega a ApprovalManager
+#### WP-B5 · Guardian deny-by-default ✅
+- [x] Pasar `policyEngine` al constructor de `Guardian` en `server.ts:~318`
+- [x] Cambiar default de `guardian.ts:54-57` a `return false` sin engine
+- [x] Tests: sin engine deniega; con engine y política delega a ApprovalManager (18 tests)
 
-#### WP-B6 · LLM failure = task failed (no fake success)
-- [ ] ~~Parcialmente cubierto por WP-B3 (strict mode)~~ — Cerrar formalmente
-- [ ] Eliminar `NINJA_LLM_FAIL_MODE` flag (ya no necesario)
-- [ ] Verificar `step-runner.ts:~58-66` no fuerza `status:'completed'`
-- [ ] Tests: mock LLM siempre falla ⇒ `run()` retorna `status:'failed'`
+#### WP-B6 · LLM failure = task failed (no fake success) ✅
+- [x] Cubierto por WP-B3 strict mode — cerrado formalmente con tests
+- [x] ADR-0003 actualizado: `Accepted — WP-B3+B6 ✅`
+- [x] Tests: mock LLM siempre falla ⇒ `status:'failed'`, 0 `task.completed` (2 tests)
 
-#### WP-B7 · Stability Score real (emitir `latencyMs`)
-- [ ] ~~EV-08 desactualizada~~ — `latencyMs` ya se emite en executor
-- [ ] Auditar que `pulse-center/monitor.ts` lo consume correctamente
-- [ ] Verificar Stability Score varía con latencia en `/api/health/pulse`
+#### WP-B7 · Stability Score real (emitir `latencyMs`) ✅
+- [x] `latencyMs` ya se emite en `executor.ts:688` (confirmado)
+- [x] `pulse-center/monitor.ts` consume `latencyMs` correctamente
+- [x] Tests: score varía con latencia alta (6 tests — primer test suite de pulse-center)
 
-#### WP-B8 · Fix filtro `isAnchor`
-- [ ] `server.ts:507`: cambiar `a.isAnchor === true` → `a.type === 'anchor'`
-- [ ] Test: `GET /api/artifacts?isAnchor=true` retorna artifacts tipo anchor
+#### WP-B8 · Fix filtro `isAnchor` ✅
+- [x] `server.ts:516`: ya corregido — `a.type === 'anchor'`
+- [x] Test: `GET /api/artifacts?isAnchor=true` retorna artifacts tipo anchor (3 tests)
 
 #### WP-B9 · `selectFastest` corregir comparación
 - [ ] `model-gateway/selector.ts:136-141`: `currentPing > bestPing` → `currentPing < bestPing`
@@ -215,10 +214,13 @@ EPIC A — Estabilización base
 | Cobertura global | sin medir | ≥50% gating | ⏳ |
 | CI pipelines | 0 | 1 (matriz 2 OS × 2 Node) | 🟡 CI mínimo |
 | Commits semánticos | 1 | ≥20 | ✅ 24+ |
-| LLM failures como fake success | sí | 0 | ✅ (strict mode) |
-| Stability Score fijo en 100 | sí | refleja latencia real | ⏳ |
+| LLM failures como fake success | sí | 0 | ✅ (strict mode + B6 closure) |
+| Stability Score fijo en 100 | sí | refleja latencia real | ✅ (B7 — 6 tests) |
 | `alert()/confirm()` en UI | 17 | 0 | ⏳ |
 | `sk-placeholder` | sí | 0 | ✅ |
+| Guardian deny-by-default | No (allow) | deny sin engine | ✅ (B5) |
+| Budget pre-call enforcement | No | `BudgetError` en 1 línea | ✅ (B4) |
+| isAnchor filter correcto | No (siempre vacío) | `type==='anchor'` | ✅ (B8) |
 
 ---
 
@@ -226,7 +228,7 @@ EPIC A — Estabilización base
 
 ```
 EPIC A  ░░░░░░░░░░  0%   (por iniciar)
-EPIC B  ████░░░░░░  35%  (B1 ✅ B2 ✅ B3 ✅ · B4–B15 pendientes)
+EPIC B  ██████░░░░  55%  (B1 ✅ B2 ✅ B3 ✅ B4 ✅ B5 ✅ B6 ✅ B7 ✅ B8 ✅ · B9–B15 pendientes)
 EPIC C  ░░░░░░░░░░  0%
 EPIC D  ░░░░░░░░░░  0%
 EPIC E  ░░░░░░░░░░  0%
