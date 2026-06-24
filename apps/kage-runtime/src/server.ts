@@ -145,9 +145,9 @@ export async function createServer(): Promise<FastifyInstance> {
   const llmRegistry = LLMRegistry.getInstance();
 
   // Registrar proveedor por defecto (usando OpenAI como base si no hay nada)
-  const providerId = (process.env.LLM_PROVIDER as any) || 'openai';
+  const providerId = (process.env.LLM_PROVIDER as import('@ninja/integrations-llm').LLMProvider) || 'openai';
   const baseUrl = process.env.LLM_BASE_URL || 'https://api.openai.com/v1';
-  const apiKey = process.env.LLM_API_KEY || 'sk-placeholder'; // Evitar crash si no hay key, el client lo manejará
+  const apiKey = process.env['LLM_API_KEY']!; // validated by loadEnv() at boot (ADR-0004)
 
   try {
     llmRegistry.register(providerId, baseUrl, apiKey);
