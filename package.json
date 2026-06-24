@@ -21,8 +21,8 @@
     "db:studio": "pnpm --filter @ninja/storage studio",
     "test:e2e": "playwright test",
     "scaffold:workspace": "node scripts/scaffold-workspace.mjs",
-    "errors:docs": "node --experimental-strip-types scripts/generate-error-docs.ts",
-    "errors:check": "node --experimental-strip-types scripts/generate-error-docs.ts --check"
+    "errors:docs": "node scripts/generate-error-docs.mjs",
+    "errors:check": "node scripts/generate-error-docs.mjs --check"
   },
   "devDependencies": {
     "@playwright/test": "^1.49.0",

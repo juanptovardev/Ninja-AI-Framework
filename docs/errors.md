@@ -66,14 +66,14 @@ throw new LLMError(ErrorCodes.LLM_TIMEOUT, 'Request timed out', {
 });
 
 // Narrowing in catch
-catch (e: unknown) {
+catch (e) {
   if (isNinjaError(e)) {
     console.log(e.code, e.domain, e.retryable);
   }
 }
 
 // Wrap unknown errors
-catch (e: unknown) {
+catch (e) {
   throw wrapUnknown(e, ErrorCodes.LLM_CALL_FAILED, 'llm');
 }
 ```
