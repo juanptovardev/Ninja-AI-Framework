@@ -168,3 +168,14 @@ try {
 
 Pausa para revisión. Si OK → PR `fix/epic-b-foundations → main`.
 Siguiente bloque: **WP-B2** (env validation + sk-placeholder) y **WP-B3** (FallbackChain wiring).
+
+
+---
+
+## Post-audit fixes (2026-06-24)
+
+### A2 — CI script requería Node 24 (bloqueador)
+`scripts/generate-error-docs.ts` usaba `--experimental-strip-types` (Node 24 only). Fix: migrado a `scripts/generate-error-docs.mjs` en commit `9673b94`. Sin warnings, compatible con Node 22.
+
+### A1 — Warning `MODULE_TYPELESS_PACKAGE_JSON`
+Resuelto automáticamente al migrar a `.mjs` en A2.
