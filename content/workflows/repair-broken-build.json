@@ -1,0 +1,48 @@
+{
+  "name": "repair-broken-build",
+  "description": "Reparar un build roto. Diagnóstico automático del error → corrección dirigida → verificación completa. Alineado con Plan Maestro §7.2 Repair Mode.",
+  "steps": [
+    {
+      "order": 1,
+      "agent": "build-fixer",
+      "action": "capture-error-output",
+      "input": "build_error_logs",
+      "output": "structured_error_report"
+    },
+    {
+      "order": 2,
+      "agent": "build-fixer",
+      "action": "classify-error-type",
+      "input": "structured_error_report",
+      "output": "error_classification_with_root_cause"
+    },
+    {
+      "order": 3,
+      "agent": "librarian",
+      "action": "retrieve-fix-context",
+      "input": "error_classification_with_root_cause",
+      "output": "relevant_context_and_patterns"
+    },
+    {
+      "order": 4,
+      "agent": "build-fixer",
+      "action": "apply-fix",
+      "input": "error_classification + fix_context",
+      "output": "fix_applied_description"
+    },
+    {
+      "order": 5,
+      "agent": "build-fixer",
+      "action": "verify-fix",
+      "input": "fix_applied_description",
+      "output": "build_result_success_or_failure"
+    },
+    {
+      "order": 6,
+      "agent": "quality-gate",
+      "action": "regression-check",
+      "input": "build_result",
+      "output": "regression_verdict"
+    }
+  ]
+}

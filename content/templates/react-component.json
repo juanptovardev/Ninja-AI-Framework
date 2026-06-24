@@ -1,0 +1,15 @@
+{
+  "name": "react-component",
+  "description": "Scaffold de un componente React con TypeScript para Forge Console. Genera componente con props tipadas, Tailwind styling y export nombrado.",
+  "type": "component",
+  "files": [
+    {
+      "path": "{{name}}.tsx",
+      "content": "import type { FC } from 'react';\n\ninterface {{PascalName}}Props {\n  readonly className?: string;\n}\n\nexport const {{PascalName}}: FC<{{PascalName}}Props> = ({ className = '' }) => {\n  return (\n    <div className={className}>\n      {/* Component content */}\n    </div>\n  );\n};\n"
+    },
+    {
+      "path": "{{name}}.test.ts",
+      "content": "import { describe, it, expect } from 'vitest';\nimport { render, screen } from '@testing-library/react';\nimport { {{PascalName}} } from './{{name}}';\n\ndescribe('{{PascalName}}', () => {\n  it('renders without crashing', () => {\n    render(<{{PascalName}} />);\n    expect(screen.getByRole('div')).toBeDefined();\n  });\n});\n"
+    }
+  ]
+}

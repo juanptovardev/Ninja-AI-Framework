@@ -1,0 +1,32 @@
+{
+  "name": "@ninja/pulse-center",
+  "version": "1.0.0",
+  "description": "Ninja AI Framework — Pulse Center. Sistema de salud, métricas y monitoreo.",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsup src/index.ts --format cjs,esm --dts",
+    "dev": "tsup src/index.ts --format cjs,esm --dts --watch",
+    "typecheck": "tsc --noEmit",
+    "clean": "rimraf dist node_modules"
+  },
+  "dependencies": {
+    "@ninja/contracts": "workspace:*",
+    "@ninja/events": "workspace:*",
+    "@ninja/logging": "workspace:*",
+    "@ninja/storage": "workspace:*",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "tsup": "^8.0.2",
+    "typescript": "^5.7.0"
+  }
+}

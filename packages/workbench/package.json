@@ -1,0 +1,26 @@
+{
+  "name": "@ninja/workbench",
+  "version": "1.0.0",
+  "description": "Ninja AI Framework Foundation - workbench",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsup src/index.ts src/migrate.ts --format cjs,esm --dts",
+    "dev": "tsup src/index.ts src/migrate.ts --format cjs,esm --dts --watch",
+    "migrate": "node dist/migrate.js",
+    "typecheck": "tsc --noEmit",
+    "clean": "rimraf dist node_modules"
+  },
+  "dependencies": {
+    "@ninja/contracts": "workspace:*",
+    "@ninja/storage": "workspace:*",
+    "@ninja/config": "workspace:*",
+    "@ninja/logging": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^18.0.0",
+    "tsup": "^8.0.2",
+    "typescript": "^5.7.0"
+  }
+}

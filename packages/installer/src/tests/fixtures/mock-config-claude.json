@@ -1,0 +1,26 @@
+{
+  "id": "claude-code",
+  "name": "CLAUDE-CODE",
+  "type": "cli",
+  "executablePath": "/usr/local/bin/claude",
+  "configPath": "/home/user/.claude/CLAUDE.md",
+  "configDir": "/home/user/.claude",
+  "mcpConfigPath": "/home/user/.claude.json",
+  "skillsDir": "/home/user/.claude/skills",
+  "agentsDir": "/home/user/.claude/agents",
+  "status": "disconnected",
+  "capabilities": [
+    { "name": "delegation-full", "score": 10.0 },
+    { "name": "auditing", "score": 9.8 }
+  ],
+  "assignedRole": "sentinel",
+  "delegationModel": "full",
+  "connectionMethod": {
+    "type": "headless-cli",
+    "command": "claude",
+    "flags": ["-p", "--output-format", "json"]
+  },
+  "supportsAutoInstall": true,
+  "installCommand": "npm install -g @anthropic/claude-code",
+  "installUrl": "https://docs.anthropic.com/claude-code"
+}

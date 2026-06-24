@@ -1,0 +1,186 @@
+{
+  "name": "ninja-package-scaffold",
+  "description": "Template system for generating new @ninja/* packages with type-specific configurations",
+  "types": {
+    "foundation": {
+      "package.json": {
+        "name": "@ninja/{{name}}",
+        "version": "0.1.0",
+        "description": "{{description}}",
+        "type": "module",
+        "main": "./dist/index.js",
+        "module": "./dist/index.mjs", 
+        "types": "./dist/index.d.ts",
+        "exports": {
+          ".": {
+            "types": "./dist/index.d.ts",
+            "import": "./dist/index.mjs",
+            "require": "./dist/index.js",
+            "default": "./dist/index.js"
+          },
+          "./package.json": "./package.json"
+        },
+        "files": [
+          "dist/"
+        ],
+        "scripts": {
+          "build": "tsup",
+          "dev": "tsup --watch",
+          "typecheck": "tsc --noEmit"
+        },
+        "dependencies": {},
+        "devDependencies": {
+          "tsup": "^8.0.0",
+          "typescript": "^5.0.0"
+        }
+      },
+      "tsconfig.json": {
+        "extends": "../../tsconfig.base.json",
+        "compilerOptions": {
+          "outDir": "./dist",
+          "rootDir": "./src"
+        },
+        "include": ["src/**/*"]
+      },
+      "src/index.ts": "// Export all public APIs from the module\nexport {} from './schema';\n",
+      "src/schema.ts": "/**\n * Module types and contracts\n */\n\n// TODO: Add module-specific types and contracts\n"
+    },
+    "domain": {
+      "package.json": {
+        "name": "@ninja/{{name}}",
+        "version": "0.1.0",
+        "description": "{{description}}",
+        "type": "module",
+        "main": "./dist/index.js",
+        "module": "./dist/index.mjs",
+        "types": "./dist/index.d.ts",
+        "exports": {
+          ".": {
+            "types": "./dist/index.d.ts",
+            "import": "./dist/index.mjs",
+            "require": "./dist/index.js",
+            "default": "./dist/index.js"
+          },
+          "./package.json": "./package.json"
+        },
+        "files": [
+          "dist/",
+          "package.json"
+        ],
+        "scripts": {
+          "build": "tsup",
+          "dev": "tsup --watch",
+          "typecheck": "tsc --noEmit"
+        },
+        "dependencies": {
+          "@ninja/contracts": "workspace:*",
+          "@ninja/events": "workspace:*"
+        },
+        "devDependencies": {
+          "tsup": "^8.0.0",
+          "typescript": "^5.0.0"
+        }
+      },
+      "tsconfig.json": {
+        "extends": "../../tsconfig.base.json",
+        "compilerOptions": {
+          "outDir": "./dist",
+          "rootDir": "./src"
+        },
+        "include": ["src/**/*"]
+      },
+      "src/index.ts": "// Export all public APIs from the module\nexport {} from './schema';\n",
+      "src/schema.ts": "/**\n * Module types and contracts\n */\n\n// TODO: Add module-specific types and contracts\n"
+    },
+    "integration": {
+      "package.json": {
+        "name": "@ninja/integrations-{{name}}",
+        "version": "0.1.0",
+        "description": "{{description}}",
+        "type": "module",
+        "main": "./dist/index.js",
+        "module": "./dist/index.mjs",
+        "types": "./dist/index.d.ts",
+        "exports": {
+          ".": {
+            "types": "./dist/index.d.ts",
+          "import": "./dist/index.mjs",
+          "require": "./dist/index.js",
+          "default": "./dist/index.js"
+          },
+          "./package.json": "./package.json"
+        },
+        "files": [
+          "dist/",
+          "package.json"
+        ],
+        "scripts": {
+          "build": "tsup",
+          "dev": "tsup --watch",
+          "typecheck": "tsc --noEmit"
+        },
+        "dependencies": {
+          "@ninja/contracts": "workspace:*",
+          "@ninja/logging": "workspace:*",
+          "@ninja/events": "workspace:*"
+        },
+        "devDependencies": {
+          "tsup": "^8.0.0",
+          "typescript": "^5.0.0"
+        }
+      },
+      "tsconfig.json": {
+        "extends": "../../tsconfig.base.json",
+        "compilerOptions": {
+          "outDir": "./dist",
+          "rootDir": "./src"
+        },
+        "include": ["src/**/*"]
+      },
+      "src/index.ts": "// Export all public APIs from the module\nexport {} from './schema';\n",
+      "src/schema.ts": "/**\n * Module types and contracts\n */\n\n// TODO: Add integration-specific types and contracts\n"
+    },
+    "app": {
+      "package.json": {
+        "name": "@ninja/{{name}}",
+        "version": "0.1.0",
+        "description": "{{description}}",
+        "type": "module",
+        "main": "src/index.ts",
+        "scripts": {
+          "dev": "next dev",
+          "build": "next build",
+          "start": "next start"
+        },
+        "dependencies": {
+          "next": "^14.0.0",
+          "react": "^18.0.0",
+          "react-dom": "^18.0.0"
+        },
+        "devDependencies": {
+          "typescript": "^5.0.0",
+          "next": "^14.0.0"
+        }
+      },
+      "tsconfig.json": {
+        "compilerOptions": {
+          "target": "es2017",
+          "lib": ["dom", "dom.iterable", "es2017"],
+          "allowJs": true,
+          "skipLibCheck": true,
+          "strict": true,
+          "noEmit": true,
+          "esModuleInterop": true,
+          "resolveJsonModule": true,
+          "isolatedModules": true,
+          "jsx": "preserve",
+          "incremental": true
+        },
+        "include": ["**/*.ts", "**/*.tsx"],
+        "exclude": ["node_modules"]
+      },
+      "src/index.ts": "import { createServer } from 'next';\n\n// TODO: Implement app-specific Next.js application\n",
+      "src/server.ts": "// Server configuration\n// TODO: Add server-specific implementation\n"
+    }
+  }
+}

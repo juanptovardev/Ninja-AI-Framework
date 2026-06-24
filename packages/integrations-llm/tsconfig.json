@@ -1,0 +1,19 @@
+{
+  "compilerOptions": {
+    "moduleResolution": "Bundler",
+    "target": "ES2022",
+    "module": "ESNext",
+    "strict": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "baseUrl": ".",
+    "paths": {
+      "@ninja/contracts": ["../contracts/src"],
+      "@ninja/logging": ["../logging/src"],
+      "@ninja/events": ["../events/src"]
+    }
+  },
+  "include": ["src/**/*"]
+}

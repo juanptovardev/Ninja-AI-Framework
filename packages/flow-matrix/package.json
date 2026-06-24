@@ -1,0 +1,32 @@
+{
+  "name": "@ninja/flow-matrix",
+  "version": "1.0.0",
+  "description": "Workflow engine for Ninja AI Framework",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup src/index.ts --format cjs,esm --dts",
+    "dev": "tsup src/index.ts --format cjs,esm --dts --watch",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [
+    "ninja",
+    "workflow",
+    "engine"
+  ],
+  "author": "Ninja AI Framework",
+  "license": "MIT",
+  "dependencies": {
+    "@ninja/contracts": "workspace:*",
+    "@ninja/events": "workspace:*",
+    "@ninja/storage": "workspace:*",
+    "@ninja/trace-ledger": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "tsup": "^6.0.0"
+  }
+}

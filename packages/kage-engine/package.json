@@ -1,0 +1,38 @@
+{
+  "name": "@ninja/kage-engine",
+  "version": "1.0.0",
+  "description": "Kage Engine - Central orchestration engine for Ninja AI Framework",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup src/index.ts --format cjs,esm --dts",
+    "dev": "tsup src/index.ts --format cjs,esm --dts --watch",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [
+    "ninja",
+    "kage",
+    "engine",
+    "orchestration"
+  ],
+  "author": "Ninja AI Framework",
+  "license": "MIT",
+  "dependencies": {
+    "@ninja/contracts": "workspace:*",
+    "@ninja/events": "workspace:*",
+    "@ninja/logging": "workspace:*",
+    "@ninja/flow-matrix": "workspace:*",
+    "@ninja/arsenal-registry": "workspace:*",
+    "@ninja/agent-runtime": "workspace:*",
+    "@ninja/trace-ledger": "workspace:*",
+    "@ninja/workbench": "workspace:*",
+    "@ninja/integrations-llm": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "tsup": "^8.0.0"
+  }
+}

@@ -1,0 +1,38 @@
+{
+  "name": "@ninja/arsenal-registry",
+  "version": "1.0.0",
+  "description": "Central registry for skills, tools and actions in Ninja AI Framework",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist/**/*",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "lint": "cross-env ESLINT_USE_FLAT_CONFIG=false eslint src --ext .ts,.tsx",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@ninja/contracts": "workspace:*",
+    "@ninja/logging": "workspace:*",
+    "@ninja/events": "workspace:*"
+  },
+  "devDependencies": {
+    "@ninja/config": "workspace:*",
+    "tsup": "^8.0.0",
+    "typescript": "^5.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

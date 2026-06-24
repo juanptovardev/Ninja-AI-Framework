@@ -1,0 +1,40 @@
+{
+  "name": "@ninja/app-shell",
+  "version": "1.0.0",
+  "description": "Ninja AI Framework — App Shell. Layout principal de Forge Console con sidebar y rightRail.",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsup src/index.ts --format cjs,esm --dts --external react --external react-dom",
+    "dev": "tsup src/index.ts --format cjs,esm --dts --external react --external react-dom --watch",
+    "typecheck": "tsc --noEmit",
+    "clean": "rimraf dist node_modules"
+  },
+  "dependencies": {
+    "@gsap/react": "^2.1.2",
+    "@ninja/ui-kit": "workspace:*",
+    "@phosphor-icons/react": "^2.1.10",
+    "geist": "^1.7.2",
+    "gsap": "^3.15.0"
+  },
+  "peerDependencies": {
+    "react": "^18.0.0 || ^19.0.0",
+    "react-dom": "^18.0.0 || ^19.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "tsup": "^8.0.2",
+    "typescript": "^5.7.0"
+  }
+}

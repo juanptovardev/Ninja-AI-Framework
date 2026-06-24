@@ -1,0 +1,44 @@
+{
+  "name": "@ninja/sentinel",
+  "version": "1.0.0",
+  "description": "Security, audit, approval and senior supervision system for Ninja AI Framework",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup src/index.ts --format cjs,esm --dts",
+    "dev": "tsup src/index.ts --format cjs,esm --dts --watch",
+    "typecheck": "tsc --noEmit",
+    "clean": "rimraf dist node_modules"
+  },
+  "keywords": [
+    "ninja",
+    "sentinel",
+    "security",
+    "audit",
+    "policy",
+    "approval"
+  ],
+  "author": "Ninja AI Framework",
+  "license": "MIT",
+  "dependencies": {
+    "@ninja/contracts": "workspace:*",
+    "@ninja/logging": "workspace:*",
+    "@ninja/events": "workspace:*",
+    "@ninja/arsenal-registry": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "tsup": "^8.0.0"
+  }
+}

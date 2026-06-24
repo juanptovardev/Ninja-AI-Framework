@@ -1,0 +1,38 @@
+{
+  "name": "@ninja/dojo-cli",
+  "version": "1.0.0",
+  "description": "Dojo CLI — cliente de terminal de Ninja AI Framework",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "ninja": "./dist/index.js"
+  },
+  "scripts": {
+    "dev": "tsup src/index.ts --format esm --dts --watch",
+    "build": "tsup src/index.ts --format esm --dts",
+    "start": "node dist/index.js",
+    "typecheck": "tsc --noEmit",
+    "clean": "rimraf dist tsconfig.tsbuildinfo"
+  },
+  "dependencies": {
+    "@clack/prompts": "^0.7.0",
+    "@ninja/contracts": "workspace:*",
+    "@ninja/installer": "workspace:*",
+    "@ninja/logging": "workspace:*",
+    "@ninja/roster": "workspace:*",
+    "chalk": "^5.3.0",
+    "cli-spinners": "^3.4.0",
+    "figlet": "^1.11.0",
+    "inquirer": "^9.2.0",
+    "open": "^11.0.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/inquirer": "^9.0.9",
+    "@types/node": "^22.0.0",
+    "rimraf": "^6.0.0",
+    "tsup": "^8.0.2",
+    "tsx": "^4.7.1",
+    "typescript": "^5.7.0"
+  }
+}

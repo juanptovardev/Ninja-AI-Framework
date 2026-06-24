@@ -1,0 +1,37 @@
+{
+  "name": "@ninja/agent-runtime",
+  "version": "1.0.0",
+  "description": "Agent runtime for Ninja AI Framework",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup src/index.ts --format cjs,esm --dts",
+    "dev": "tsup src/index.ts --format cjs,esm --dts --watch",
+    "typecheck": "tsc --noEmit",
+    "lint": "cross-env ESLINT_USE_FLAT_CONFIG=false eslint src --ext .ts,.tsx"
+  },
+  "keywords": [
+    "ninja",
+    "agent",
+    "runtime"
+  ],
+  "author": "Ninja AI Framework",
+  "license": "MIT",
+  "dependencies": {
+    "@ninja/contracts": "workspace:*",
+    "@ninja/events": "workspace:*",
+    "@ninja/logging": "workspace:*",
+    "@ninja/flow-matrix": "workspace:*",
+    "@ninja/arsenal-registry": "workspace:*",
+    "@ninja/trace-ledger": "workspace:*",
+    "@ninja/integrations-llm": "workspace:*",
+    "@ninja/model-gateway": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "tsup": "^8.0.0"
+  }
+}

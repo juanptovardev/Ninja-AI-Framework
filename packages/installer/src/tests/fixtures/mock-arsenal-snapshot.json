@@ -1,0 +1,39 @@
+{
+  "timestamp": "2026-06-04T10:00:00.000Z",
+  "tools": {
+    "fs.read": {
+      "id": "fs.read",
+      "name": "fs.read",
+      "friendlyName": "Read File",
+      "description": "Read the contents of a file",
+      "category": "filesystem",
+      "permission": "safe",
+      "handler": "function() { return { success: true }; }"
+    },
+    "git.status": {
+      "id": "git.status",
+      "name": "git.status",
+      "friendlyName": "Git Status",
+      "description": "Get the status of the git repository",
+      "category": "git",
+      "permission": "safe",
+      "handler": "function() { return { success: true }; }"
+    }
+  },
+  "skills": {
+    "debug-assistant": {
+      "id": "debug-assistant",
+      "name": "Debug Assistant",
+      "description": "Helps with debugging code issues",
+      "tools": ["fs.read"],
+      "agentRole": "worker"
+    },
+    "code-review": {
+      "id": "code-review",
+      "name": "Code Review",
+      "description": "Reviews code quality and style",
+      "tools": ["fs.read", "git.status"],
+      "agentRole": "sentinel"
+    }
+  }
+}

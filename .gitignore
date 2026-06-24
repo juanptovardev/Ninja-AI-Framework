@@ -1,0 +1,151 @@
+# ============================================================================
+# Ninja AI Framework — .gitignore (enterprise)
+# Filosofía: versionar SOLO la MATRIZ del framework (código fuente, contratos,
+# content packs, configs de build, docs y plan maestro). Excluir TODO artefacto
+# de desarrollo, build, andamios (scaffolding) y configuración local de máquina.
+# ============================================================================
+
+# ============================================================================
+# Dependencias (Node / pnpm)
+# ============================================================================
+node_modules/
+.pnpm-store/
+.pnpm-debug.log*
+.npm/
+
+# ============================================================================
+# Salidas de build / compilación
+# ============================================================================
+dist/
+build/
+out/
+.next/
+.turbo/
+*.tsbuildinfo
+tsconfig.tsbuildinfo
+tools/dist/
+
+# ============================================================================
+# Testing / cobertura / reportes (artefactos de desarrollo)
+# ============================================================================
+coverage/
+playwright-report/
+playwright/.cache/
+/playwright/.auth
+test-results/
+.vitest/
+.nyc_output/
+
+# ============================================================================
+# Base de datos / runtime state / workspaces de ejecución
+# ============================================================================
+*.db
+*.sqlite
+*.sqlite3
+*.db-journal
+*.db-shm
+*.db-wal
+workspaces/
+.ninja/
+
+# ============================================================================
+# Entorno / secretos (NUNCA versionar)
+# ============================================================================
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.cert
+*.crt
+*.p12
+runtime.key
+
+# ============================================================================
+# Logs y temporales de runtime
+# ============================================================================
+*.log
+*.log.*
+*.tmp
+nul
+NUL
+build.log
+test-runtime.js
+
+# ============================================================================
+# Sistema operativo / editores
+# ============================================================================
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+*.suo
+*.user
+*.sln.docstates
+# VS Code: versionar solo configs compartidos del equipo
+.vscode/*
+!.vscode/launch.json
+!.vscode/extensions.json
+!.vscode/tasks.json
+
+# ============================================================================
+# Config local de herramientas de IA / IDE (específica de máquina, NO matriz)
+# ============================================================================
+.claude/
+.gemini/
+.atl/
+# Kiro: ignorar config MCP local (rutas absolutas de máquina); permitir steering/specs
+.kiro/settings/mcp.json
+
+# ============================================================================
+# Andamios de orquestación de agentes (working files, NO framework)
+# ============================================================================
+.agents/
+
+# ============================================================================
+# Datos extraídos / scraping (insumo de desarrollo, NO matriz)
+# ============================================================================
+extracted_web/
+
+# ============================================================================
+# Andamios / scaffolding sueltos (junk de desarrollo — ver S0.3 para git rm --cached)
+# ============================================================================
+landing.html
+number_guessing_game.py
+patch-executor.js
+fase3-types.ts
+tools/test.txt
+lista modelos.md
+scripts/test-fase2.mjs
+scripts/test-fase3.mjs
+scripts/extract-web.mjs
+
+# ============================================================================
+# Reportes históricos de soluciones (artefactos puntuales de depuración)
+# ============================================================================
+CORS_SOLUTION_SUMMARY.md
+LOG_DE_SOLUCION_HTTP_SERVER.md
+solution-cors-dashboard.md
+
+# ============================================================================
+# Artefactos de rutas largas (errores de scaffolding en Windows)
+# ============================================================================
+CUsers*/
+CUsersjuanp*/
+
+# ============================================================================
+# Registro de creación / planificación / guías / arquitectura interna
+# (backup limpio y funcional: sin historia de cómo se construyó ni guías)
+# ============================================================================
+logs/
+docs/architecture/
+tools/
+ORIGINAL_REQUEST.md
+Ninja AI Framework v1.0.md
+
+# ============================================================================
+# Backup solo-código: excluir instrucciones de agentes IA y toda la doc
+# ============================================================================
+AGENTS.md
+CLAUDE.md
+docs/

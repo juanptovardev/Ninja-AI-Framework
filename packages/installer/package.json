@@ -1,0 +1,23 @@
+{
+  "name": "@ninja/installer",
+  "version": "0.1.0",
+  "description": "Ninja AI Framework — Ecosystem Installer (Gentle AI-compatible injection pipeline)",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsup src/index.ts --format esm --dts --clean",
+    "dev": "tsup src/index.ts --format esm --dts --watch",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@ninja/logging": "workspace:*",
+    "@ninja/roster": "workspace:*",
+    "@ninja/arsenal-registry": "workspace:*"
+  },
+  "devDependencies": {
+    "tsup": "^8.0.0",
+    "typescript": "^5.0.0",
+    "vitest": "^1.0.0"
+  }
+}

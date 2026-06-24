@@ -1,0 +1,39 @@
+{
+  "name": "ninja-ai-framework",
+  "version": "1.0.0",
+  "private": true,
+  "packageManager": "pnpm@9.15.0",
+  "scripts": {
+    "dev": "turbo run dev --parallel",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "test": "vitest run --passWithNoTests",
+    "typecheck": "turbo run typecheck",
+    "clean": "turbo run clean && rimraf node_modules .turbo",
+    "format": "prettier --write .",
+    "runtime:dev": "pnpm --filter @ninja/kage-runtime dev",
+    "ninja": "pnpm runtime:dev",
+    "console:dev": "pnpm --filter @ninja/forge-console dev",
+    "forge": "pnpm console:dev",
+    "cli:dev": "pnpm --filter @ninja/dojo-cli dev",
+    "dojo": "pnpm --filter @ninja/dojo-cli build && pnpm --filter @ninja/dojo-cli start",
+    "db:migrate": "pnpm --filter @ninja/workbench migrate",
+    "db:studio": "pnpm --filter @ninja/storage studio",
+    "test:e2e": "playwright test",
+    "scaffold:workspace": "node scripts/scaffold-workspace.mjs"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.49.0",
+    "@types/node": "^22.10.0",
+    "@typescript-eslint/eslint-plugin": "^8.58.2",
+    "@typescript-eslint/parser": "^8.58.2",
+    "@vitest/coverage-v8": "^4.1.5",
+    "cross-env": "^10.1.0",
+    "eslint": "^9.0.0",
+    "prettier": "^3.3.0",
+    "rimraf": "^6.0.0",
+    "turbo": "^2.2.0",
+    "typescript": "^5.7.0",
+    "vitest": "^4.1.4"
+  }
+}

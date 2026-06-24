@@ -1,0 +1,170 @@
+@import 'tailwindcss';
+@source "../../../packages/app-shell/src";
+@source "../../../packages/ui-kit/src";
+@source "../../../packages/office-grid/src";
+
+/* 
+ * OKLCH Semantic Color System 
+ * Base: Very dark tinted navy (industrial/dark-tech) 
+ * Accent: Cyber cyan
+ */
+:root {
+  /* Base Surfaces */
+  --ninja-bg-primary: oklch(0.18 0.015 250);
+  --ninja-bg-secondary: oklch(0.22 0.02 250);
+  --ninja-bg-tertiary: oklch(0.28 0.025 250);
+  
+  /* Surfaces & Borders */
+  --ninja-surface: oklch(0.25 0.02 250);
+  --ninja-surface-hover: oklch(0.3 0.03 250);
+  --ninja-border: oklch(0.28 0.02 250);
+  --ninja-border-subtle: oklch(0.23 0.015 250);
+  --ninja-border-strong: oklch(0.35 0.03 250);
+  
+  /* Typography */
+  --ninja-text-primary: oklch(0.95 0.01 250);
+  --ninja-text-secondary: oklch(0.75 0.02 250);
+  --ninja-text-muted: oklch(0.60 0.02 250);
+  
+  /* Accents */
+  --ninja-accent: oklch(0.75 0.15 210); /* Cyan */
+  --ninja-accent-hover: oklch(0.85 0.12 210);
+  --ninja-accent-muted: oklch(0.75 0.15 210 / 0.15);
+  
+  /* Status */
+  --ninja-success: oklch(0.70 0.14 150);
+  --ninja-warning: oklch(0.75 0.15 70);
+  --ninja-danger: oklch(0.65 0.20 25);
+  --ninja-info: oklch(0.60 0.15 250);
+  
+  /* Glassmorphism */
+  --ninja-glass-bg: oklch(1 0 0 / 0.02);
+  --ninja-glass-border: oklch(1 0 0 / 0.05);
+  --ninja-glass-inner: oklch(1 0 0 / 0.03);
+  
+  /* Geometry */
+  --ninja-radius: 12px;
+  --ninja-radius-sm: 8px;
+  --ninja-radius-xs: 4px;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  height: 100%;
+  background-color: var(--ninja-bg-primary);
+  scroll-behavior: smooth;
+  scrollbar-width: none; 
+}
+html::-webkit-scrollbar {
+  display: none;
+}
+
+body {
+  height: 100%;
+  min-height: 100dvh;
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  font-feature-settings: 'cv02', 'ss01';
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: var(--ninja-bg-primary);
+  color: var(--ninja-text-primary);
+  position: relative;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  pointer-events: none;
+  opacity: 0.04;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+}
+
+h1, h2, h3, h4, h5, h6, .font-display {
+  font-family: var(--font-outfit), sans-serif;
+  letter-spacing: -0.03em;
+  text-wrap: balance;
+  font-weight: 600;
+}
+
+p, li, .prose {
+  text-wrap: pretty;
+  max-width: 70ch;
+  line-height: 1.6;
+}
+
+*:focus-visible {
+  outline: 2px solid var(--ninja-accent);
+  outline-offset: 4px;
+  border-radius: 2px;
+}
+
+::selection {
+  background-color: var(--ninja-accent);
+  color: oklch(0.1 0 0);
+}
+
+.glass-card {
+  background: var(--ninja-glass-bg);
+  border: 1px solid var(--ninja-glass-border);
+  border-radius: var(--ninja-radius);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: inset 0 1px 0 0 var(--ninja-glass-inner), 0 8px 32px 0 oklch(0 0 0 / 0.2);
+  transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), border-color 0.3s ease, background-color 0.3s ease;
+}
+
+button, a, input, textarea, select {
+  transition: all 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+button:active, .interactive-card:active {
+  transform: scale(0.98);
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.skeleton {
+  background: linear-gradient(90deg, var(--ninja-bg-secondary) 25%, var(--ninja-surface) 50%, var(--ninja-bg-secondary) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  border-radius: var(--ninja-radius-sm);
+}
+
+.bg-grid {
+  background-image:
+    linear-gradient(var(--ninja-border-subtle) 1px, transparent 1px),
+    linear-gradient(90deg, var(--ninja-border-subtle) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+.font-mono-data {
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 0.8125rem;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+}
+
+@keyframes pulse-ring {
+  0% { transform: scale(0.8); opacity: 1; }
+  100% { transform: scale(2.5); opacity: 0; }
+}
+.status-pulse {
+  position: relative;
+}
+.status-pulse::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  animation: pulse-ring 2s cubic-bezier(0.165, 0.84, 0.44, 1) infinite;
+  background: inherit;
+}

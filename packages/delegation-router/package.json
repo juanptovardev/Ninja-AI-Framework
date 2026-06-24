@@ -1,0 +1,32 @@
+{
+  "name": "@ninja/delegation-router",
+  "version": "1.0.0",
+  "description": "Ninja AI Framework external task delegation router",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsup src/index.ts --format cjs,esm --dts",
+    "dev": "tsup src/index.ts --format cjs,esm --dts --watch",
+    "typecheck": "tsc --noEmit",
+    "clean": "rimraf dist node_modules"
+  },
+  "dependencies": {
+    "@ninja/contracts": "workspace:*",
+    "@ninja/logging": "workspace:*",
+    "@ninja/roster": "workspace:*",
+    "@ninja/client-adapters": "workspace:*"
+  },
+  "devDependencies": {
+    "tsup": "^8.0.2",
+    "typescript": "^5.7.0"
+  }
+}

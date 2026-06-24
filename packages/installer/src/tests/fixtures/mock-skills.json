@@ -1,0 +1,12 @@
+[
+  {
+    "id": "mock-skill-1",
+    "filename": "mock-skill-1.md",
+    "content": "# Mock Skill 1\nThis is the first mock skill."
+  },
+  {
+    "id": "mock-skill-2",
+    "filename": "mock-skill-2.md",
+    "content": "# Mock Skill 2\nThis is the second mock skill."
+  }
+]

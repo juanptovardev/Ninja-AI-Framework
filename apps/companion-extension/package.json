@@ -1,0 +1,46 @@
+{
+  "name": "@ninja/companion-extension",
+  "displayName": "Ninja Companion",
+  "description": "VS Code Companion Extension for Ninja AI Framework (Cursor & Codex integration)",
+  "version": "1.0.0",
+  "publisher": "ninja",
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "ninja.loadProfile",
+        "title": "Ninja: Load Profile"
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "cross-env ESLINT_USE_FLAT_CONFIG=false eslint src --ext ts",
+    "test": "node ./out/test/runTest.js"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.80.0",
+    "@types/glob": "^8.1.0",
+    "@types/mocha": "^10.0.1",
+    "@types/node": "20.x",
+    "glob": "^8.1.0",
+    "mocha": "^10.2.0",
+    "typescript": "^5.1.3",
+    "@vscode/test-electron": "^2.3.0"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}

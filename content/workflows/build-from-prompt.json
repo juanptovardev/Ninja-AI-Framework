@@ -1,0 +1,62 @@
+{
+  "name": "build-from-prompt",
+  "description": "Construir software desde un prompt del usuario. El flujo completo: intake → planificación → implementación → validación. Alineado con Plan Maestro §7.2 Build Mode.",
+  "steps": [
+    {
+      "order": 1,
+      "agent": "planner",
+      "action": "classify-and-decompose",
+      "input": "user_prompt",
+      "output": "task_list_with_priorities"
+    },
+    {
+      "order": 2,
+      "agent": "planificator",
+      "action": "generate-build-plan",
+      "input": "task_list_with_priorities",
+      "output": "execution_plan_with_agent_assignments"
+    },
+    {
+      "order": 3,
+      "agent": "librarian",
+      "action": "retrieve-relevant-context",
+      "input": "execution_plan_with_agent_assignments",
+      "output": "context_package_per_agent"
+    },
+    {
+      "order": 4,
+      "agent": "backend",
+      "action": "implement-core-logic",
+      "input": "assigned_tasks + context_package",
+      "output": "source_code_artifacts"
+    },
+    {
+      "order": 5,
+      "agent": "tester",
+      "action": "write-and-run-tests",
+      "input": "source_code_artifacts",
+      "output": "test_results_and_coverage"
+    },
+    {
+      "order": 6,
+      "agent": "quality-gate",
+      "action": "review-code-and-tests",
+      "input": "source_code_artifacts + test_results",
+      "output": "quality_verdict_with_findings"
+    },
+    {
+      "order": 7,
+      "agent": "security",
+      "action": "security-scan",
+      "input": "source_code_artifacts",
+      "output": "security_verdict_with_findings"
+    },
+    {
+      "order": 8,
+      "agent": "build-fixer",
+      "action": "fix-issues-if-any",
+      "input": "quality_findings + security_findings",
+      "output": "resolved_issues_or_escalation"
+    }
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "id": "cursor",
+  "name": "CURSOR",
+  "type": "gui",
+  "executablePath": "/usr/local/bin/cursor",
+  "configPath": "/home/user/.cursor/rules",
+  "configDir": "/home/user/.cursor",
+  "mcpConfigPath": "/home/user/.cursor/mcp.json",
+  "skillsDir": "/home/user/.cursor/skills",
+  "agentsDir": "/home/user/.cursor/agents",
+  "status": "disconnected",
+  "capabilities": [
+    { "name": "delegation-full", "score": 9.5 },
+    { "name": "native-subagents", "score": 9.5 }
+  ],
+  "assignedRole": "orchestrator",
+  "delegationModel": "full",
+  "connectionMethod": {
+    "type": "vsix-websocket",
+    "extensionId": "ninja.companion",
+    "port": 7779
+  },
+  "supportsAutoInstall": false,
+  "installCommand": "",
+  "installUrl": "https://cursor.sh"
+}

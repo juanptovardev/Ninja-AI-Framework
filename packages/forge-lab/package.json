@@ -1,0 +1,33 @@
+{
+  "name": "@ninja/forge-lab",
+  "version": "0.1.0",
+  "description": "Ninja AI Framework - Forge Lab for GitHub repository analysis and content extraction",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsup src/index.ts --format cjs,esm --dts",
+    "dev": "tsup src/index.ts --format cjs,esm --dts --watch",
+    "typecheck": "tsc --noEmit",
+    "clean": "rimraf dist node_modules"
+  },
+  "dependencies": {
+    "@ninja/contracts": "workspace:*",
+    "@ninja/logging": "workspace:*",
+    "@ninja/events": "workspace:*",
+    "@ninja/integrations-http": "workspace:*",
+    "@ninja/integrations-fs": "workspace:*",
+    "@ninja/trace-ledger": "workspace:*"
+  },
+  "devDependencies": {
+    "tsup": "^8.0.2",
+    "typescript": "^5.7.0"
+  }
+}

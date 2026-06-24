@@ -1,0 +1,27 @@
+{
+  "name": "typescript-package",
+  "description": "Scaffold de un nuevo package @ninja/* TypeScript para el monorepo. Genera la estructura base consistente con los packages existentes: package.json, tsconfig.json, tsup.config.ts, src/index.ts, src/schema.ts.",
+  "type": "package",
+  "files": [
+    {
+      "path": "package.json",
+      "content": "{\n  \"name\": \"@ninja/{{name}}\",\n  \"version\": \"0.0.1\",\n  \"description\": \"{{description}}\",\n  \"main\": \"./dist/index.cjs\",\n  \"module\": \"./dist/index.js\",\n  \"types\": \"./dist/index.d.ts\",\n  \"exports\": {\n    \".\": {\n      \"import\": { \"types\": \"./dist/index.d.ts\", \"default\": \"./dist/index.js\" },\n      \"require\": { \"types\": \"./dist/index.d.cts\", \"default\": \"./dist/index.cjs\" }\n    }\n  },\n  \"scripts\": {\n    \"build\": \"tsup\",\n    \"dev\": \"tsup --watch\",\n    \"typecheck\": \"tsc --noEmit\"\n  },\n  \"dependencies\": {},\n  \"devDependencies\": {\n    \"@ninja/contracts\": \"workspace:*\",\n    \"tsup\": \"^8.5.1\",\n    \"typescript\": \"^5.7.0\"\n  }\n}"
+    },
+    {
+      "path": "tsconfig.json",
+      "content": "{\n  \"extends\": \"../../tsconfig.base.json\",\n  \"compilerOptions\": {\n    \"outDir\": \"./dist\",\n    \"rootDir\": \"./src\"\n  },\n  \"include\": [\"src\"]\n}"
+    },
+    {
+      "path": "tsup.config.ts",
+      "content": "import { defineConfig } from 'tsup';\n\nexport default defineConfig({\n  entry: ['src/index.ts'],\n  format: ['cjs', 'esm'],\n  dts: true,\n  clean: true,\n  sourcemap: true,\n});"
+    },
+    {
+      "path": "src/index.ts",
+      "content": "/**\n * @ninja/{{name}} — index.ts\n * API pública del módulo.\n */\n\nexport type {} from './schema.js';"
+    },
+    {
+      "path": "src/schema.ts",
+      "content": "/**\n * @ninja/{{name}} — schema.ts\n * Tipos y contratos del módulo.\n */\n"
+    }
+  ]
+}
