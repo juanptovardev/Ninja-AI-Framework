@@ -18,7 +18,8 @@ import { MemoryManager } from './memory';
 import { AGENT_DEFINITIONS } from './definitions';
 import { LLMClient, type LLMRequest, type LLMResponse, classifyLLMError } from '@ninja/integrations-llm';
 import { ModelSelector, FallbackChain, type ModelCapability, type SelectionStrategy } from '@ninja/model-gateway';
-import { LLMError, EngineError, ErrorCodes } from '@ninja/contracts';
+import { LLMError, EngineError, ErrorCodes, BudgetError } from '@ninja/contracts';
+import type { BudgetManager } from '@ninja/model-gateway';
 
 const ROLE_SELECTION_MAP: Record<string, { capability: ModelCapability; strategy: SelectionStrategy }> = {
   Planner: { capability: 'reasoning', strategy: 'most-capable' },
@@ -50,6 +51,8 @@ export class AgentExecutor implements StepHandler {
     private readonly fallbackChain?: FallbackChain,
     /** Controls behavior when chain is exhausted (ADR-0003, NINJA_LLM_FAIL_MODE env var). */
     private readonly llmFailMode: 'strict' | 'legacy' = 'strict',
+    private readonly budgetManager?: BudgetManager,
+    private readonly sessionTokenBudget?: number,
   ) {}
 
   /**
@@ -63,6 +66,15 @@ export class AgentExecutor implements StepHandler {
     request: LLMRequest,
     sessionId?: string,
   ): Promise<LLMResponse | { fallback: true; retryable: true; status: 'failed'; result: string; timestamp: string }> {
+    if (this.budgetManager && this.sessionTokenBudget !== undefined && sessionId) {
+      if (this.budgetManager.isOverBudget(sessionId, this.sessionTokenBudget)) {
+        throw new BudgetError(
+          `Token budget exceeded for session ${sessionId} (limit: ${this.sessionTokenBudget})`,
+          { context: { sessionId, limit: this.sessionTokenBudget } },
+        );
+      }
+    }
+
     if (!this.fallbackChain) {
       return this.llmClient.complete(request);
     }
@@ -739,8 +751,9 @@ export class AgentExecutor implements StepHandler {
 
       // In strict mode (or when FallbackChain already exhausted), re-throw so run()
       // marks the task as failed with the correct StepResult.status = 'failed'.
+      // BudgetError always re-throws (budget enforcement is not a legacy fallback scenario).
       // In legacy mode without FallbackChain, return the historic fallback object.
-      if (this.fallbackChain && this.llmFailMode === 'strict') {
+      if (error instanceof BudgetError || (this.fallbackChain && this.llmFailMode === 'strict')) {
         throw error;
       }
 
