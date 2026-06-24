@@ -20,3 +20,6 @@ export * from './engine.js';
 
 // Contratos de integraciones (Fase 8)
 export * from './integrations.js';
+
+// Error hierarchy (WP-B1)
+export * from './errors.js';
