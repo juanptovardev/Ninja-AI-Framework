@@ -1,6 +1,7 @@
 const RUNTIME_PORT = process.env.NEXT_PUBLIC_NINJA_RUNTIME_PORT || '3141';
 export const BASE_URL = `http://127.0.0.1:${RUNTIME_PORT}`;
-export const WS_URL = `ws://127.0.0.1:${RUNTIME_PORT}/ws/events`;
+export const WS_URL =
+  process.env.NEXT_PUBLIC_RUNTIME_WS_URL ?? `ws://127.0.0.1:${RUNTIME_PORT}/ws/events`;
 
 export interface ApiError {
   message: string;

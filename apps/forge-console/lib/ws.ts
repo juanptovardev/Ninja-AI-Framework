@@ -1,7 +1,8 @@
 import type { NinjaEvent } from '@ninja/contracts';
 
 const RUNTIME_PORT = process.env.NINJA_RUNTIME_PORT || '3141';
-const WS_URL = `ws://localhost:${RUNTIME_PORT}/ws/events`;
+const WS_URL =
+  process.env.NEXT_PUBLIC_RUNTIME_WS_URL ?? `ws://localhost:${RUNTIME_PORT}/ws/events`;
 
 export type ConnectionStatus = 'connecting' | 'connected' | 'disconnected';
 
