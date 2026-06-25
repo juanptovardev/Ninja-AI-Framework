@@ -362,7 +362,8 @@ export default function SettingsPage() {
                   <button
                     type="button"
                     onClick={() => setRevealApiKey(!revealApiKey)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--ninja-text-muted)] hover:text-[var(--ninja-text-primary)]"
+                    aria-label={revealApiKey ? 'Hide API key' : 'Show API key'}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--ninja-text-muted)] hover:text-[var(--ninja-text-primary)] focus-visible:ring-2 focus-visible:ring-[var(--ninja-accent)] focus-visible:outline-none rounded"
                   >
                     <Key weight="duotone" className="w-5 h-5" />
                   </button>
