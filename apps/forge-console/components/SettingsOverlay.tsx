@@ -6,6 +6,8 @@ import { fetchProviders, fetchWorkspaceSettings, api } from '../lib/api';
 import type { LLMProvider, WorkspaceSettings, ProviderType } from '../lib/types';
 import { Plus, PlugsConnected, Plugs, Key, HardDrives, Trash, PencilSimple } from '@phosphor-icons/react';
 import { useUccStore } from '../lib/ucc-store';
+import { toast } from 'sonner';
+import { ConfirmDialog } from './ConfirmDialog';
 
 const providerTypeOptions = [
   { value: 'openai', label: 'OpenAI' },
@@ -35,6 +37,8 @@ export default function SettingsOverlay() {
   const [saving, setSaving] = useState(false);
   const [testingProvider, setTestingProvider] = useState<string | null>(null);
   const [revealApiKey, setRevealApiKey] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -111,9 +115,9 @@ export default function SettingsOverlay() {
     try {
       setTestingProvider(provider.id);
       await new Promise(r => setTimeout(r, 1000));
-      alert('¡Conexión exitosa!');
+      toast.success('¡Conexión exitosa!');
     } catch (error) {
-      alert('Prueba fallida: ' + (error instanceof Error ? error.message : 'Error desconocido'));
+      toast.error('Prueba fallida: ' + (error instanceof Error ? error.message : 'Error desconocido'));
     } finally {
       setTestingProvider(null);
     }
@@ -121,7 +125,7 @@ export default function SettingsOverlay() {
 
   const handleSaveProvider = async () => {
     if (!formData.name.trim() || !formData.baseUrl.trim()) {
-      alert('Nombre y Base URL son requeridos');
+      toast.error('Nombre y Base URL son requeridos');
       return;
     }
 
@@ -151,20 +155,28 @@ export default function SettingsOverlay() {
       setRevealApiKey(false);
       setFormData({ name: '', baseUrl: '', apiKey: '', models: '', providerType: 'custom' });
     } catch (error) {
-      alert('Fallo al guardar: ' + (error instanceof Error ? error.message : 'Error desconocido'));
+      toast.error('Fallo al guardar: ' + (error instanceof Error ? error.message : 'Error desconocido'));
     } finally {
       setSaving(false);
     }
   };
 
   const handleDeleteProvider = async (id: string) => {
-    if (!confirm('¿Seguro que deseas eliminar este proveedor?')) return;
+    setPendingDeleteId(id);
+    setConfirmOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!pendingDeleteId) return;
+    setConfirmOpen(false);
     try {
-      const res = await api.del(`/api/settings/providers/${id}`);
+      const res = await api.del(`/api/settings/providers/${pendingDeleteId}`);
       if (res.error) throw new Error(res.error.message);
-      setProviders(providers.filter((p) => p.id !== id));
+      setProviders(providers.filter((p) => p.id !== pendingDeleteId));
     } catch {
-      alert('Fallo al eliminar');
+      toast.error('Fallo al eliminar');
+    } finally {
+      setPendingDeleteId(null);
     }
   };
 
@@ -174,9 +186,9 @@ export default function SettingsOverlay() {
       const res = await api.post<WorkspaceSettings>('/api/settings/workspace', { name: workspaceForm.name });
       if (res.error) throw new Error(res.error.message);
       setWorkspace(res.data!);
-      alert('Configuración guardada.');
+      toast.success('Configuración guardada.');
     } catch (error) {
-      alert('Fallo al guardar workspace: ' + (error instanceof Error ? error.message : 'Error desconocido'));
+      toast.error('Fallo al guardar workspace: ' + (error instanceof Error ? error.message : 'Error desconocido'));
     } finally {
       setSaving(false);
     }
@@ -186,6 +198,13 @@ export default function SettingsOverlay() {
 
   return (
     <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-md flex items-center justify-center p-4">
+      <ConfirmDialog
+        open={confirmOpen}
+        title="Eliminar Proveedor"
+        description="¿Seguro que deseas eliminar este proveedor?"
+        onConfirm={confirmDelete}
+        onCancel={() => { setConfirmOpen(false); setPendingDeleteId(null); }}
+      />
       <div className="bg-zinc-950 border border-white/10 rounded-3xl w-full max-w-4xl max-h-[85vh] flex flex-col overflow-hidden shadow-2xl animate-in fade-in zoom-in-95 duration-200">
         {/* Header */}
         <div className="p-6 border-b border-white/5 flex justify-between items-center bg-zinc-900/20">

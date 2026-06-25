@@ -6,6 +6,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { api, WS_URL } from '../lib/api';
 import type { DashboardData, TaskStatus } from '../lib/types';
 import type { AgentInfo, AgentState } from '@ninja/ui-kit';
+import { Toaster } from 'sonner';
 
 interface GlobalState {
   sessionStart: number;
@@ -192,13 +193,14 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
   const isUccOrSetup = pathname === '/' || pathname === '/setup';
 
   if (isUccOrSetup) {
-    return <GlobalStateProvider>{children}</GlobalStateProvider>;
+    return <GlobalStateProvider><Toaster richColors position="top-right" />{children}</GlobalStateProvider>;
   }
 
   const activePath = pathname === '/' ? '/mission-control' : pathname;
 
   return (
     <GlobalStateProvider>
+      <Toaster richColors position="top-right" />
       <ShellLayout
         sidebarProps={{
           activePath,

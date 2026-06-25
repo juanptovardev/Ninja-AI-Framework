@@ -7,6 +7,8 @@ import type { LLMProvider, WorkspaceSettings, ProviderType } from '../../lib/typ
 import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
 import { Plus, PlugsConnected, Plugs, Key, HardDrives, Trash, PencilSimple } from '@phosphor-icons/react';
+import { toast } from 'sonner';
+import { ConfirmDialog } from '../../components/ConfirmDialog';
 
 gsap.registerPlugin(useGSAP);
 
@@ -48,6 +50,8 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [testingProvider, setTestingProvider] = useState<string | null>(null);
   const [revealApiKey, setRevealApiKey] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   
   const container = useRef<HTMLDivElement>(null);
 
@@ -138,9 +142,9 @@ export default function SettingsPage() {
     try {
       setTestingProvider(provider.id);
       await new Promise(r => setTimeout(r, 1000));
-      alert('Connection successful!');
+      toast.success('Connection successful!');
     } catch (error) {
-      alert('Connection test failed: ' + (error instanceof Error ? error.message : 'Unknown error'));
+      toast.error('Connection test failed: ' + (error instanceof Error ? error.message : 'Unknown error'));
     } finally {
       setTestingProvider(null);
     }
@@ -148,7 +152,7 @@ export default function SettingsPage() {
 
   const handleSaveProvider = async () => {
     if (!formData.name.trim() || !formData.baseUrl.trim()) {
-      alert('Name and Base URL are required');
+      toast.error('Name and Base URL are required');
       return;
     }
 
@@ -178,20 +182,28 @@ export default function SettingsPage() {
       setRevealApiKey(false);
       setFormData({ name: '', baseUrl: '', apiKey: '', models: '', providerType: 'custom' });
     } catch (error) {
-      alert('Failed to save provider: ' + (error instanceof Error ? error.message : 'Unknown error'));
+      toast.error('Failed to save provider: ' + (error instanceof Error ? error.message : 'Unknown error'));
     } finally {
       setSaving(false);
     }
   };
 
   const handleDeleteProvider = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this provider?')) return;
+    setPendingDeleteId(id);
+    setConfirmOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!pendingDeleteId) return;
+    setConfirmOpen(false);
     try {
-      const res = await api.del(`/api/settings/providers/${id}`);
+      const res = await api.del(`/api/settings/providers/${pendingDeleteId}`);
       if (res.error) throw new Error(res.error.message);
-      setProviders(providers.filter((p) => p.id !== id));
+      setProviders(providers.filter((p) => p.id !== pendingDeleteId));
     } catch {
-      alert('Failed to delete provider');
+      toast.error('Failed to delete provider');
+    } finally {
+      setPendingDeleteId(null);
     }
   };
 
@@ -201,9 +213,9 @@ export default function SettingsPage() {
       const res = await api.post<WorkspaceSettings>('/api/settings/workspace', { name: workspaceForm.name });
       if (res.error) throw new Error(res.error.message);
       setWorkspace(res.data!);
-      alert('Workspace settings saved');
+      toast.success('Workspace settings saved');
     } catch (error) {
-      alert('Failed to save workspace settings: ' + (error instanceof Error ? error.message : 'Unknown error'));
+      toast.error('Failed to save workspace settings: ' + (error instanceof Error ? error.message : 'Unknown error'));
     } finally {
       setSaving(false);
     }
@@ -223,6 +235,13 @@ export default function SettingsPage() {
 
   return (
     <div ref={container} className="flex flex-col pb-24 max-w-5xl mx-auto w-full">
+      <ConfirmDialog
+        open={confirmOpen}
+        title="Delete Provider"
+        description="Are you sure you want to delete this provider?"
+        onConfirm={confirmDelete}
+        onCancel={() => { setConfirmOpen(false); setPendingDeleteId(null); }}
+      />
       <div className="setting-block">
         <PageHeader 
           title="Settings" 
