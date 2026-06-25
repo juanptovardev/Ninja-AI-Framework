@@ -53,8 +53,9 @@ export async function readFileLines(path: string): Promise<string[]> {
 }
 
 export async function fileExists(path: string): Promise<boolean> {
+  const safePath = assertWithinBoundary(path);
   try {
-    await stat(path);
+    await stat(safePath);
     return true;
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
