@@ -33,8 +33,20 @@ export default function OfficePage() {
         />
       </div>
 
-      <div className="office-animate flex-1 glass-card border-[var(--ninja-border-subtle)] rounded-2xl overflow-hidden shadow-[0_0_40px_rgba(0,0,0,0.5)]">
-        <OfficeCanvas config={{ wsUrl }} />
+      {/* perspective container for pseudo-isometric CSS 3D */}
+      <div className="office-animate flex-1" style={{ perspective: '1000px' }}>
+        <div
+          className="h-full glass-card border-[var(--ninja-border-subtle)] rounded-2xl overflow-hidden shadow-[0_0_40px_rgba(0,0,0,0.5)] transition-transform duration-500 ease-out"
+          style={{ transform: 'rotateX(4deg) rotateZ(-1deg)', transformStyle: 'preserve-3d' }}
+          onMouseEnter={(e) => {
+            (e.currentTarget as HTMLDivElement).style.transform = 'rotateX(0deg) rotateZ(0deg)';
+          }}
+          onMouseLeave={(e) => {
+            (e.currentTarget as HTMLDivElement).style.transform = 'rotateX(4deg) rotateZ(-1deg)';
+          }}
+        >
+          <OfficeCanvas config={{ wsUrl }} />
+        </div>
       </div>
     </div>
   );
