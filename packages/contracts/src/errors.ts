@@ -73,6 +73,10 @@ export const ErrorCodes = {
   // HTTP / integrations-http (WP-B14)
   /** HTTP request blocked by SSRF guard — target resolves to a private/reserved IP */
   HTTP_SSRF_BLOCKED: 'HTTP_SSRF_BLOCKED' as ErrorCode,
+
+  // Auth (WP-B11)
+  /** Missing or invalid X-Ninja-Key header — authentication required */
+  AUTH_REQUIRED: 'AUTH_REQUIRED' as ErrorCode,
 } as const;
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -259,6 +263,17 @@ export class SSRFError extends NinjaError {
       ...opts,
     });
     Object.defineProperty(this, 'name', { value: 'SSRFError' });
+  }
+}
+
+export class AuthError extends NinjaError {
+  constructor(message: string, opts?: NinjaErrorOptions) {
+    super(ErrorCodes.AUTH_REQUIRED, message, 'runtime', {
+      httpStatus: 401,
+      retryable: false,
+      ...opts,
+    });
+    Object.defineProperty(this, 'name', { value: 'AuthError' });
   }
 }
 

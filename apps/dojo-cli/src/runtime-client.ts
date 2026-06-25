@@ -2,8 +2,22 @@ import type { HealthResponse, RuntimeStatus, EngineRequest, EngineRun } from '@n
 import { RUNTIME_HEALTH_ENDPOINT, RUNTIME_URL } from './constants.js';
 import { spawn, type ChildProcess } from 'child_process';
 import { createLogger } from '@ninja/logging';
+import { existsSync, readFileSync } from 'node:fs';
+import { homedir } from 'node:os';
+import { join } from 'node:path';
 
 const log = createLogger('dojo-cli:runtime-client');
+
+function getRuntimeKey(): string | null {
+  const keyPath = join(homedir(), '.ninja', 'runtime.key');
+  if (!existsSync(keyPath)) return null;
+  return readFileSync(keyPath, 'utf8').trim();
+}
+
+function authHeaders(): Record<string, string> {
+  const key = getRuntimeKey();
+  return key ? { 'X-Ninja-Key': key } : {};
+}
 
 /** Instancia del proceso del runtime si fue arrancado por este CLI */
 let runtimeProcess: ChildProcess | null = null;
@@ -50,6 +64,7 @@ export async function submitEngineRequest(request: Partial<EngineRequest>): Prom
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        ...authHeaders(),
       },
       body: JSON.stringify({
         ...request,
@@ -152,6 +167,7 @@ export async function getRuntimeInfo(): Promise<any> {
   try {
     const res = await fetch(`${RUNTIME_URL}/bus/status`, {
       signal: AbortSignal.timeout(3000),
+      headers: authHeaders(),
     });
     if (!res.ok) return null;
     return await res.json();
@@ -165,6 +181,7 @@ export async function getActiveRuns(): Promise<any> {
   try {
     const res = await fetch(`${RUNTIME_URL}/engine/runs`, {
       signal: AbortSignal.timeout(3000),
+      headers: authHeaders(),
     });
     if (!res.ok) return null;
     return await res.json();
@@ -178,6 +195,7 @@ export async function getArtifacts(limit = 10): Promise<any[]> {
   try {
     const res = await fetch(`${RUNTIME_URL}/api/artifacts?limit=${limit}`, {
       signal: AbortSignal.timeout(3000),
+      headers: authHeaders(),
     });
     if (!res.ok) return [];
     const data = await res.json();

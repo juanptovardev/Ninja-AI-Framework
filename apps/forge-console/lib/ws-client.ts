@@ -62,7 +62,14 @@ export const useWsClient = create<WsState>((set, get) => ({
     if (get().socket) return;
     try {
       const socket = new WebSocket(url);
-      socket.onopen = () => set({ connected: true, socket });
+      socket.onopen = () => {
+        // WP-B11: send auth handshake as first message
+        const apiKey = process.env.NEXT_PUBLIC_RUNTIME_API_KEY;
+        if (apiKey) {
+          socket.send(JSON.stringify({ action: 'auth', key: apiKey }));
+        }
+        set({ connected: true, socket });
+      };
       socket.onclose = () => set({ connected: false, socket: null });
       socket.onmessage = (event) => {
         try {

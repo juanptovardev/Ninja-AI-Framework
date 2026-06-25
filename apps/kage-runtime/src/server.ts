@@ -6,6 +6,8 @@ import { createLogger } from '@ninja/logging';
 import { eventBus } from '@ninja/events';
 import { parseEnv } from './env-schema.js';
 import { sanitizeError } from './sanitize-error.js';
+import { getOrCreateRuntimeKey } from './auth-key.js';
+import { AuthError } from '@ninja/contracts';
 import {
   ShellExecuteSchema,
   EngineSubmitSchema,
@@ -103,6 +105,22 @@ export async function createServer(): Promise<FastifyInstance> {
   // ── WebSocket ────────────────────────────────────────────────────────────────
   await server.register(websocketPlugin);
 
+  // ── API Key auth (WP-B11) ────────────────────────────────────────────────────
+  const PUBLIC_PATHS = ['/health', '/api/status', '/status'];
+  const authDisabled = process.env.NINJA_AUTH_DISABLED === 'true';
+  const runtimeKey = authDisabled ? null : getOrCreateRuntimeKey();
+
+  if (!authDisabled) {
+    server.addHook('onRequest', async (request, reply) => {
+      if (PUBLIC_PATHS.some((p) => request.url === p || request.url.startsWith(p + '?'))) return;
+      if (request.url.startsWith('/ws/')) return;
+      const key = request.headers['x-ninja-key'];
+      if (key !== runtimeKey) {
+        const err = new AuthError('Missing or invalid X-Ninja-Key header');
+        return reply.status(401).send(sanitizeError(err, env.NODE_ENV as 'production' | 'development' | 'test'));
+      }
+    });
+  }
 
   // ── Health & Status ──────────────────────────────────────────────────────────
   server.get('/health', async (_request, _reply): Promise<HealthResponse> => {
@@ -372,21 +390,52 @@ export async function createServer(): Promise<FastifyInstance> {
   server.get('/ws/events', { websocket: true }, (socket, _request) => {
     log.info('WebSocket client connected to /ws/events');
 
-    const busSubscription = eventBus.on('*', (event: NinjaEvent) => {
-      if (socket.readyState === socket.OPEN) {
-        socket.send(JSON.stringify(event));
-      }
-    });
+    // WP-B11: WS auth — first message must be { action: 'auth', key }
+    let authenticated = authDisabled;
 
-    const unsubscribe = () => busSubscription.unsubscribe();
+    const authTimeout = authDisabled
+      ? null
+      : setTimeout(() => {
+          if (!authenticated) {
+            socket.close(1008, 'Auth timeout: send auth handshake within 5s');
+          }
+        }, 5000);
+
+    let busSubscription: { unsubscribe: () => void } | null = null;
+
+    const subscribe = () => {
+      busSubscription = eventBus.on('*', (event: NinjaEvent) => {
+        if (socket.readyState === socket.OPEN) {
+          socket.send(JSON.stringify(event));
+        }
+      });
+    };
+
+    const unsubscribe = () => busSubscription?.unsubscribe();
+
+    if (authDisabled) {
+      subscribe();
+    }
 
     socket.on('message', (raw: Buffer) => {
       try {
         const msg = JSON.parse(raw.toString());
+
+        if (!authenticated) {
+          if (msg.action === 'auth' && msg.key === runtimeKey) {
+            authenticated = true;
+            if (authTimeout) clearTimeout(authTimeout);
+            socket.send(JSON.stringify({ type: 'auth.ok' }));
+            subscribe();
+          } else {
+            socket.close(1008, 'Invalid auth');
+          }
+          return;
+        }
+
         if (msg.type === 'ping') {
           socket.send(JSON.stringify({ type: 'pong', ts: Date.now() }));
         } else if (msg.action === 'interview:answers') {
-          // Procesar las respuestas pasándolas al engine
           if (typeof (engine as any).submitAnswers === 'function') {
             (engine as any).submitAnswers(msg.payload);
           } else {
@@ -394,16 +443,18 @@ export async function createServer(): Promise<FastifyInstance> {
           }
         }
       } catch {
-        // Mensaje no JSON o error al procesar — ignorar para no tirar el WS
+        // Mensaje no JSON o error — ignorar
       }
     });
 
     socket.on('close', () => {
+      if (authTimeout) clearTimeout(authTimeout);
       unsubscribe();
       log.info('WebSocket client disconnected from /ws/events');
     });
 
     socket.on('error', (err: Error) => {
+      if (authTimeout) clearTimeout(authTimeout);
       unsubscribe();
       log.error('WebSocket error in /ws/events', err);
     });
