@@ -249,7 +249,7 @@ EPIC G  ░░░░░░░░░░  0%
 | EPIC E (frontend) | 28–34h | ⏳ |
 | EPIC F (devops) | 20–26h | 🟡 ~4h ejecutadas |
 | EPIC G (extensibilidad) | 24–30h | ⏳ |
-| **Total v1 (A–G)** | **~202–246h** | **~19h ejecutadas (~8%)** |
+| Total v1 (A–G) | **~202–246h** | **~32h ejecutadas (~13%)** |
 | Fase H (v2.0 opcional) | +60–100h | 🔒 requiere aprobación |
 
 ---
@@ -262,11 +262,11 @@ EPIC G  ░░░░░░░░░░  0%
 | R2 | Auth rompe CLI/Console/Companion | actualizar los 3 en mismo PR | ⏳ |
 | R3 | Shell allowlist bloquea legítimos | `SHELL_ALLOWLIST_EXTRA` | ⏳ |
 | R4 | Eliminar 85 `any` rompe rutas | commit por archivo | ⏳ |
-| R5 | WP-B6 cambia semántica de fallos | **✅ `NINJA_LLM_FAIL_MODE` flag** | ✅ Mitigado |
+| R5 | WP-B6 cambia semántica de fallos | **✅ `NINJA_LLM_FAIL_MODE` flag (B3) + `strict` default (B6 cierre formal)** | ✅ Mitigado |
 | R6 | Coverage thresholds rompen CI | D3 antes de D2/F1 | ⏳ |
 | A1 | Warning `MODULE_TYPELESS_PACKAGE_JSON` | **✅ migrado a .mjs** | ✅ |
 | A2 | CI script requería Node 24 | **✅ migrado a .mjs** | ✅ |
 
 ---
 
-*Fuente: `tools/plan-mejoras-ENTERPRISE-MASTER.md` · ADRs en `docs/adr/`*
+*Fuente: `tools/plan-mejoras-ENTERPRISE-MASTER.md` · ADRs en `docs/adr/` · **36 commits en fix/epic-b-foundations (B1–B8 ✅)**
