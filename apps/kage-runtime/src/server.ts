@@ -14,7 +14,7 @@ import { initDb, runMigrations } from '@ninja/storage';
 import { WORKSPACE_MIGRATIONS } from '@ninja/workbench';
 import { WorkflowExecutor } from '@ninja/flow-matrix';
 import { AgentExecutor } from '@ninja/agent-runtime';
-import { SessionRepository, RunRepository, ArtifactRepository } from '@ninja/trace-ledger';
+import { SessionRepository, RunRepository, ArtifactRepository, AgentCommitRepository } from '@ninja/trace-ledger';
 import type { NinjaEvent } from '@ninja/contracts';
 import { getNinjaGlobalDir } from '@ninja/config';
 import { LLMRegistry } from '@ninja/integrations-llm';
@@ -145,6 +145,7 @@ export async function createServer(): Promise<FastifyInstance> {
   const sessionRepo = new SessionRepository(db);
   const runRepo = new RunRepository(db);
   const artifactRepo = new ArtifactRepository(db);
+  const agentCommitRepo = new AgentCommitRepository(db);
 
   // ── LLM Integration ────────────────────────────────────────────────────────
   const llmRegistry = LLMRegistry.getInstance();
@@ -504,6 +505,16 @@ export async function createServer(): Promise<FastifyInstance> {
   server.get('/api/audit', async (_request, reply) => {
     const logs = auditor.getAuditLog();
     return reply.send(logs);
+  });
+
+  // ── Agent Commits Routes (RF-16) ──────────────────────────────────────────
+  server.get('/api/commits', async (request, reply) => {
+    const { runId, limit } = request.query as { runId?: string; limit?: string };
+    const lim = limit ? parseInt(limit) : 100;
+    if (runId) {
+      return reply.send(agentCommitRepo.findByRunId(runId));
+    }
+    return reply.send(agentCommitRepo.findAll(lim));
   });
 
   // ── Artifacts Routes ───────────────────────────────────────────────────────
