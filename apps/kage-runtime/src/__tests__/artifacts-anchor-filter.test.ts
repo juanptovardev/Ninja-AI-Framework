@@ -63,6 +63,12 @@ vi.mock('@ninja/trace-ledger', () => {
       findByRunId = vi.fn().mockReturnValue(seedData);
       findByType = vi.fn().mockReturnValue([seedData[0]]);
     },
+    AgentCommitRepository: class {
+      create = vi.fn();
+      findByRunId = vi.fn().mockReturnValue([]);
+      findAll = vi.fn().mockReturnValue([]);
+      findById = vi.fn().mockReturnValue(null);
+    },
   };
 });
 

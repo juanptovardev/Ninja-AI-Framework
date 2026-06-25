@@ -517,6 +517,14 @@ export async function createServer(): Promise<FastifyInstance> {
     return reply.send(agentCommitRepo.findAll(lim));
   });
 
+  // ── Arsenal Registry Route (S3.4) ─────────────────────────────────────────
+  server.get('/api/arsenal', async (_request, reply) => {
+    return reply.send({
+      tools: arsenalRegistry.listTools(),
+      skills: arsenalRegistry.listSkills(),
+    });
+  });
+
   // ── Artifacts Routes ───────────────────────────────────────────────────────
   server.get('/api/artifacts', async (request, reply) => {
     const { runId, type, isAnchor } = request.query as any;
