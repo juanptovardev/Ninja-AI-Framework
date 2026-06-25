@@ -27,7 +27,10 @@ pnpm runtime:dev # Levanta kage-runtime en :3141
 - ✅ Fase 5: Intelligence & Memory (100%)
 - ✅ Fase 6: UI-Kit + App-Shell + Forge Console (100%)
 - ✅ Fase 7: Office Grid + Forge Console Office (100%)
-- 🟡 Fase 8: Integraciones Externas (~90% - Turno 5 completado, pendiente acoplamiento final)
+- ✅ Fase 8: Integraciones Externas (100% — EPIC B WP-B1..B8 completado, branch fix/epic-b-foundations)
+- 🟡 EPIC A: Hygiene, Coherencia & CI (S0–S5 en progreso — branch fix/epic-b-foundations)
+
+**Tests:** 292/292 passing · **Branch activo:** fix/epic-b-foundations
 
 ```
 
