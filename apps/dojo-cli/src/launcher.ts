@@ -2,6 +2,7 @@ import { select, text, isCancel, intro, outro } from '@clack/prompts';
 import { spawn } from 'child_process';
 import fs from 'fs';
 import path from 'path';
+import os from 'os';
 import chalk from 'chalk';
 import { printBanner, printInfo, printSuccess, printError, printDivider } from './display.js';
 import { checkRuntimeHealth, getRuntimeStatus, submitEngineRequest } from './runtime-client.js';
@@ -16,6 +17,38 @@ import { allCommands } from './commands/command-handlers.js';
 import { ninjaColors } from '@ninja/ui-kit';
 
 export type LauncherAction = 'cli' | 'start' | 'status' | 'workspaces' | 'run' | 'open' | 'exit';
+
+// ── PID guard ─────────────────────────────────────────────────────────────────
+const PID_FILE = path.join(os.homedir(), '.ninja', 'runtime.pid');
+
+function writePid(pid: number): void {
+  fs.mkdirSync(path.dirname(PID_FILE), { recursive: true });
+  fs.writeFileSync(PID_FILE, String(pid), 'utf8');
+}
+
+function clearPid(): void {
+  try { fs.rmSync(PID_FILE); } catch { /* ignore */ }
+}
+
+function isProcessAlive(pid: number): boolean {
+  try { process.kill(pid, 0); return true; } catch { return false; }
+}
+
+/** Returns true if a previously-started runtime process is still running */
+function checkPidGuard(): boolean {
+  try {
+    const raw = fs.readFileSync(PID_FILE, 'utf8').trim();
+    const pid = parseInt(raw, 10);
+    return !isNaN(pid) && isProcessAlive(pid);
+  } catch {
+    return false;
+  }
+}
+
+// Clean up PID file on exit
+process.on('SIGTERM', () => { clearPid(); process.exit(0); });
+process.on('SIGINT',  () => { clearPid(); process.exit(0); });
+// ─────────────────────────────────────────────────────────────────────────────
 
 const MAIN_MENU_CHOICES = [
   {
@@ -72,6 +105,11 @@ function findWorkspaceRoot(startDir: string = process.cwd()): string {
 }
 
 async function startRuntimeInBackground(): Promise<boolean> {
+  // Anti-duplicate: if a PID file exists and process is alive, skip
+  if (checkPidGuard()) {
+    return true;
+  }
+
   const spinnerId = renderSpinner('Arrancando Kage Runtime en segundo plano...');
 
   const rootDir = findWorkspaceRoot();
@@ -88,6 +126,7 @@ async function startRuntimeInBackground(): Promise<boolean> {
       cwd: rootDir,
     });
 
+    if (child.pid) writePid(child.pid);
     child.unref();
   } catch (error) {
     updateSpinner(spinnerId, 'error', `Error al spawnear el proceso de pnpm: ${(error as Error).message}`);
