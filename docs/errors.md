@@ -53,6 +53,7 @@ export const ErrorCodes = {
 | `ROSTER_AGENT_NOT_FOUND` | `roster` | 404 | ❌ | Agent ID not found in the roster |
 | `ROSTER_INVALID_DEFINITION` | `roster` | 400 | ❌ | Agent definition is invalid or malformed |
 | `BUDGET_EXCEEDED` | `budget` | 500 | ❌ | Session token budget exceeded — operation blocked |
+| `HTTP_SSRF_BLOCKED` | `runtime` | 500 | ❌ | HTTP request blocked by SSRF guard — target resolves to a private/reserved IP |
 
 ## Usage
 
