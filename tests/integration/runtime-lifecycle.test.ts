@@ -49,10 +49,10 @@ describe('Runtime Lifecycle', () => {
     expect(healthResponse.ok).toBe(true);
   }, SUBSCRIPTION_TIMEOUT);
 
-  it('shutdown closes gracefully with timeout', async () => {
-    // This test needs separate setup/teardown - skip for now as it conflicts with beforeAll/afterAll
-    // leaving test disabled but keeping it as documentation of expected behavior
-    expect(true).toBe(true); // placeholder
+  it.skip('shutdown closes gracefully with timeout', async () => {
+    // SKIP REASON: requires an isolated server instance; bootstrapping a second server
+    // inside the same test suite conflicts with the beforeAll/afterAll lifecycle.
+    // TODO: expand this test in a dedicated file that spawns a child process for the runtime.
   }, SUBSCRIPTION_TIMEOUT);
 
   it('modules register correctly in the runtime', async () => {
