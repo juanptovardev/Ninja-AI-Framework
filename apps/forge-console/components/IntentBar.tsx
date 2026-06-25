@@ -14,7 +14,10 @@ export default function IntentBar() {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+      // S4.6 follow-up: Ctrl+K is reserved for the global CommandPalette.
+      // IntentBar uses Ctrl+I (Intent) to avoid double handlers and respect
+      // the VS Code / Linear / Raycast convention for global palettes.
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'i') {
         e.preventDefault();
         inputRef.current?.focus();
         setIsOpen(true);
@@ -68,7 +71,7 @@ export default function IntentBar() {
               setPrompt(e.target.value);
               setIsOpen(true);
             }}
-            placeholder="¿Qué deseas construir hoy? (Presiona ⌘K para enfocar)"
+            placeholder="¿Qué deseas construir hoy? (Presiona ⌘I para enfocar)"
             className="flex-1 bg-transparent text-white text-sm focus:outline-none placeholder-zinc-500"
           />
           <div className="flex items-center gap-2">
