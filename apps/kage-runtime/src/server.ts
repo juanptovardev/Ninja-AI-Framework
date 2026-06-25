@@ -5,6 +5,14 @@ import type { HealthResponse, RuntimeStatus } from '@ninja/contracts';
 import { createLogger } from '@ninja/logging';
 import { eventBus } from '@ninja/events';
 import { parseEnv } from './env-schema.js';
+import { sanitizeError } from './sanitize-error.js';
+import {
+  ShellExecuteSchema,
+  EngineSubmitSchema,
+  VaultWriteSchema,
+  GitCommitSchema,
+  RosterAssignSchema,
+} from './route-schemas.js';
 import { RUNTIME_NAME, RUNTIME_VERSION } from './constants.js';
 import { registerBusRoutes } from './bus-router.js';
 import { KageEngine, HttpController } from '@ninja/kage-engine';
@@ -260,16 +268,20 @@ export async function createServer(): Promise<FastifyInstance> {
   });
 
   server.post('/api/roster/assign', async (request, reply) => {
-    const { clientId, role } = request.body as { clientId: string; role: string };
+    const parsed = RosterAssignSchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.status(400).send({ error: 'Invalid request body', code: 'VALIDATION_ERROR', issues: parsed.error.issues });
+    }
+    const { clientId, role } = parsed.data;
     try {
       rosterManager.assignRole(clientId as any, role as any);
       return reply.send({ success: true });
-    } catch (err: any) {
+    } catch (err) {
       if (clientId.startsWith('agent-')) {
         log.info(`Mocking roster assignment for UI agent: ${clientId} to ${role}`);
         return reply.send({ success: true });
       }
-      return reply.status(400).send({ error: err.message });
+      return reply.status(400).send(sanitizeError(err, env.NODE_ENV as 'production' | 'development' | 'test'));
     }
   });
 
@@ -415,11 +427,20 @@ export async function createServer(): Promise<FastifyInstance> {
   });
 
   server.post('/engine/submit', async (request, reply) => {
-    const result = await httpController.handleSubmit({ body: request.body as any });
-    if (env.NINJA_SESSION_TOKEN_BUDGET && result.body && (result.body as any).sessionId) {
-      modelBudgetManager.setSessionBudget((result.body as any).sessionId, env.NINJA_SESSION_TOKEN_BUDGET);
+    const parsed = EngineSubmitSchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.status(400).send({ error: 'Invalid request body', code: 'VALIDATION_ERROR', issues: parsed.error.issues });
     }
-    return reply.status(result.status).send(result.body);
+    try {
+      const result = await httpController.handleSubmit({ body: parsed.data as any });
+      if (env.NINJA_SESSION_TOKEN_BUDGET && result.body && (result.body as any).sessionId) {
+        modelBudgetManager.setSessionBudget((result.body as any).sessionId, env.NINJA_SESSION_TOKEN_BUDGET);
+      }
+      return reply.status(result.status).send(result.body);
+    } catch (err) {
+      log.error('Engine submit failed');
+      return reply.status(500).send(sanitizeError(err, env.NODE_ENV as 'production' | 'development' | 'test'));
+    }
   });
 
   server.get('/engine/run/:id', async (request, reply) => {
@@ -586,25 +607,17 @@ export async function createServer(): Promise<FastifyInstance> {
     }
   });
 
-  interface VaultWriteBody {
-    agentId?: string;
-    sessionId: string;
-    content: string;
-    layer: any; // MemoryLayer type from @ninja/vault should ideally be used
-  }
-
-  server.post<{ Body: VaultWriteBody }>('/api/vault/write', async (request, reply) => {
-    const { agentId, sessionId, content, layer } = request.body;
-    if (!content || !layer || !sessionId) {
-      return reply.status(400).send({ error: 'content, layer and sessionId are required' });
+  server.post('/api/vault/write', async (request, reply) => {
+    const parsed = VaultWriteSchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.status(400).send({ error: 'Invalid request body', code: 'VALIDATION_ERROR', issues: parsed.error.issues });
     }
-
+    const { agentId, sessionId, content, layer } = parsed.data;
     try {
-      await vaultCoordinator.write(agentId || 'guest', sessionId, content, layer);
+      await vaultCoordinator.write(agentId ?? 'guest', sessionId, content, layer as any);
       return reply.send({ success: true });
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      return reply.status(500).send({ error: message });
+      return reply.status(500).send(sanitizeError(err, env.NODE_ENV as 'production' | 'development' | 'test'));
     }
   });
 
@@ -671,19 +684,21 @@ export async function createServer(): Promise<FastifyInstance> {
 
   // Integrations-Shell Routes
   server.post('/api/shell/execute', async (request, reply) => {
-    const { cmd, args, cwd } = request.body as { cmd: string; args: string[]; cwd?: string };
+    const parsed = ShellExecuteSchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.status(400).send({ error: 'Invalid request body', code: 'VALIDATION_ERROR', issues: parsed.error.issues });
+    }
+    const { cmd, args, cwd } = parsed.data;
     try {
-      const shellCommand: ShellCommand = { cmd, args: args || [], cwd };
+      const shellCommand: ShellCommand = { cmd, args, cwd };
       const validation = validateCommand(shellCommand);
       if (!validation.allowed) {
         return reply.status(403).send({ error: validation.reason });
       }
-
       const result = await executeCommand(shellCommand);
       return reply.send(result);
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      return reply.status(500).send({ error: message });
+      return reply.status(500).send(sanitizeError(err, env.NODE_ENV as 'production' | 'development' | 'test'));
     }
   });
 
@@ -716,44 +731,28 @@ export async function createServer(): Promise<FastifyInstance> {
   });
 
   server.post('/api/git/commit', async (request, reply) => {
-    const body = request.body as { repoPath?: string; message: string };
-    
-    // Validate message is provided
-    if (!body?.message || body.message.trim() === '') {
-      return reply.status(400).send({ error: 'Commit message is required' });
+    const parsed = GitCommitSchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.status(400).send({ error: 'Invalid request body', code: 'VALIDATION_ERROR', issues: parsed.error.issues });
     }
-    
+    const { message, repoPath } = parsed.data;
     try {
-      // Request approval via Sentinel
       const approvalResult = await approvalManager.createApprovalRequest({
         runId: crypto.randomUUID(),
         agentId: 'kage-runtime',
         actionType: 'git.commit',
-        actionSummary: `Git commit: "${body.message}"`,
-        technicalDetails: JSON.stringify({ repoPath: body.repoPath, message: body.message }),
+        actionSummary: `Git commit: "${message}"`,
+        technicalDetails: JSON.stringify({ repoPath, message }),
         policyId: 'git.commit.policy',
       });
-      
-      // Check if approved
       if (!approvalResult.approved) {
-        return reply.status(403).send({ 
-          error: 'Commit rejected by Sentinel policy', 
-          notes: approvalResult.notes 
-        });
+        return reply.status(403).send({ error: 'Commit rejected by Sentinel policy', notes: approvalResult.notes });
       }
-      
-      // Execute git commit if approved
-      const git = new GitClient(body.repoPath || process.cwd());
-      await commit(git, body.message);
-      
-      return reply.send({ 
-        success: true, 
-        message: 'Commit created successfully',
-        repoPath: body.repoPath || process.cwd()
-      });
+      const git = new GitClient(repoPath || process.cwd());
+      await commit(git, message);
+      return reply.send({ success: true, message: 'Commit created successfully', repoPath: repoPath || process.cwd() });
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      return reply.status(500).send({ error: message });
+      return reply.status(500).send(sanitizeError(err, env.NODE_ENV as 'production' | 'development' | 'test'));
     }
   });
 
