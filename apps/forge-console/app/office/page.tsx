@@ -9,7 +9,9 @@ import { useGSAP } from '@gsap/react';
 gsap.registerPlugin(useGSAP);
 
 export default function OfficePage() {
-  const wsUrl = process.env.NEXT_PUBLIC_RUNTIME_WS_URL ?? 'ws://localhost:3141/ws/events';
+  // S2.4 follow-up: 127.0.0.1 unifies the WS host with lib/api.ts and lib/ws.ts
+  // (avoids CORS-origin mismatch in strict browsers).
+  const wsUrl = process.env.NEXT_PUBLIC_RUNTIME_WS_URL ?? 'ws://127.0.0.1:3141/ws/events';
   const container = useRef<HTMLDivElement>(null);
 
   useGSAP(() => {
