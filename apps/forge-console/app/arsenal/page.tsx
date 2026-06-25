@@ -50,7 +50,9 @@ export default function ArsenalPage() {
             <button
               key={t}
               onClick={() => setTab(t)}
-              className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors capitalize ${
+              aria-label={`Switch to ${t} view`}
+              aria-pressed={tab === t}
+              className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors capitalize focus-visible:ring-2 focus-visible:ring-[var(--ninja-accent)] focus-visible:outline-none ${
                 tab === t ? 'bg-emerald-600 text-white' : 'text-zinc-400 hover:text-white'
               }`}
             >
@@ -61,7 +63,23 @@ export default function ArsenalPage() {
       </div>
 
       {loading ? (
-        <p className="text-zinc-500 text-sm font-mono">Loading...</p>
+        <div className="space-y-6" role="status" aria-label="Loading arsenal">
+          <div className="space-y-3">
+            <div className="skeleton h-4 w-32" />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="bg-zinc-900/40 border border-white/5 rounded-2xl p-4 space-y-2">
+                  <div className="flex justify-between gap-2">
+                    <div className="skeleton h-4 w-40" />
+                    <div className="skeleton h-4 w-16 rounded" />
+                  </div>
+                  <div className="skeleton h-3 w-full" />
+                  <div className="skeleton h-3 w-3/4" />
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
       ) : tab === 'friendly' ? (
         <div className="space-y-8">
           <section>

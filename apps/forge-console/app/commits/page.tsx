@@ -29,7 +29,17 @@ export default function CommitsPage() {
       <h1 className="text-2xl font-bold text-white mb-6">Agent Commits</h1>
 
       {loading ? (
-        <p className="text-zinc-500 font-mono text-sm">Loading...</p>
+        <div className="space-y-3" role="status" aria-label="Loading commits">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="flex gap-4 items-center py-3 border-b border-white/5">
+              <div className="skeleton h-4 w-24 shrink-0" />
+              <div className="skeleton h-4 w-16 shrink-0" />
+              <div className="skeleton h-5 w-20 rounded shrink-0" />
+              <div className="skeleton h-4 flex-1" />
+              <div className="skeleton h-4 w-28 shrink-0" />
+            </div>
+          ))}
+        </div>
       ) : commits.length === 0 ? (
         <p className="text-zinc-500 text-sm">No agent commits recorded yet.</p>
       ) : (
