@@ -41,6 +41,6 @@
     "@vscode/test-electron": "^2.3.0"
   },
   "dependencies": {
-    "ws": "^8.18.0"
+    "ws": "8.21.0"
   }
 }
