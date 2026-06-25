@@ -2,10 +2,6 @@
 export { AgentNamespaceManager } from './agent-namespace.js';
 export type { AgentNamespace } from './agent-namespace.js';
 
-// Context Operations
-export { ContextOps } from './context-ops.js';
-export type { TokenBudget, ContextRequest } from './context-ops.js';
-
 // Schema Types
 export type {
   MemoryLayer,
