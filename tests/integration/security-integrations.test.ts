@@ -159,6 +159,12 @@ describe('Security Integrations', () => {
           url: 'https://api.example.com/secure-data',
           method: 'GET',
           headers: { Authorization: requestSecret },
+          // S5.4 follow-up: this test stubs globalThis.fetch directly (no real network).
+          // The SSRF guard added in WP-B14 calls dns.lookup BEFORE fetch — in offline
+          // CI/test envs, api.example.com fails to resolve with ENOTFOUND, masking the
+          // 401 path under test. We skip the guard here because the network layer is
+          // mocked. Production code paths still run the guard.
+          ssrf: false,
         });
 
         await expect(promise).rejects.toThrow(NinjaHttpError);
