@@ -5,6 +5,11 @@
  */
 import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest';
 
+vi.stubEnv('LLM_BASE_URL', 'http://localhost:11434/v1');
+vi.stubEnv('LLM_API_KEY', 'test-key');
+vi.stubEnv('LLM_DEFAULT_MODEL', 'gpt-4o-mini');
+vi.stubEnv('NINJA_AUTH_DISABLED', 'true');
+
 // ── Module mocks (hoisted — no top-level vars allowed inside factory) ──────
 vi.mock('@ninja/kage-engine', () => {
   const mockEngine = {

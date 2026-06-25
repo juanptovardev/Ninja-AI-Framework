@@ -3,6 +3,12 @@
  * Tests for GET /api/budget/status endpoint (WP-B4)
  */
 import { describe, it, expect, vi, beforeAll, afterAll, afterEach } from 'vitest';
+
+vi.stubEnv('LLM_BASE_URL', 'http://localhost:11434/v1');
+vi.stubEnv('LLM_API_KEY', 'test-key');
+vi.stubEnv('LLM_DEFAULT_MODEL', 'gpt-4o-mini');
+vi.stubEnv('NINJA_AUTH_DISABLED', 'true');
+
 import { createServer } from '../server.js';
 
 // Same mocks as server.test.ts

@@ -40,7 +40,7 @@ EPIC A — Estabilización base
 
 ---
 
-### 🟡 EPIC B — Correctitud crítica & Seguridad P0 (`~38-48h`)
+### 🟢 EPIC B — Correctitud crítica & Seguridad P0 (`~38-48h`)
 
 #### WP-B1 · Jerarquía de errores tipados `NinjaError`
 - [x] `NinjaError` base class + 8 subclases (`LLMError`, `SentinelError`, etc.)
@@ -103,41 +103,48 @@ EPIC A — Estabilización base
 - [x] `server.ts:516`: ya corregido — `a.type === 'anchor'`
 - [x] Test: `GET /api/artifacts?isAnchor=true` retorna artifacts tipo anchor (3 tests)
 
-#### WP-B9 · `selectFastest` corregir comparación
-- [ ] `model-gateway/selector.ts:136-141`: `currentPing > bestPing` → `currentPing < bestPing`
-- [ ] Cambiar `?? 0` → `?? Infinity`
-- [ ] Test: set pings {200, 50, 120} ⇒ elige 50
+#### WP-B9 · `selectFastest` corregir comparación ✅
+- [x] `model-gateway/selector.ts:136-141`: `?? Infinity` + `<` (corrección ya hecha)
+- [x] Tests regresión: pings {200, 50, 120} ⇒ elige 50 | sin ping pierde vs con ping | todos sin ping → primero
+- [x] Dossier: `tools/verifications/wp-b9.md`
 
-#### WP-B10 · Deprecar `ContextOps` legacy
-- [ ] Grep `new ContextOps(` — confirmar 0 referencias
-- [ ] Eliminar `vault/src/context-ops.ts` y su export
-- [ ] Typecheck + tests verdes tras remover
+#### WP-B10 · Deprecar `ContextOps` legacy ✅
+- [x] Grep `new ContextOps(` → 0 referencias en producción
+- [x] Eliminado `vault/src/context-ops.ts` + `context-ops.test.ts`
+- [x] Removido export en `vault/src/index.ts`
+- [x] Typecheck + tests verdes | ADR-0005 | Dossier: `tools/verifications/wp-b10.md`
 
-#### WP-B11 · API Key auth (HTTP + WS)
-- [ ] Generar key en `~/.ninja/runtime.key`
-- [ ] `addHook('onRequest')` global en Fastify con validación `X-Ninja-Key`
-- [ ] WS: handshake de auth en 5s o cerrar con code 1008
-- [ ] Actualizar CLI + Forge Console + Companion en mismo PR
+#### WP-B11 · API Key auth (HTTP + WS) ✅
+- [x] `auth-key.ts`: generar key en `~/.ninja/runtime.key` (randomBytes(32))
+- [x] `addHook('onRequest')` con validación `X-Ninja-Key` (excluye /health, /api/status)
+- [x] WS handshake de auth en 5s o cerrar con code 1008
+- [x] CLI: inyecta header desde key file | Forge Console: NEXT_PUBLIC_RUNTIME_API_KEY
+- [x] AUTH_REQUIRED + AuthError en contracts | ADR-0008 | CHANGELOG | Dossier: wp-b11.md
 
-#### WP-B12 · Shell allowlist (reemplazar blocklist)
-- [ ] Implementar `ALLOWED` map en `integrations-shell/src/sandbox.ts`
-- [ ] Deny-by-default: `python -c`, `node -e`, `curl` → bloqueados
-- [ ] `SHELL_ALLOWLIST_EXTRA` env var para extensiones
-- [ ] Tests: matriz de comandos permitidos/denegados
+#### WP-B12 · Shell allowlist (reemplazar blocklist) ✅
+- [x] `ALLOWED` map en `sandbox.ts` — deny-by-default
+- [x] `python -c`, `node -e`, `curl`, `bash`, `wget`, `powershell` → bloqueados
+- [x] `SHELL_ALLOWLIST_EXTRA` env var funcional
+- [x] Audit event `shell.command.denied` en eventBus
+- [x] 15 tests verdes | ADR-0006 | Dossier: `tools/verifications/wp-b12.md`
 
-#### WP-B13 · Fix CORS wildcard en MCP SSE
-- [ ] `mcp-runtime-server.ts`: usar `ALLOWED_ORIGINS` en lugar de `'*'`
-- [ ] Test: origin inválido no recibe ACAO
+#### WP-B13 · Fix CORS wildcard en MCP SSE ✅
+- [x] Audit: `ALLOWED_ORIGINS` allowlist explícita en server.ts + mcp-runtime-server.ts
+- [x] Sin wildcard `'*'` en ningún punto del codebase
+- [x] 3 tests regresión verdes | Dossier: `tools/verifications/wp-b13.md`
 
-#### WP-B14 · SSRF guard en `integrations-http`
-- [ ] Nuevo `ssrf-guard.ts`: resolver hostname + reject IPs privadas
-- [ ] Bloquear `169.254.169.254`, `metadata.google.internal`
-- [ ] Tests: URLs privadas bloqueadas, públicas permitidas
+#### WP-B14 · SSRF guard en `integrations-http` ✅
+- [x] `ssrf-guard.ts`: 9 rangos privados + 3 hostnames blocked + allowedDomains
+- [x] Integrado en `httpRequest` (opt-out via `ssrf: false`)
+- [x] HTTP_SSRF_BLOCKED + SSRFError en contracts
+- [x] 12 tests verdes | Dossier: `tools/verifications/wp-b14.md`
 
-#### WP-B15 · Zod en boundaries + error sanitization
-- [ ] Schemas Zod en `route-schemas.ts` para endpoints críticos
-- [ ] `sanitizeError(err, env)` — sin stack en producción
-- [ ] Tests: body inválido → 400; error interno → 500 genérico en prod
+#### WP-B15 · Zod en boundaries + error sanitization ✅
+- [x] `route-schemas.ts`: 5 schemas Zod
+- [x] `sanitize-error.ts`: prod/dev/test modes, stack nunca expuesto
+- [x] Aplicado en 5 endpoints: /roster/assign, /engine/submit, /shell/execute, /vault/write, /git/commit
+- [x] `as any` en server.ts: ~85 → 37 (reducción de 48)
+- [x] 8 tests verdes | ADR-0007 | Dossier: `tools/verifications/wp-b15.md`
 
 ---
 
@@ -228,7 +235,7 @@ EPIC A — Estabilización base
 
 ```
 EPIC A  ░░░░░░░░░░  0%   (por iniciar)
-EPIC B  ██████░░░░  55%  (B1 ✅ B2 ✅ B3 ✅ B4 ✅ B5 ✅ B6 ✅ B7 ✅ B8 ✅ · B9–B15 pendientes)
+EPIC B  ██████████ 100%  (B1-B15 ✅ — EPIC B CERRADO)
 EPIC C  ░░░░░░░░░░  0%
 EPIC D  ░░░░░░░░░░  0%
 EPIC E  ░░░░░░░░░░  0%
@@ -243,13 +250,13 @@ EPIC G  ░░░░░░░░░░  0%
 | Fase | Horas | Estado |
 |------|-------|--------|
 | EPIC A (S0–S5) | 44–50h | ⏳ |
-| EPIC B (correctitud + seguridad P0) | 38–48h | 🟡 ~15h ejecutadas |
+| EPIC B (correctitud + seguridad P0) | 38–48h | ✅ CERRADO (B1-B15) |
 | EPIC C (resiliencia) | 18–22h | ⏳ |
 | EPIC D (calidad + testing) | 30–36h | ⏳ |
 | EPIC E (frontend) | 28–34h | ⏳ |
 | EPIC F (devops) | 20–26h | 🟡 ~4h ejecutadas |
 | EPIC G (extensibilidad) | 24–30h | ⏳ |
-| Total v1 (A–G) | **~202–246h** | **~32h ejecutadas (~13%)** |
+| Total v1 (A–G) | **~202–246h** | **~48h ejecutadas (~20%)** |
 | Fase H (v2.0 opcional) | +60–100h | 🔒 requiere aprobación |
 
 ---
