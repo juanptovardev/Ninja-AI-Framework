@@ -69,6 +69,10 @@ export const ErrorCodes = {
   // Budget / Model Gateway
   /** Session token budget exceeded — operation blocked */
   BUDGET_EXCEEDED: 'BUDGET_EXCEEDED' as ErrorCode,
+
+  // HTTP / integrations-http (WP-B14)
+  /** HTTP request blocked by SSRF guard — target resolves to a private/reserved IP */
+  HTTP_SSRF_BLOCKED: 'HTTP_SSRF_BLOCKED' as ErrorCode,
 } as const;
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -244,6 +248,17 @@ export class EngineError extends NinjaError {
 export class RosterError extends NinjaError {
   constructor(code: string, message: string, opts?: NinjaErrorOptions) {
     super(code, message, 'roster', opts);
+  }
+}
+
+export class SSRFError extends NinjaError {
+  constructor(message: string, opts?: NinjaErrorOptions) {
+    super(ErrorCodes.HTTP_SSRF_BLOCKED, message, 'runtime', {
+      httpStatus: 403,
+      retryable: false,
+      ...opts,
+    });
+    Object.defineProperty(this, 'name', { value: 'SSRFError' });
   }
 }
 
