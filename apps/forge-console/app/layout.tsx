@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import { ClientLayout } from './ClientLayout';
+import { CommandPalette } from '../components/CommandPalette';
 
 export const metadata: Metadata = {
   title: 'Ninja Forge Console',
@@ -16,6 +17,7 @@ export default function RootLayout({
     <html lang="en" className="antialiased">
       <body suppressHydrationWarning>
         <ClientLayout>{children}</ClientLayout>
+        <CommandPalette />
       </body>
     </html>
   );
