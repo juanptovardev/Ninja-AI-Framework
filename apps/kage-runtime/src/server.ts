@@ -233,6 +233,7 @@ export async function createServer(): Promise<FastifyInstance> {
     env.NINJA_LLM_FAIL_MODE,     // Feature flag from validated env (ADR-0003)
     modelBudgetManager,          // BudgetManager for pre-call enforcement (WP-B4)
     env.NINJA_SESSION_TOKEN_BUDGET, // Per-session token budget (WP-B4)
+    agentCommitRepo,             // RF-16: persist agent commits for /api/commits and /commits page
   );
 
   // ── Kage Engine ──────────────────────────────────────────────────────────────

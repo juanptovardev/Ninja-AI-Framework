@@ -1,7 +1,7 @@
 import type { StepHandler, WorkflowStep, WorkflowContext, StepResult } from '@ninja/flow-matrix';
 import type { ArsenalRegistry } from '@ninja/arsenal-registry';
 import type { EventBus } from '@ninja/events';
-import type { RunRepository, ArtifactRepository } from '@ninja/trace-ledger';
+import type { RunRepository, ArtifactRepository, AgentCommitRepository } from '@ninja/trace-ledger';
 import type { Logger } from '@ninja/logging';
 import type {
   AgentDefinition,
@@ -53,6 +53,8 @@ export class AgentExecutor implements StepHandler {
     private readonly llmFailMode: 'strict' | 'legacy' = 'strict',
     private readonly budgetManager?: BudgetManager,
     private readonly sessionTokenBudget?: number,
+    /** Optional repo for RF-16 mini-commits per agent. If undefined, no per-agent commit row is persisted. */
+    private readonly agentCommitRepository?: AgentCommitRepository,
   ) {}
 
   /**
@@ -200,7 +202,7 @@ export class AgentExecutor implements StepHandler {
         technicalDetails: JSON.stringify(result),
         artifacts: [],
         createdAt: new Date().toISOString(),
-      });
+      }, updatedInstance);
 
       // Actualizar estado a completado
       const completedInstance: AgentInstance = {
@@ -546,12 +548,40 @@ export class AgentExecutor implements StepHandler {
   }
 
   /**
-   * Registra el resultado tipo commit de un agente
+   * Registra el resultado tipo commit de un agente.
+   * - Persiste fila en agent_commits via AgentCommitRepository (RF-16) si está inyectado.
+   * - Actualiza Run y Artifact repositories como antes.
    */
-  private async logAgentResult(record: AgentCommitRecord): Promise<void> {
+  private async logAgentResult(
+    record: AgentCommitRecord,
+    instance?: AgentInstance,
+  ): Promise<void> {
     try {
       this.logger.info(`Agent commit recorded: ${record.summary} for task ${record.taskId}`);
-      
+
+      // RF-16: persistir en agent_commits para /api/commits y /commits page
+      if (this.agentCommitRepository) {
+        try {
+          const agentDef = instance ? this.getAgentDefinitionById(instance.definitionId) : undefined;
+          const role = agentDef?.role ?? 'unknown';
+          const filesChanged = (record.artifacts ?? [])
+            .map((a) => a.name)
+            .filter((n): n is string => typeof n === 'string');
+          const ts = Date.parse(record.createdAt);
+          this.agentCommitRepository.create({
+            id: record.id,
+            runId: record.taskId,
+            agentRole: role,
+            summary: record.summary,
+            filesChanged: JSON.stringify(filesChanged),
+            timestampMs: Number.isFinite(ts) ? ts : Date.now(),
+          });
+        } catch (e) {
+          // No matar el flujo del agente por un fallo de auditoría secundaria.
+          this.logger.error(`Failed to persist agent commit row: ${(e as Error).message}`);
+        }
+      }
+
       // Integracion Trace Ledger (Gap 4)
       if (typeof (this.runRepository as any).updateStatus === 'function') {
         await (this.runRepository as any).updateStatus(record.taskId, 'completed', {
