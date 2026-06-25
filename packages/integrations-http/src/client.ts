@@ -132,7 +132,14 @@ export async function httpRequest<T = unknown>(request: HttpRequest): Promise<Ht
             timeoutMs: timeout,
           })
         );
-        throw new Error(`Request timed out after ${timeout}ms`);
+        // S5.4 follow-up: use NinjaHttpError instead of plain Error so callers can
+        // pattern-match by status. 408 = Request Timeout (RFC 7231).
+        throw new NinjaHttpError(
+          `Request timed out after ${timeout}ms`,
+          408,
+          { reason: 'timeout', timeoutMs: timeout },
+          request.url
+        );
       }
 
       throw error;

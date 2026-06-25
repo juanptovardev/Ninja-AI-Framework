@@ -28,6 +28,7 @@ module.exports = {
         "packages/kage-engine/src/intake.ts",
         "packages/kage-engine/src/coordinator.ts",
         "packages/roster/src/roster.ts",
+        "packages/integrations-http/src/client.ts",
       ],
       rules: {
         "no-restricted-syntax": [
