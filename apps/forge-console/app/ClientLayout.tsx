@@ -7,6 +7,7 @@ import { api, WS_URL } from '../lib/api';
 import type { DashboardData, TaskStatus } from '../lib/types';
 import type { AgentInfo, AgentState } from '@ninja/ui-kit';
 import { Toaster } from 'sonner';
+import * as RadixTooltip from '@radix-ui/react-tooltip';
 
 interface GlobalState {
   sessionStart: number;
@@ -193,25 +194,34 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
   const isUccOrSetup = pathname === '/' || pathname === '/setup';
 
   if (isUccOrSetup) {
-    return <GlobalStateProvider><Toaster richColors position="top-right" />{children}</GlobalStateProvider>;
+    return (
+      <RadixTooltip.Provider>
+        <GlobalStateProvider>
+          <Toaster richColors position="top-right" />
+          {children}
+        </GlobalStateProvider>
+      </RadixTooltip.Provider>
+    );
   }
 
   const activePath = pathname === '/' ? '/mission-control' : pathname;
 
   return (
-    <GlobalStateProvider>
-      <Toaster richColors position="top-right" />
-      <ShellLayout
-        sidebarProps={{
-          activePath,
-          onNavigate: (path: string) => {
-            router.push(path);
-          },
-        }}
-        rightRail={<ContextPanelWrapper />}
-      >
-        {children}
-      </ShellLayout>
-    </GlobalStateProvider>
+    <RadixTooltip.Provider>
+      <GlobalStateProvider>
+        <Toaster richColors position="top-right" />
+        <ShellLayout
+          sidebarProps={{
+            activePath,
+            onNavigate: (path: string) => {
+              router.push(path);
+            },
+          }}
+          rightRail={<ContextPanelWrapper />}
+        >
+          {children}
+        </ShellLayout>
+      </GlobalStateProvider>
+    </RadixTooltip.Provider>
   );
 }

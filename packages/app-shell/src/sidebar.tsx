@@ -9,6 +9,7 @@ import {
   SlidersHorizontal, 
   Compass 
 } from '@phosphor-icons/react';
+import * as RadixTooltip from '@radix-ui/react-tooltip';
 
 export interface SidebarProps {
   activePath: string;
@@ -137,32 +138,48 @@ export const Sidebar: React.FC<SidebarProps> = ({
               {section.items.map((item) => {
                 const isActive = activePath === item.path;
                 return (
-                  <button
-                    key={item.id}
-                    onClick={() => handleClick(item.path)}
-                    className={`
-                      w-full flex items-center gap-3 px-3 py-2 rounded-md
-                      transition-all duration-200 ease-out group
-                      ${
-                        isActive
-                          ? 'bg-[var(--ninja-surface)] text-[var(--ninja-text-primary)] shadow-inner'
-                          : 'bg-transparent text-[var(--ninja-text-secondary)] hover:bg-[var(--ninja-surface-hover)] hover:text-[var(--ninja-text-primary)]'
-                      }
-                    `}
-                  >
-                    <span className={`
-                      transition-colors duration-200
-                      ${isActive ? 'text-[var(--ninja-accent)]' : 'text-[var(--ninja-text-muted)] group-hover:text-[var(--ninja-text-primary)]'}
-                    `}>
-                      {item.icon}
-                    </span>
-                    <span className="font-semibold text-sm">{item.label}</span>
-                    
-                    {/* Active state indicator */}
-                    {isActive && (
-                      <div className="ml-auto w-1 h-4 rounded-full bg-[var(--ninja-accent)]" />
-                    )}
-                  </button>
+                  <RadixTooltip.Root key={item.id} delayDuration={400}>
+                    <RadixTooltip.Trigger asChild>
+                      <button
+                        onClick={() => handleClick(item.path)}
+                        aria-label={item.label}
+                        aria-current={isActive ? 'page' : undefined}
+                        className={`
+                          w-full flex items-center gap-3 px-3 py-2 rounded-md
+                          transition-all duration-200 ease-out group
+                          focus-visible:ring-2 focus-visible:ring-[var(--ninja-accent)] focus-visible:outline-none
+                          ${
+                            isActive
+                              ? 'bg-[var(--ninja-surface)] text-[var(--ninja-text-primary)] shadow-inner'
+                              : 'bg-transparent text-[var(--ninja-text-secondary)] hover:bg-[var(--ninja-surface-hover)] hover:text-[var(--ninja-text-primary)]'
+                          }
+                        `}
+                      >
+                        <span className={`
+                          transition-colors duration-200
+                          ${isActive ? 'text-[var(--ninja-accent)]' : 'text-[var(--ninja-text-muted)] group-hover:text-[var(--ninja-text-primary)]'}
+                        `}>
+                          {item.icon}
+                        </span>
+                        <span className="font-semibold text-sm">{item.label}</span>
+                        
+                        {/* Active state indicator */}
+                        {isActive && (
+                          <div className="ml-auto w-1 h-4 rounded-full bg-[var(--ninja-accent)]" />
+                        )}
+                      </button>
+                    </RadixTooltip.Trigger>
+                    <RadixTooltip.Portal>
+                      <RadixTooltip.Content
+                        side="right"
+                        sideOffset={8}
+                        className="z-50 px-2.5 py-1 rounded text-xs font-semibold bg-[var(--ninja-bg-tertiary)] text-[var(--ninja-text-primary)] border border-[var(--ninja-border)] shadow-md select-none"
+                      >
+                        {item.label}
+                        <RadixTooltip.Arrow className="fill-[var(--ninja-border)]" />
+                      </RadixTooltip.Content>
+                    </RadixTooltip.Portal>
+                  </RadixTooltip.Root>
                 );
               })}
             </div>
