@@ -83,4 +83,20 @@ export const WORKSPACE_MIGRATIONS: Migration[] = [
       `);
     },
   },
+  {
+    id: 6,
+    name: 'Create agent_commits table (RF-16)',
+    up: (db) => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS agent_commits (
+          id TEXT PRIMARY KEY,
+          runId TEXT NOT NULL,
+          agentRole TEXT NOT NULL,
+          summary TEXT NOT NULL,
+          filesChanged TEXT NOT NULL DEFAULT '[]',
+          timestampMs INTEGER NOT NULL
+        )
+      `);
+    },
+  },
 ];

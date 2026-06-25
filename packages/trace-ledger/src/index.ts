@@ -15,6 +15,8 @@ export type {
 export { ArtifactRepository } from './repositories/artifact.repository.js';
 export { SessionRepository } from './repositories/session.repository.js';
 export { RunRepository } from './repositories/run.repository.js';
+export { AgentCommitRepository } from './repositories/agent-commit.repository.js';
+export type { AgentCommitRow } from './repositories/agent-commit.repository.js';
 
 // Event persistence functionality
 export { startEventPersistence } from './event-log.js';
