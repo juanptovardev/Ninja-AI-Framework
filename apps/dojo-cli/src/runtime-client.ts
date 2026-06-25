@@ -172,3 +172,17 @@ export async function getActiveRuns(): Promise<any> {
     return null;
   }
 }
+
+/** Obtener artifacts del Trace Ledger via /api/artifacts */
+export async function getArtifacts(limit = 10): Promise<any[]> {
+  try {
+    const res = await fetch(`${RUNTIME_URL}/api/artifacts?limit=${limit}`, {
+      signal: AbortSignal.timeout(3000),
+    });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return Array.isArray(data) ? data : (data.artifacts ?? []);
+  } catch {
+    return [];
+  }
+}

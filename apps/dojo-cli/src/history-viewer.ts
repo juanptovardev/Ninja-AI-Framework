@@ -1,5 +1,5 @@
 import { printInfo, printWarning, printDivider } from './display.js';
-import { getRuntimeInfo, getActiveRuns } from './runtime-client.js';
+import { getActiveRuns, getArtifacts } from './runtime-client.js';
 
 /**
  * history-viewer.ts
@@ -56,20 +56,32 @@ export async function viewSessionHistory(limit = 10): Promise<void> {
 }
 
 /**
- * Ver historial de artifacts.
- * Implementación real pendiente de la exposición HTTP de Trace Ledger (Fase 2.5+).
+ * Ver historial de artifacts via /api/artifacts del Kage Runtime.
  */
 export async function viewArtifactHistory(limit = 10): Promise<void> {
-  printInfo(`Historial de artifacts (último ${limit}):`);
+  printInfo(`Cargando historial de artifacts (último ${limit})...`);
   printDivider();
 
-  // TODO (Fase 4 / UI): exponer /api/artifacts desde Kage Runtime y consumir aquí
-  const info = await getRuntimeInfo();
-  if (!info) {
-    printWarning('Runtime no disponible. Levanta el servidor con: ninja start');
+  const artifacts = await getArtifacts(limit);
+
+  if (!artifacts || artifacts.length === 0) {
+    printWarning('No hay artifacts registrados.');
+    printInfo('Ejecuta un build para generar artifacts.');
     return;
   }
 
-  printInfo('Trace Ledger conectado. Exposición de artifacts via HTTP disponible en Fase 6 (UI Base).');
-  printInfo('Los artifacts se almacenan localmente en la base SQLite del Trace Ledger.');
+  console.log('');
+  console.log('  ID                    | Tipo       | Run ID               | Creado');
+  console.log('  ' + '─'.repeat(80));
+
+  for (const artifact of artifacts) {
+    const id = (artifact.id ?? '—').toString().slice(0, 20).padEnd(20);
+    const type = (artifact.type ?? '—').padEnd(10);
+    const runId = (artifact.runId ?? artifact.sessionId ?? '—').toString().slice(0, 20).padEnd(20);
+    const ts = artifact.createdAt ? new Date(artifact.createdAt).toLocaleString('es') : '—';
+    console.log(`  ${id} | ${type} | ${runId} | ${ts}`);
+  }
+
+  console.log('');
+  printInfo(`Mostrando ${artifacts.length} artifacts.`);
 }
