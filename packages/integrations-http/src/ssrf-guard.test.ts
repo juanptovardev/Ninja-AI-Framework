@@ -74,4 +74,28 @@ describe('ssrfGuard (WP-B14)', () => {
       ssrfGuard(new URL('https://api.github.com'), { allowedDomains: ['github.com'] })
     ).resolves.toBeUndefined();
   });
+
+  // ── IPv4-mapped IPv6 bypass (WP-B14 follow-up) ──────────────────────────
+  // Known OWASP SSRF bypass: encode private IPv4 addresses in IPv6 notation
+  // (::ffff:X) so they pass the IPv4-only regex checks.
+
+  it('bloquea ::ffff:127.0.0.1 (IPv4-mapped IPv6 loopback)', async () => {
+    await expect(ssrfGuard(new URL('http://[::ffff:127.0.0.1]/'))).rejects.toThrow(SSRFError);
+  });
+
+  it('bloquea ::ffff:10.0.0.1 (IPv4-mapped private 10/8)', async () => {
+    await expect(ssrfGuard(new URL('http://[::ffff:10.0.0.1]/'))).rejects.toThrow(SSRFError);
+  });
+
+  it('bloquea ::ffff:169.254.169.254 (IPv4-mapped AWS metadata)', async () => {
+    await expect(ssrfGuard(new URL('http://[::ffff:169.254.169.254]/'))).rejects.toThrow(SSRFError);
+  });
+
+  it('bloquea ::ffff:192.168.1.1 (IPv4-mapped private 192.168/16)', async () => {
+    await expect(ssrfGuard(new URL('http://[::ffff:192.168.1.1]/'))).rejects.toThrow(SSRFError);
+  });
+
+  it('bloquea ::FFFF:127.0.0.1 (mayúsculas — normalización lowercase)', async () => {
+    await expect(ssrfGuard(new URL('http://[::FFFF:127.0.0.1]/'))).rejects.toThrow(SSRFError);
+  });
 });
