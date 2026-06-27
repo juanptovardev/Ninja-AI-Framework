@@ -68,7 +68,20 @@ export function validateCommand(command: ShellCommand): ValidationResult {
 
   // Validate first arg against per-command patterns (if non-trivial patterns defined)
   const hasSpecificPatterns = patterns.some((p) => p.source !== '.*');
-  if (hasSpecificPatterns && command.args.length > 0) {
+  if (hasSpecificPatterns) {
+    // WP-B12 follow-up: commands with specific patterns (node, tsx, git, npm, pnpm, ...)
+    // require at least one argument. Otherwise binaries like `node` or `tsx` would
+    // spawn an interactive REPL that reads code from stdin → arbitrary code execution
+    // that bypasses the allowlist entirely.
+    if (command.args.length === 0) {
+      const reason = `Command '${cmdName}' requires an argument (interactive REPL / stdin-only mode forbidden — WP-B12)`;
+      eventBus.emit(createEvent('shell.command.denied', 'integrations-shell', {
+        cmd: cmdName,
+        args: command.args,
+        reason,
+      }));
+      return { allowed: false, reason };
+    }
     const firstArg = command.args[0] ?? '';
     if (!patterns.some((p) => p.test(firstArg))) {
       const reason = `Command '${cmdName} ${firstArg}' first argument not in allowlist (WP-B12)`;

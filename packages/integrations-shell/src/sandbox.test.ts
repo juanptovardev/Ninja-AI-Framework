@@ -123,4 +123,45 @@ describe('Shell allowlist (WP-B12)', () => {
     validateCommand({ cmd: 'git', args: ['status'] });
     expect(mockEventBus.emit).not.toHaveBeenCalled();
   });
+
+  // ── REPL bypass (WP-B12 follow-up) ──────────────────────────────────────
+  // Commands with specific arg patterns (node, tsx, git, ...) must require at
+  // least one argument. Otherwise, e.g. `node` with no args spawns the REPL and
+  // accepts arbitrary code via stdin — full RCE bypass of the allowlist.
+
+  it('node sin args → DENIED (REPL bypass)', () => {
+    const result = validateCommand({ cmd: 'node', args: [] });
+    expect(result.allowed).toBe(false);
+    expect(result.reason).toMatch(/REPL|argument/i);
+  });
+
+  it('tsx sin args → DENIED (REPL bypass)', () => {
+    const result = validateCommand({ cmd: 'tsx', args: [] });
+    expect(result.allowed).toBe(false);
+    expect(result.reason).toMatch(/REPL|argument/i);
+  });
+
+  it('git sin args → DENIED (no arg = help/banner, but enforce consistency)', () => {
+    const result = validateCommand({ cmd: 'git', args: [] });
+    expect(result.allowed).toBe(false);
+    expect(result.reason).toMatch(/REPL|argument/i);
+  });
+
+  it('pnpm sin args → DENIED', () => {
+    const result = validateCommand({ cmd: 'pnpm', args: [] });
+    expect(result.allowed).toBe(false);
+    expect(result.reason).toMatch(/REPL|argument/i);
+  });
+
+  it('echo sin args → ALLOWED (no tiene patterns específicos, .* match)', () => {
+    const result = validateCommand({ cmd: 'echo', args: [] });
+    expect(result.allowed).toBe(true);
+  });
+
+  it('REPL denial emite evento shell.command.denied', () => {
+    validateCommand({ cmd: 'node', args: [] });
+    expect(mockEventBus.emit).toHaveBeenCalledOnce();
+    const call = mockEventBus.emit.mock.calls[0][0] as { type: string };
+    expect(call.type).toBe('shell.command.denied');
+  });
 });
