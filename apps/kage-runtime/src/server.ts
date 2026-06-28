@@ -541,7 +541,7 @@ export async function createServer(): Promise<FastifyInstance> {
       const data = getDashboardData();
       return reply.send(data);
     } catch (err: any) {
-      return reply.status(500).send({ error: err.message });
+      return reply.status(500).send(sanitizeError(err, env.NODE_ENV as 'production' | 'development' | 'test'));
     }
   });
 
@@ -558,7 +558,7 @@ export async function createServer(): Promise<FastifyInstance> {
       await approvalManager.approveRequest(id as any, approver, body.notes);
       return reply.send({ success: true });
     } catch (err: any) {
-      return reply.status(400).send({ error: err.message });
+      return reply.status(400).send(sanitizeError(err, env.NODE_ENV as 'production' | 'development' | 'test'));
     }
   });
 
@@ -571,7 +571,7 @@ export async function createServer(): Promise<FastifyInstance> {
       await approvalManager.rejectRequest(id as any, approver, body.reason);
       return reply.send({ success: true });
     } catch (err: any) {
-      return reply.status(400).send({ error: err.message });
+      return reply.status(400).send(sanitizeError(err, env.NODE_ENV as 'production' | 'development' | 'test'));
     }
   });
 
@@ -653,8 +653,7 @@ export async function createServer(): Promise<FastifyInstance> {
       });
       return reply.send(results);
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      return reply.status(500).send({ error: message });
+      return reply.status(500).send(sanitizeError(err, env.NODE_ENV as 'production' | 'development' | 'test'));
     }
   });
 
@@ -694,8 +693,7 @@ export async function createServer(): Promise<FastifyInstance> {
       const candidates = await learningHarvester.harvest(7); // Harvest last 7 days
       return reply.send(candidates);
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      return reply.status(500).send({ error: message });
+      return reply.status(500).send(sanitizeError(err, env.NODE_ENV as 'production' | 'development' | 'test'));
     }
   });
 
@@ -725,8 +723,7 @@ export async function createServer(): Promise<FastifyInstance> {
         score: report.totalScore,
       });
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      return reply.status(500).send({ error: message });
+      return reply.status(500).send(sanitizeError(err, env.NODE_ENV as 'production' | 'development' | 'test'));
     }
   });
 
@@ -764,8 +761,7 @@ export async function createServer(): Promise<FastifyInstance> {
       const result = await git.run(['status', '--porcelain', '-b']);
       return reply.send({ rawStatus: result.stdout });
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      return reply.status(500).send({ error: message });
+      return reply.status(500).send(sanitizeError(err, env.NODE_ENV as 'production' | 'development' | 'test'));
     }
   });
 
@@ -776,8 +772,7 @@ export async function createServer(): Promise<FastifyInstance> {
       const result = await git.run(['log', `-n`, limit || '20', '--oneline']);
       return reply.send({ rawLog: result.stdout });
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      return reply.status(500).send({ error: message });
+      return reply.status(500).send(sanitizeError(err, env.NODE_ENV as 'production' | 'development' | 'test'));
     }
   });
 
@@ -814,8 +809,7 @@ export async function createServer(): Promise<FastifyInstance> {
       const results = await scanDirectory(dirPath || process.cwd());
       return reply.send(results);
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      return reply.status(500).send({ error: message });
+      return reply.status(500).send(sanitizeError(err, env.NODE_ENV as 'production' | 'development' | 'test'));
     }
   });
 
@@ -844,8 +838,7 @@ export async function createServer(): Promise<FastifyInstance> {
 
       return reply.send({ analysis, pipelineResults });
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      return reply.status(500).send({ error: message });
+      return reply.status(500).send(sanitizeError(err, env.NODE_ENV as 'production' | 'development' | 'test'));
     }
   });
 
@@ -871,7 +864,7 @@ export async function createServer(): Promise<FastifyInstance> {
       return reply.send({ sessionId: session.id, status: 'initialized' });
     } catch (err: any) {
       log.error('Failed to init session', err);
-      return reply.status(500).send({ error: err.message });
+      return reply.status(500).send(sanitizeError(err, env.NODE_ENV as 'production' | 'development' | 'test'));
     }
   });
 
@@ -881,7 +874,7 @@ export async function createServer(): Promise<FastifyInstance> {
       return reply.send(sessions);
     } catch (err: any) {
       log.error('Failed to list sessions', err);
-      return reply.status(500).send({ error: err.message });
+      return reply.status(500).send(sanitizeError(err, env.NODE_ENV as 'production' | 'development' | 'test'));
     }
   });
 
@@ -897,7 +890,7 @@ export async function createServer(): Promise<FastifyInstance> {
       return reply.send({ sessionId: id, status: 'restored' });
     } catch (err: any) {
       log.error('Failed to restore session', err);
-      return reply.status(500).send({ error: err.message });
+      return reply.status(500).send(sanitizeError(err, env.NODE_ENV as 'production' | 'development' | 'test'));
     }
   });
 
@@ -992,7 +985,7 @@ export async function createServer(): Promise<FastifyInstance> {
       const result = await agentInstaller.install(agentId as ClientId, { backup: true, verify: true });
       return reply.status(result.success ? 200 : 400).send(result);
     } catch (err: any) {
-      return reply.status(500).send({ error: err.message });
+      return reply.status(500).send(sanitizeError(err, env.NODE_ENV as 'production' | 'development' | 'test'));
     }
   });
 
@@ -1007,7 +1000,7 @@ export async function createServer(): Promise<FastifyInstance> {
         results,
       });
     } catch (err: any) {
-      return reply.status(500).send({ error: err.message });
+      return reply.status(500).send(sanitizeError(err, env.NODE_ENV as 'production' | 'development' | 'test'));
     }
   });
 
@@ -1018,7 +1011,7 @@ export async function createServer(): Promise<FastifyInstance> {
       const result = await agentInstaller.sync(agentId as ClientId);
       return reply.send(result);
     } catch (err: any) {
-      return reply.status(500).send({ error: err.message });
+      return reply.status(500).send(sanitizeError(err, env.NODE_ENV as 'production' | 'development' | 'test'));
     }
   });
 
@@ -1032,7 +1025,7 @@ export async function createServer(): Promise<FastifyInstance> {
         const result = await agentInstaller.uninstall(agentId as ClientId, restoreBackup);
         return reply.send(result);
       } catch (err: any) {
-        return reply.status(500).send({ error: err.message });
+        return reply.status(500).send(sanitizeError(err, env.NODE_ENV as 'production' | 'development' | 'test'));
       }
     }
   );
@@ -1044,7 +1037,7 @@ export async function createServer(): Promise<FastifyInstance> {
       const report = await agentInstaller.verify(agentId as ClientId);
       return reply.send(report);
     } catch (err: any) {
-      return reply.status(500).send({ error: err.message });
+      return reply.status(500).send(sanitizeError(err, env.NODE_ENV as 'production' | 'development' | 'test'));
     }
   });
 
@@ -1063,7 +1056,7 @@ export async function createServer(): Promise<FastifyInstance> {
         reports,
       });
     } catch (err: any) {
-      return reply.status(500).send({ error: err.message });
+      return reply.status(500).send(sanitizeError(err, env.NODE_ENV as 'production' | 'development' | 'test'));
     }
   });
 
