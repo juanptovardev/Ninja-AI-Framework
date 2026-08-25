@@ -24,7 +24,11 @@
     "db:studio": "pnpm --filter @ninja/storage studio",
     "test:e2e": "playwright test",
     "errors:docs": "node scripts/generate-error-docs.mjs",
-    "errors:check": "node scripts/generate-error-docs.mjs --check"
+    "errors:check": "node scripts/generate-error-docs.mjs --check",
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "*.ts": ["prettier --write", "cross-env ESLINT_USE_FLAT_CONFIG=false eslint --fix"]
   },
   "pnpm": {
     "overrides": {
@@ -40,6 +44,8 @@
     "@vitest/coverage-v8": "^4.1.5",
     "cross-env": "^10.1.0",
     "eslint": "^9.0.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^17.3.0",
     "prettier": "^3.3.0",
     "rimraf": "^6.0.0",
     "turbo": "^2.2.0",
