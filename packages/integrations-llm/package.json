@@ -9,6 +9,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@ninja/common-utils": "workspace:*",
     "@ninja/contracts": "workspace:*",
     "@ninja/events": "workspace:*",
     "@ninja/logging": "workspace:*"

@@ -4,7 +4,14 @@
  * ADR: docs/adr/0003-llm-fallback-semantics.md
  */
 import { isNinjaError, ErrorCodes } from '@ninja/contracts';
-import type { FallbackReason } from '@ninja/model-gateway';
+
+/** Mirrors model-gateway FallbackReason to avoid circular dependency. */
+type FallbackReason =
+  | 'rate_limit'
+  | 'server_error'
+  | 'quota_exceeded'
+  | 'timeout'
+  | 'model_unavailable';
 
 /**
  * Classify an unknown error into a FallbackReason for retry decisions.

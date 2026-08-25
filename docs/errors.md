@@ -6,10 +6,7 @@
 
 | Code | Domain | HTTP Status | Retryable | Description |
 |------|--------|-------------|-----------|-------------|
-| `LLM_TIMEOUT` | `llm` | 504 | ✅ | @ninja/contracts — errors.ts
-Jerarquía de errores tipados para el Ninja AI Framework.
-ADR: docs/adr/0001-ninja-error-hierarchy.md
-/
+| `LLM_TIMEOUT` | `llm` | 504 | ✅ | @ninja/contracts — errors.tsJerarquía de errores tipados para el Ninja AI Framework.ADR: docs/adr/0001-ninja-error-hierarchy.md/
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Domain
@@ -54,6 +51,9 @@ export const ErrorCodes = {
 | `ROSTER_INVALID_DEFINITION` | `roster` | 400 | ❌ | Agent definition is invalid or malformed |
 | `BUDGET_EXCEEDED` | `budget` | 500 | ❌ | Session token budget exceeded — operation blocked |
 | `HTTP_SSRF_BLOCKED` | `runtime` | 500 | ❌ | HTTP request blocked by SSRF guard — target resolves to a private/reserved IP |
+| `AUTH_REQUIRED` | `runtime` | 401 | ❌ | Missing or invalid X-Ninja-Key header — authentication required |
+| `CIRCUIT_OPEN` | `runtime` | 500 | ❌ | Circuit breaker is OPEN — service temporarily unavailable (retryable) |
+| `NOT_FOUND` | `runtime` | 404 | ❌ | Requested resource was not found |
 
 ## Usage
 

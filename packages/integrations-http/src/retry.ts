@@ -1,5 +1,5 @@
 import { eventBus, createEvent } from '@ninja/events';
-import { NinjaRetryError } from './errors';
+import { NinjaRetryError, NinjaHttpError } from './errors';
 
 export interface RetryConfig {
   maxRetries: number;
@@ -39,7 +39,8 @@ export async function withRetry<T>(
         break;
       }
 
-      const delay = calculateDelay(attempt, finalConfig);
+      const retryAfterDelay = getRetryAfterDelay(lastError);
+      const delay = retryAfterDelay ?? calculateDelay(attempt, finalConfig);
 
       eventBus.emit(
         createEvent('http.request.retried', 'integrations-http', {
@@ -61,9 +62,24 @@ export async function withRetry<T>(
   );
 }
 
+function getRetryAfterDelay(lastError: Error): number | null {
+  if ('data' in lastError && typeof lastError.data === 'object' && lastError.data !== null) {
+    const retryAfter = (lastError.data as Record<string, unknown>).retryAfter
+      ?? (lastError.data as Record<string, unknown>)['retry-after'];
+    if (typeof retryAfter === 'string') {
+      const seconds = parseInt(retryAfter, 10);
+      if (!isNaN(seconds)) return seconds * 1000;
+    }
+    if (typeof retryAfter === 'number') {
+      return retryAfter * 1000;
+    }
+  }
+  return null;
+}
+
 function calculateDelay(attempt: number, config: RetryConfig): number {
   const exponentialDelay = config.baseDelay * Math.pow(2, attempt);
-  const jitter = Math.random() * 100;
+  const jitter = Math.random() * exponentialDelay * 0.1;
   return Math.min(exponentialDelay + jitter, config.maxDelay);
 }
 
@@ -78,6 +94,9 @@ function isRetryableError(error: Error, config: RetryConfig): boolean {
 
 function isRetryableStatus(error: Error, config: RetryConfig): boolean {
   if (!config.retryOn) return false;
+  if (error instanceof NinjaHttpError) {
+    return config.retryOn.includes(error.status);
+  }
   const statusMatch = error.message.match(/status (\d+)/);
   if (!statusMatch) return false;
   const status = parseInt(statusMatch[1], 10);

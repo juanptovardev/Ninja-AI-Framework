@@ -691,6 +691,9 @@ importers:
 
   packages/integrations-lightrag:
     dependencies:
+      '@ninja/common-utils':
+        specifier: workspace:*
+        version: link:../common-utils
       '@ninja/config':
         specifier: workspace:*
         version: link:../config
@@ -713,6 +716,9 @@ importers:
 
   packages/integrations-llm:
     dependencies:
+      '@ninja/common-utils':
+        specifier: workspace:*
+        version: link:../common-utils
       '@ninja/contracts':
         specifier: workspace:*
         version: link:../contracts

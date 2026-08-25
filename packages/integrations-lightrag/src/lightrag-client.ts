@@ -1,5 +1,6 @@
 import { eventBus, createEvent } from '@ninja/events';
 import { createLogger } from '@ninja/logging';
+import { CircuitBreaker, CircuitOpenError } from '@ninja/common-utils';
 import type {
   LightRAGDocument,
   LightRAGQuery,
@@ -15,13 +16,25 @@ export class LightRAGClient {
   private logger: ReturnType<typeof createLogger>;
   private _isAvailable: boolean;
   private _lastHealthCheck: number;
+  private circuitBreaker: CircuitBreaker;
 
   constructor(baseUrl?: string, timeoutMs?: number) {
     this._baseUrl = baseUrl ?? DEFAULT_BASE_URL;
     this._timeoutMs = timeoutMs ?? DEFAULT_TIMEOUT_MS;
     this.logger = createLogger('LightRAG');
-    this._isAvailable = true; // Asumir disponible hasta probar
+    this._isAvailable = true;
     this._lastHealthCheck = 0;
+    this.circuitBreaker = new CircuitBreaker('lightrag', {
+      failureThreshold: 3,
+      resetTimeoutMs: 30_000,
+      successThreshold: 2,
+      onStateChange: (from, to) => {
+        eventBus.emit(createEvent('lightrag.circuit.state_changed', 'integrations-lightrag', {
+          from,
+          to,
+        }));
+      },
+    });
   }
 
   /**
@@ -62,34 +75,42 @@ export class LightRAGClient {
       return;
     }
 
+    try {
+      await this.circuitBreaker.execute(() => this.rawIndex(doc));
+    } catch (error) {
+      if (error instanceof CircuitOpenError) {
+        this._isAvailable = false;
+        this.logger.warn('LightRAG circuit breaker OPEN, skipping index');
+        return;
+      }
+      this._handleError('index', error);
+    }
+  }
+
+  private async rawIndex(doc: LightRAGDocument): Promise<void> {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), this._timeoutMs);
 
-    try {
-      const response = await globalThis.fetch(`${this._baseUrl}/index`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(doc),
-        signal: controller.signal,
-      });
+    const response = await globalThis.fetch(`${this._baseUrl}/index`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(doc),
+      signal: controller.signal,
+    });
 
-      clearTimeout(timeoutId);
+    clearTimeout(timeoutId);
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-
-      eventBus.emit(
-        createEvent('lightrag.index.completed', 'integrations-lightrag', {
-          documentId: doc.id,
-        })
-      );
-    } catch (error) {
-      clearTimeout(timeoutId);
-      this._handleError('index', error);
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
+
+    eventBus.emit(
+      createEvent('lightrag.index.completed', 'integrations-lightrag', {
+        documentId: doc.id,
+      })
+    );
   }
 
   /**
@@ -103,40 +124,48 @@ export class LightRAGClient {
       return [];
     }
 
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), this._timeoutMs);
-
     try {
-      const response = await globalThis.fetch(`${this._baseUrl}/query`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(q),
-        signal: controller.signal,
-      });
-
-      clearTimeout(timeoutId);
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-
-      const results: LightRAGResult[] = await response.json();
-
-      eventBus.emit(
-        createEvent('lightrag.query.completed', 'integrations-lightrag', {
-          query: q.text,
-          resultCount: results.length,
-        })
-      );
-
-      return results;
+      return await this.circuitBreaker.execute(() => this.rawQuery(q));
     } catch (error) {
-      clearTimeout(timeoutId);
+      if (error instanceof CircuitOpenError) {
+        this._isAvailable = false;
+        this.logger.warn('LightRAG circuit breaker OPEN, returning empty results');
+        return [];
+      }
       this._handleError('query', error);
       return [];
     }
+  }
+
+  private async rawQuery(q: LightRAGQuery): Promise<LightRAGResult[]> {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), this._timeoutMs);
+
+    const response = await globalThis.fetch(`${this._baseUrl}/query`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(q),
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const results: LightRAGResult[] = await response.json();
+
+    eventBus.emit(
+      createEvent('lightrag.query.completed', 'integrations-lightrag', {
+        query: q.text,
+        resultCount: results.length,
+      })
+    );
+
+    return results;
   }
 
   /**
@@ -145,29 +174,15 @@ export class LightRAGClient {
    * Actualiza la propiedad isAvailable.
    */
   async health(): Promise<boolean> {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s para health
-
     try {
-      const response = await globalThis.fetch(`${this._baseUrl}/health`, {
-        method: 'GET',
-        signal: controller.signal,
-      });
-
-      clearTimeout(timeoutId);
-
-      this._lastHealthCheck = Date.now();
-      this._isAvailable = response.ok;
-
-      if (!response.ok) {
-        this.logger.warn('LightRAG health check failed', {
-          status: response.status,
-        });
+      return await this.circuitBreaker.execute(() => this.rawHealth());
+    } catch (error) {
+      if (error instanceof CircuitOpenError) {
+        this._lastHealthCheck = Date.now();
+        this._isAvailable = false;
+        return false;
       }
 
-      return this._isAvailable;
-    } catch (error) {
-      clearTimeout(timeoutId);
       this._lastHealthCheck = Date.now();
       this._isAvailable = false;
 
@@ -182,6 +197,29 @@ export class LightRAGClient {
 
       return false;
     }
+  }
+
+  private async rawHealth(): Promise<boolean> {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+    const response = await globalThis.fetch(`${this._baseUrl}/health`, {
+      method: 'GET',
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId);
+
+    this._lastHealthCheck = Date.now();
+    this._isAvailable = response.ok;
+
+    if (!response.ok) {
+      this.logger.warn('LightRAG health check failed', {
+        status: response.status,
+      });
+    }
+
+    return this._isAvailable;
   }
 
   /**

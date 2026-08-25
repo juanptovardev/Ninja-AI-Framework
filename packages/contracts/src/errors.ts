@@ -77,6 +77,14 @@ export const ErrorCodes = {
   // Auth (WP-B11)
   /** Missing or invalid X-Ninja-Key header — authentication required */
   AUTH_REQUIRED: 'AUTH_REQUIRED' as ErrorCode,
+
+  // Circuit Breaker (WP-C2)
+  /** Circuit breaker is OPEN — service temporarily unavailable (retryable) */
+  CIRCUIT_OPEN: 'CIRCUIT_OPEN' as ErrorCode,
+
+  // Not Found (WP-C1)
+  /** Requested resource was not found */
+  NOT_FOUND: 'NOT_FOUND' as ErrorCode,
 } as const;
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -274,6 +282,17 @@ export class AuthError extends NinjaError {
       ...opts,
     });
     Object.defineProperty(this, 'name', { value: 'AuthError' });
+  }
+}
+
+export class CircuitOpenError extends NinjaError {
+  constructor(message: string, opts?: NinjaErrorOptions) {
+    super(ErrorCodes.CIRCUIT_OPEN, message, 'runtime', {
+      httpStatus: 503,
+      retryable: true,
+      ...opts,
+    });
+    Object.defineProperty(this, 'name', { value: 'CircuitOpenError' });
   }
 }
 

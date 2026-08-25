@@ -23,6 +23,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@ninja/common-utils": "workspace:*",
     "@ninja/config": "workspace:*",
     "@ninja/contracts": "workspace:*",
     "@ninja/events": "workspace:*",

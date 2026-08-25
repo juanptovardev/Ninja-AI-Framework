@@ -2,6 +2,7 @@ import { LLMProvider, LLMRequest, LLMResponse, LLMStreamChunk } from './schema';
 import { LLMError, ErrorCodes } from '@ninja/contracts';
 import { eventBus, createEvent } from '@ninja/events';
 import { createLogger } from '@ninja/logging';
+import { CircuitBreaker } from '@ninja/common-utils';
 
 export interface LLMClientOptions {
   delayFn?: (ms: number) => Promise<void>;
@@ -13,6 +14,7 @@ export class LLMClient {
   private apiKey: string;
   private logger: ReturnType<typeof createLogger>;
   private delayFn: (ms: number) => Promise<void>;
+  private circuitBreaker: CircuitBreaker;
 
   constructor(provider: LLMProvider, baseUrl: string, apiKey: string, options?: LLMClientOptions) {
     this.provider = provider;
@@ -20,6 +22,18 @@ export class LLMClient {
     this.apiKey = apiKey;
     this.logger = createLogger(`LLM-${provider}`);
     this.delayFn = options?.delayFn || ((ms: number) => new Promise((resolve) => setTimeout(resolve, ms)));
+    this.circuitBreaker = new CircuitBreaker(`llm-${provider}`, {
+      failureThreshold: 5,
+      resetTimeoutMs: 30_000,
+      successThreshold: 2,
+      onStateChange: (from, to) => {
+        eventBus.emit(createEvent('llm.circuit.state_changed', 'integrations-llm', {
+          provider: this.provider,
+          from,
+          to,
+        }));
+      },
+    });
   }
 
   private async fetchWithRetry(url: string, init: RequestInit, model: string): Promise<Response> {
@@ -53,6 +67,10 @@ export class LLMClient {
   }
 
   async complete(request: LLMRequest): Promise<LLMResponse> {
+    return this.circuitBreaker.execute(() => this.rawComplete(request));
+  }
+
+  private async rawComplete(request: LLMRequest): Promise<LLMResponse> {
     eventBus.emit(
       createEvent('llm.request.started', 'integrations-llm', {
         provider: this.provider,
