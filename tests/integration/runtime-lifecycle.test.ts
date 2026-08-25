@@ -1,7 +1,15 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import { eventBus } from '@ninja/events';
 import type { NinjaEvent, RuntimeStartedPayload } from '@ninja/contracts';
 import { createLogger } from '@ninja/logging';
+
+// bootstrap() → parseEnv(process.env) requiere LLM_* (ADR-0004). En boot real las
+// carga loadEnv() desde .env; en tests nadie las carga → suite flaky según orden
+// de workers. Stub determinista antes del import dinámico de lifecycle.js.
+vi.stubEnv('LLM_BASE_URL', 'http://localhost:11434/v1');
+vi.stubEnv('LLM_API_KEY', 'test-key');
+vi.stubEnv('LLM_DEFAULT_MODEL', 'gpt-4o-mini');
+vi.stubEnv('NINJA_AUTH_DISABLED', 'true');
 
 const log = createLogger('test:runtime-lifecycle');
 
