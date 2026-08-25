@@ -9,6 +9,7 @@ import type { AgentExecutor } from '@ninja/agent-runtime';
 import type { SessionRepository, RunRepository, ArtifactRepository, RunStatus } from '@ninja/trace-ledger';
 import type { EventBus } from '@ninja/events';
 import type { Logger } from '@ninja/logging';
+import { EngineError, ErrorCodes } from '@ninja/contracts';
 
 // Coordinador de ejecución
 export class ExecutionCoordinator {
@@ -77,7 +78,10 @@ export class ExecutionCoordinator {
   async pauseRun(runId: string): Promise<void> {
     const run = this.runs.get(runId);
     if (!run) {
-      throw new Error(`Run ${runId} not found`);
+      throw new EngineError(ErrorCodes.ENGINE_COORDINATOR_FAILED, `Run ${runId} not found`, {
+        httpStatus: 404,
+        context: { runId },
+      });
     }
 
     if (run.status === 'executing') {
@@ -105,7 +109,7 @@ export class ExecutionCoordinator {
   async resumeRun(runId: string): Promise<void> {
     const run = this.runs.get(runId);
     if (!run) {
-      throw new Error(`Run ${runId} not found`);
+      throw new EngineError(ErrorCodes.ENGINE_COORDINATOR_FAILED, `Run ${runId} not found`, { httpStatus: 404, context: { runId } });
     }
 
     if (run.status === 'paused') {
@@ -133,7 +137,7 @@ export class ExecutionCoordinator {
   async cancelRun(runId: string): Promise<void> {
     const run = this.runs.get(runId);
     if (!run) {
-      throw new Error(`Run ${runId} not found`);
+      throw new EngineError(ErrorCodes.ENGINE_COORDINATOR_FAILED, `Run ${runId} not found`, { httpStatus: 404, context: { runId } });
     }
 
     if (run.status === 'executing' || run.status === 'paused') {

@@ -11,6 +11,7 @@ import { doctorCommand } from './commands/doctor.js';
 import { updateCommand } from './commands/update.js';
 import { printBanner, printError, printInfo, printDivider } from './display.js';
 import { viewSessionHistory, viewArtifactHistory } from './history-viewer.js';
+import { submitEngineRequest } from './runtime-client.js';
 import { CommandPipeline } from './pipeline/command-pipeline.js';
 import { createCommandContext } from './commands/base-command.js';
 import { allCommands } from './commands/command-handlers.js';
@@ -99,9 +100,18 @@ async function main(): Promise<void> {
         printBanner();
         printInfo('Modo: Build — Construir software desde prompt/idea');
         printDivider();
-        printInfo('Submite la solicitud al Kage Engine via: POST /engine/submit');
-        printInfo('Implementación completa disponible en Fase 3.4 (Kage Engine).');
-        // TODO: invocar httpClient.submit({ mode: 'build', prompt: args.slice(1).join(' ') })
+        const buildPrompt = args.slice(1).join(' ');
+        if (!buildPrompt) {
+          printError('Uso: ninja build <prompt>');
+          process.exit(1);
+        }
+        const buildRun = await submitEngineRequest({ mode: 'build', prompt: buildPrompt, workspaceId: 'default-workspace' });
+        if (buildRun) {
+          printInfo(`Solicitud aceptada. Run ID: ${buildRun.id} — Estado: ${buildRun.status}`);
+        } else {
+          printError('No se pudo enviar la solicitud al Kage Engine. ¿Está el runtime activo?');
+          process.exit(1);
+        }
         break;
       }
 
@@ -109,9 +119,14 @@ async function main(): Promise<void> {
         printBanner();
         printInfo('Modo: Repair — Corregir builds rotos y errores de calidad');
         printDivider();
-        printInfo('Submite la solicitud al Kage Engine via: POST /engine/submit');
-        printInfo('Implementación completa disponible en Fase 3.4 (Kage Engine).');
-        // TODO: invocar httpClient.submit({ mode: 'repair', prompt: args.slice(1).join(' ') })
+        const repairPrompt = args.slice(1).join(' ') || 'repair';
+        const repairRun = await submitEngineRequest({ mode: 'repair', prompt: repairPrompt, workspaceId: 'default-workspace' });
+        if (repairRun) {
+          printInfo(`Solicitud aceptada. Run ID: ${repairRun.id} — Estado: ${repairRun.status}`);
+        } else {
+          printError('No se pudo enviar la solicitud al Kage Engine. ¿Está el runtime activo?');
+          process.exit(1);
+        }
         break;
       }
 

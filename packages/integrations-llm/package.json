@@ -1,4 +1,5 @@
 {
+  "private": true,
   "name": "@ninja/integrations-llm",
   "version": "1.0.0",
   "main": "dist/index.js",
@@ -9,6 +10,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@ninja/common-utils": "workspace:*",
     "@ninja/contracts": "workspace:*",
     "@ninja/events": "workspace:*",
     "@ninja/logging": "workspace:*"

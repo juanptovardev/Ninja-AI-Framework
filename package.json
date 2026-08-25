@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "private": true,
   "packageManager": "pnpm@9.15.0",
+  "engines": {
+    "node": ">=22 <25"
+  },
   "scripts": {
     "dev": "turbo run dev --parallel",
     "build": "turbo run build",
@@ -20,7 +23,15 @@
     "db:migrate": "pnpm --filter @ninja/workbench migrate",
     "db:studio": "pnpm --filter @ninja/storage studio",
     "test:e2e": "playwright test",
-    "scaffold:workspace": "node scripts/scaffold-workspace.mjs"
+    "scaffold:workspace": "node scripts/scaffold-workspace.mjs",
+    "errors:docs": "node scripts/generate-error-docs.mjs",
+    "errors:check": "node scripts/generate-error-docs.mjs --check"
+  },
+  "pnpm": {
+    "overrides": {
+      "fast-uri": "3.1.2",
+      "ws": "8.21.0"
+    }
   },
   "devDependencies": {
     "@playwright/test": "^1.49.0",

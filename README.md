@@ -19,16 +19,11 @@ pnpm runtime:dev # Levanta kage-runtime en :3141
 
 ## Estado
 
-- ✅ Fase 0: Foundation (100%)
-- ✅ Fase 1: Kage Runtime (100%)
-- ✅ Fase 2: Dojo CLI + Persistencia (100%)
-- ✅ Fase 3: Motor de Orquestación (100%)
-- ✅ Fase 4: Pulse Center + Sentinel (100%)
-- ✅ Fase 5: Intelligence & Memory (100%)
-- ✅ Fase 6: UI-Kit + App-Shell + Forge Console (100%)
-- ✅ Fase 7: Office Grid + Forge Console Office (100%)
-- 🟡 Fase 8: Integraciones Externas (~90% - Turno 5 completado, pendiente acoplamiento final)
+- ✅ Foundation (Fases 0–7): runtime, CLI, persistencia, motor de orquestación, Pulse + Sentinel, memoria 4 capas, UI
+- ✅ EPIC A: Hygiene & Coherencia (S0–S5)
+- ✅ EPIC B: Correctitud crítica & Seguridad P0 (WP-B1..B15)
+- 🟡 EPIC C: Resiliencia & Error Handling (50% — WP-C1 y WP-C2 cerrados)
 
-```
+**Tests:** 766 passing (+1 skipped) · **Commits:** 100 · **Branch activo:** `fix/epic-b-foundations`
 
 ```

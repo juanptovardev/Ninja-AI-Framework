@@ -1,6 +1,14 @@
 const RUNTIME_PORT = process.env.NEXT_PUBLIC_NINJA_RUNTIME_PORT || '3141';
 export const BASE_URL = `http://127.0.0.1:${RUNTIME_PORT}`;
-export const WS_URL = `ws://127.0.0.1:${RUNTIME_PORT}/ws/events`;
+export const WS_URL =
+  process.env.NEXT_PUBLIC_RUNTIME_WS_URL ?? `ws://127.0.0.1:${RUNTIME_PORT}/ws/events`;
+
+// WP-B11: X-Ninja-Key header for authenticated runtime requests
+const RUNTIME_API_KEY = process.env.NEXT_PUBLIC_RUNTIME_API_KEY ?? '';
+
+function authHeaders(): Record<string, string> {
+  return RUNTIME_API_KEY ? { 'X-Ninja-Key': RUNTIME_API_KEY } : {};
+}
 
 export interface ApiError {
   message: string;
@@ -21,6 +29,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<ApiR
       ...options,
       headers: {
         'Content-Type': 'application/json',
+        ...authHeaders(),
         ...options.headers,
       },
     });

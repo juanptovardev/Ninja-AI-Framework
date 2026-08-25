@@ -1,6 +1,7 @@
 import { stat, readdir } from 'node:fs/promises';
 import { resolve, join, extname } from 'node:path';
 import { eventBus, createEvent } from '@ninja/events';
+import { assertWithinBoundary } from './boundary.js';
 
 // Types
 export interface FileMetadata {
@@ -85,6 +86,7 @@ export async function scanDirectory(path: string, depth?: number): Promise<FileM
 }
 
 export async function getFileTree(path: string): Promise<FileTreeNode> {
+  assertWithinBoundary(path);
   const maxDepth = 3;
 
   async function buildTree(currentPath: string, currentDepth: number): Promise<FileTreeNode> {

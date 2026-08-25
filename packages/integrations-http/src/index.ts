@@ -12,3 +12,4 @@ export {
 export { RetryConfig, withRetry } from './retry';
 export { withTimeout } from './timeout';
 export { NinjaHttpError, NinjaTimeoutError, NinjaRetryError } from './errors';
+export { ssrfGuard, SSRFGuardOptions } from './ssrf-guard';

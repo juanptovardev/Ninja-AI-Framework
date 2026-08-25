@@ -1,7 +1,11 @@
 import type { NinjaEvent } from '@ninja/contracts';
 
 const RUNTIME_PORT = process.env.NINJA_RUNTIME_PORT || '3141';
-const WS_URL = `ws://localhost:${RUNTIME_PORT}/ws/events`;
+// S2.4 follow-up: unified to 127.0.0.1 (matches lib/api.ts) so CORS origin checks
+// are deterministic. localhost vs 127.0.0.1 is treated as a different origin by
+// strict browsers and would surface as a CORS mismatch on WS upgrade.
+const WS_URL =
+  process.env.NEXT_PUBLIC_RUNTIME_WS_URL ?? `ws://127.0.0.1:${RUNTIME_PORT}/ws/events`;
 
 export type ConnectionStatus = 'connecting' | 'connected' | 'disconnected';
 

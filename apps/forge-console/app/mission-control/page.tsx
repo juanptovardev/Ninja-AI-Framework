@@ -107,12 +107,14 @@ const GrillMeSection = () => {
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSend()}
             placeholder="Type your response to the agent..."
+            aria-label="Message to agent"
             className="w-full bg-[var(--ninja-bg-secondary)] border border-[var(--ninja-border-strong)] rounded-xl px-6 py-4 pr-16 text-base text-[var(--ninja-text-primary)] placeholder-[var(--ninja-text-muted)] focus:outline-none focus:border-[var(--ninja-accent)] focus:ring-1 focus:ring-[var(--ninja-accent)] transition-all shadow-inner"
           />
           <button
             onClick={handleSend}
             disabled={!input.trim()}
-            className="absolute right-3 top-1/2 -translate-y-1/2 p-2.5 rounded-lg bg-[var(--ninja-accent)] hover:bg-[var(--ninja-accent-hover)] disabled:bg-[var(--ninja-surface-hover)] disabled:text-[var(--ninja-text-muted)] disabled:cursor-not-allowed text-[var(--ninja-bg-primary)] transition-all flex items-center justify-center shadow-md active:scale-95"
+            aria-label="Send message"
+            className="absolute right-3 top-1/2 -translate-y-1/2 p-2.5 rounded-lg bg-[var(--ninja-accent)] hover:bg-[var(--ninja-accent-hover)] disabled:bg-[var(--ninja-surface-hover)] disabled:text-[var(--ninja-text-muted)] disabled:cursor-not-allowed text-[var(--ninja-bg-primary)] transition-all flex items-center justify-center shadow-md active:scale-95 focus-visible:ring-2 focus-visible:ring-[var(--ninja-accent)] focus-visible:outline-none"
           >
             <PaperPlaneRight weight="fill" className="w-5 h-5" />
           </button>

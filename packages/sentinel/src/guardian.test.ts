@@ -164,37 +164,64 @@ describe('Guardian — allowed actions', () => {
   });
 });
 
-describe('Guardian — without PolicyEngine', () => {
+describe('Guardian — without PolicyEngine (legacy — will be removed after WP-B5)', () => {
+  // These tests are superseded by WP-B5 deny-by-default tests below.
+  // Kept to document the OLD behaviour that WP-B5 flips.
+});
+
+describe('Guardian deny-by-default (WP-B5)', () => {
   let bus: EventBus;
   let approvalManager: ApprovalManager;
-  let guardian: Guardian;
-  const mockLogger = createMockLogger();
 
   beforeEach(() => {
     bus = new EventBus();
     approvalManager = new ApprovalManager(bus, createMockLogger(), 300000);
-    guardian = new Guardian(bus, mockLogger, approvalManager);
   });
 
-  it('allows all actions when no PolicyEngine is provided', async () => {
+  it('without PolicyEngine → denies action (deny-by-default)', async () => {
+    const mockLogger = createMockLogger();
+    const guardian = new Guardian(bus, mockLogger, approvalManager);
     const result = await guardian.evaluateAction('shell.execute', AGENT_ID, RUN_ID);
+    expect(result).toBe(false);
+  });
+
+  it('with PolicyEngine + allow policy → permits', async () => {
+    const policyEngine = new PolicyEngine(createMockLogger());
+    policyEngine.registerPolicy({
+      id: 'allow-agent-spawn' as ID,
+      name: 'Allow agent spawn',
+      description: 'Allow',
+      actionType: 'agent.spawn',
+      action: 'allow',
+      priority: 1,
+    });
+    const guardian = new Guardian(bus, createMockLogger(), approvalManager, policyEngine);
+    const result = await guardian.evaluateAction('agent.spawn', AGENT_ID, RUN_ID);
     expect(result).toBe(true);
   });
 
-  it('logs a warning when no PolicyEngine is provided', async () => {
-    await guardian.evaluateAction('shell.execute', AGENT_ID, RUN_ID);
-    expect(mockLogger.warn).toHaveBeenCalledWith(
-      'Guardian has no PolicyEngine, allowing action by default'
-    );
+  it('with PolicyEngine + deny policy → blocks', async () => {
+    const policyEngine = new PolicyEngine(createMockLogger());
+    // git.push to main is blocked by default policy in PolicyEngine
+    const guardian = new Guardian(bus, createMockLogger(), approvalManager, policyEngine);
+    const result = await guardian.evaluateAction('git.push', AGENT_ID, RUN_ID, { branch: 'main' });
+    expect(result).toBe(false);
   });
 
-  it('does not emit sentinel.action.blocked when no PolicyEngine', async () => {
-    const events = collectEvents(bus);
+  it('with PolicyEngine + require-approval policy → delegates to ApprovalManager', async () => {
+    const policyEngine = new PolicyEngine(createMockLogger());
+    // shell.execute requires approval by default policy in PolicyEngine
+    const guardian = new Guardian(bus, createMockLogger(), approvalManager, policyEngine);
 
-    await guardian.evaluateAction('git.push', AGENT_ID, RUN_ID, { branch: 'main' });
+    const promise = guardian.evaluateAction('shell.execute', AGENT_ID, RUN_ID, { cmd: 'ls' });
 
-    const blockedEvents = events.filter((e) => e.type === 'sentinel.action.blocked');
-    expect(blockedEvents).toHaveLength(0);
+    const pending = approvalManager.listPendingApprovals();
+    if (pending.length > 0) {
+      await approvalManager.approveRequest(pending[0].id, APPROVER, 'ok');
+    }
+
+    const result = await promise;
+    expect(result).toBe(true);
   });
 });
 

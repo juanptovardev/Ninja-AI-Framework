@@ -1,4 +1,5 @@
 {
+  "private": true,
   "name": "@ninja/kage-engine",
   "version": "1.0.0",
   "description": "Kage Engine - Central orchestration engine for Ninja AI Framework",

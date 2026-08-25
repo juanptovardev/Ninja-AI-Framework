@@ -21,6 +21,7 @@
     "@ninja/delegation-router": "workspace:*",
     "@ninja/events": "workspace:*",
     "@ninja/flow-matrix": "workspace:*",
+    "@ninja/forge-lab": "workspace:*",
     "@ninja/installer": "workspace:*",
     "@ninja/integrations-engram": "workspace:*",
     "@ninja/integrations-fs": "workspace:*",
@@ -29,7 +30,6 @@
     "@ninja/integrations-lightrag": "workspace:*",
     "@ninja/integrations-llm": "workspace:*",
     "@ninja/integrations-shell": "workspace:*",
-    "@ninja/forge-lab": "workspace:*",
     "@ninja/kage-engine": "workspace:*",
     "@ninja/learning-loop": "workspace:*",
     "@ninja/logging": "workspace:*",
@@ -42,7 +42,8 @@
     "@ninja/vault": "workspace:*",
     "@ninja/workbench": "workspace:*",
     "dotenv": "^17.4.1",
-    "fastify": "^5.1.0"
+    "fastify": "^5.1.0",
+    "zod": "3.24.1"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

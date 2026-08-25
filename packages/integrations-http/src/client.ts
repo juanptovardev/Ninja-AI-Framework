@@ -3,6 +3,7 @@ import { createLogger } from '@ninja/logging';
 import { NinjaHttpError } from './errors';
 import { withRetry, RetryConfig } from './retry';
 import { withTimeout } from './timeout';
+import { ssrfGuard, SSRFGuardOptions } from './ssrf-guard';
 
 const logger = createLogger('http-client');
 
@@ -13,6 +14,7 @@ export interface HttpRequest {
   body?: unknown;
   timeout?: number;
   retry?: Partial<RetryConfig>;
+  ssrf?: SSRFGuardOptions | false;
 }
 
 export interface HttpResponse<T = unknown> {
@@ -29,6 +31,10 @@ const DEFAULT_TIMEOUT = 30000;
 export async function httpRequest<T = unknown>(request: HttpRequest): Promise<HttpResponse<T>> {
   const startTime = Date.now();
   const timeout = request.timeout ?? DEFAULT_TIMEOUT;
+
+  if (request.ssrf !== false) {
+    await ssrfGuard(new URL(request.url), request.ssrf ?? {});
+  }
 
   const executeRequest = async (): Promise<HttpResponse<T>> => {
     const controller = new AbortController();
@@ -126,7 +132,14 @@ export async function httpRequest<T = unknown>(request: HttpRequest): Promise<Ht
             timeoutMs: timeout,
           })
         );
-        throw new Error(`Request timed out after ${timeout}ms`);
+        // S5.4 follow-up: use NinjaHttpError instead of plain Error so callers can
+        // pattern-match by status. 408 = Request Timeout (RFC 7231).
+        throw new NinjaHttpError(
+          `Request timed out after ${timeout}ms`,
+          408,
+          { reason: 'timeout', timeoutMs: timeout },
+          request.url
+        );
       }
 
       throw error;

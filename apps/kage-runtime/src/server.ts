@@ -1,11 +1,24 @@
-import fastify, { FastifyInstance } from 'fastify';
+import fastify, { FastifyInstance, FastifyRequest } from 'fastify';
 import cors from '@fastify/cors';
 import websocketPlugin from '@fastify/websocket';
+import { createHash } from 'node:crypto';
 import type { HealthResponse, RuntimeStatus } from '@ninja/contracts';
 import { createLogger } from '@ninja/logging';
 import { eventBus } from '@ninja/events';
+import { parseEnv } from './env-schema.js';
+import { sanitizeError } from './sanitize-error.js';
+import { getOrCreateRuntimeKey } from './auth-key.js';
+import { AuthError } from '@ninja/contracts';
+import {
+  ShellExecuteSchema,
+  EngineSubmitSchema,
+  VaultWriteSchema,
+  GitCommitSchema,
+  RosterAssignSchema,
+} from './route-schemas.js';
 import { RUNTIME_NAME, RUNTIME_VERSION } from './constants.js';
 import { registerBusRoutes } from './bus-router.js';
+import { registerErrorHandlers } from './error-handler.js';
 import { KageEngine, HttpController } from '@ninja/kage-engine';
 import { bootstrap as bootstrapArsenal } from '@ninja/arsenal-registry';
 import { requireActiveContext } from '@ninja/workbench';
@@ -13,7 +26,7 @@ import { initDb, runMigrations } from '@ninja/storage';
 import { WORKSPACE_MIGRATIONS } from '@ninja/workbench';
 import { WorkflowExecutor } from '@ninja/flow-matrix';
 import { AgentExecutor } from '@ninja/agent-runtime';
-import { SessionRepository, RunRepository, ArtifactRepository } from '@ninja/trace-ledger';
+import { SessionRepository, RunRepository, ArtifactRepository, AgentCommitRepository } from '@ninja/trace-ledger';
 import type { NinjaEvent } from '@ninja/contracts';
 import { getNinjaGlobalDir } from '@ninja/config';
 import { LLMRegistry } from '@ninja/integrations-llm';
@@ -24,6 +37,7 @@ import { registerMcpRuntimeRoutes } from './mcp-runtime-server.js';
 import { registerRosterVerifyRoute } from './routes/roster-verify.js';
 import { FailoverManager } from './failover.js';
 import { PolicyEngine, ApprovalManager, Auditor, Guardian } from '@ninja/sentinel';
+import type { ApproverIdentity } from '@ninja/sentinel';
 import path from 'path';
 
 // Phase 5: Intelligence & Memory
@@ -35,6 +49,7 @@ import {
   StrategyEngine,
   ModelSelector,
   BudgetManager,
+  FallbackChain,
   createStrategyEngine,
 } from '@ninja/model-gateway';
 import { LearningHarvester, LearningPromoter, LearningEvaluator } from '@ninja/learning-loop';
@@ -69,7 +84,23 @@ const ALLOWED_ORIGINS = [
   'http://127.0.0.1:3141',
 ];
 
+/**
+ * Identidad real del approver derivada de la key autenticada (Ley 6 — doble
+ * aprobación trazable). Antes se hardcodeaba `api-user/admin`, lo que hacía
+ * imposible saber quién aprobó y permitía que cualquier key aprobara como
+ * "admin" anónimo.
+ */
+function deriveApprover(request: FastifyRequest): ApproverIdentity {
+  const raw = request.headers['x-ninja-key'];
+  const key = Array.isArray(raw) ? (raw[0] ?? '') : (raw ?? '');
+  const fingerprint = createHash('sha256').update(key).digest('hex').slice(0, 12);
+  return { id: `operator-${fingerprint}`, role: 'operator' };
+}
+
 export async function createServer(): Promise<FastifyInstance> {
+  // Re-parse env to get typed values — already validated by loadEnv() at boot (ADR-0004)
+  const env = parseEnv(process.env as Record<string, string | undefined>);
+
   const server = fastify({ logger: false }); // logging gestionado por @ninja/logging
 
   // ── CORS ────────────────────────────────────────────────────────────────────
@@ -83,13 +114,32 @@ export async function createServer(): Promise<FastifyInstance> {
       callback(new Error(`CORS bloqueado para origin: ${origin}`), false);
     },
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Ninja-Session'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Ninja-Key'],
     credentials: true,
   });
 
   // ── WebSocket ────────────────────────────────────────────────────────────────
   await server.register(websocketPlugin);
 
+  // ── API Key auth (WP-B11) ────────────────────────────────────────────────────
+  const PUBLIC_PATHS = ['/health', '/api/status', '/status'];
+  const authDisabled = process.env.NINJA_AUTH_DISABLED === 'true';
+  const runtimeKey = authDisabled ? null : getOrCreateRuntimeKey();
+
+  if (!authDisabled) {
+    server.addHook('onRequest', async (request, reply) => {
+      if (PUBLIC_PATHS.some((p) => request.url === p || request.url.startsWith(p + '?'))) return;
+      if (request.url.startsWith('/ws/')) return;
+      const key = request.headers['x-ninja-key'];
+      if (key !== runtimeKey) {
+        const err = new AuthError('Missing or invalid X-Ninja-Key header');
+        return reply.status(401).send(sanitizeError(err, env.NODE_ENV as 'production' | 'development' | 'test'));
+      }
+    });
+  }
+
+  // ── Global Error Handler (WP-C1) ───────────────────────────────────────────────
+  registerErrorHandlers(server, env.NODE_ENV as 'production' | 'development' | 'test');
 
   // ── Health & Status ──────────────────────────────────────────────────────────
   server.get('/health', async (_request, _reply): Promise<HealthResponse> => {
@@ -140,14 +190,15 @@ export async function createServer(): Promise<FastifyInstance> {
   const sessionRepo = new SessionRepository(db);
   const runRepo = new RunRepository(db);
   const artifactRepo = new ArtifactRepository(db);
+  const agentCommitRepo = new AgentCommitRepository(db);
 
   // ── LLM Integration ────────────────────────────────────────────────────────
   const llmRegistry = LLMRegistry.getInstance();
 
   // Registrar proveedor por defecto (usando OpenAI como base si no hay nada)
-  const providerId = (process.env.LLM_PROVIDER as any) || 'openai';
+  const providerId = (process.env.LLM_PROVIDER as import('@ninja/integrations-llm').LLMProvider) || 'openai';
   const baseUrl = process.env.LLM_BASE_URL || 'https://api.openai.com/v1';
-  const apiKey = process.env.LLM_API_KEY || 'sk-placeholder'; // Evitar crash si no hay key, el client lo manejará
+  const apiKey = process.env['LLM_API_KEY']!; // validated by loadEnv() at boot (ADR-0004)
 
   try {
     llmRegistry.register(providerId, baseUrl, apiKey);
@@ -192,6 +243,7 @@ export async function createServer(): Promise<FastifyInstance> {
   const mc = ModelCatalog.getInstance();
   const modelBudgetManager = BudgetManager.getInstance(eventBus);
   const modelSelector = new ModelSelector(mc, eventBus);
+  const fallbackChain = FallbackChain.getInstance(eventBus); // WP-B3: FallbackChain for LLM retry
 
   const strategyEngine = createStrategyEngine({
     selector: modelSelector,
@@ -221,7 +273,12 @@ export async function createServer(): Promise<FastifyInstance> {
     runRepo,
     artifactRepo,
     log,
-    modelSelector // Inyectar ModelSelector para selección dinámica
+    modelSelector,
+    fallbackChain,               // FallbackChain wired (WP-B3 / ADR-0003)
+    env.NINJA_LLM_FAIL_MODE,     // Feature flag from validated env (ADR-0003)
+    modelBudgetManager,          // BudgetManager for pre-call enforcement (WP-B4)
+    env.NINJA_SESSION_TOKEN_BUDGET, // Per-session token budget (WP-B4)
+    agentCommitRepo,             // RF-16: persist agent commits for /api/commits and /commits page
   );
 
   // ── Kage Engine ──────────────────────────────────────────────────────────────
@@ -248,16 +305,20 @@ export async function createServer(): Promise<FastifyInstance> {
   });
 
   server.post('/api/roster/assign', async (request, reply) => {
-    const { clientId, role } = request.body as { clientId: string; role: string };
+    const parsed = RosterAssignSchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.status(400).send({ error: 'Invalid request body', code: 'VALIDATION_ERROR', issues: parsed.error.issues });
+    }
+    const { clientId, role } = parsed.data;
     try {
       rosterManager.assignRole(clientId as any, role as any);
       return reply.send({ success: true });
-    } catch (err: any) {
+    } catch (err) {
       if (clientId.startsWith('agent-')) {
         log.info(`Mocking roster assignment for UI agent: ${clientId} to ${role}`);
         return reply.send({ success: true });
       }
-      return reply.status(400).send({ error: err.message });
+      return reply.status(400).send(sanitizeError(err, env.NODE_ENV as 'production' | 'development' | 'test'));
     }
   });
 
@@ -307,7 +368,7 @@ export async function createServer(): Promise<FastifyInstance> {
   const auditor = new Auditor(eventBus, log);
   auditor.start();
 
-  const guardian = new Guardian(eventBus, log, approvalManager);
+  const guardian = new Guardian(eventBus, log, approvalManager, policyEngine);
   guardian.start();
 
   log.info('Sentinel System started');
@@ -348,38 +409,71 @@ export async function createServer(): Promise<FastifyInstance> {
   server.get('/ws/events', { websocket: true }, (socket, _request) => {
     log.info('WebSocket client connected to /ws/events');
 
-    const busSubscription = eventBus.on('*', (event: NinjaEvent) => {
-      if (socket.readyState === socket.OPEN) {
-        socket.send(JSON.stringify(event));
-      }
-    });
+    // WP-B11: WS auth — first message must be { action: 'auth', key }
+    let authenticated = authDisabled;
 
-    const unsubscribe = () => busSubscription.unsubscribe();
+    const authTimeout = authDisabled
+      ? null
+      : setTimeout(() => {
+          if (!authenticated) {
+            socket.close(1008, 'Auth timeout: send auth handshake within 5s');
+          }
+        }, 5000);
+
+    let busSubscription: { unsubscribe: () => void } | null = null;
+
+    const subscribe = () => {
+      busSubscription = eventBus.on('*', (event: NinjaEvent) => {
+        if (socket.readyState === socket.OPEN) {
+          socket.send(JSON.stringify(event));
+        }
+      });
+    };
+
+    const unsubscribe = () => busSubscription?.unsubscribe();
+
+    if (authDisabled) {
+      subscribe();
+    }
 
     socket.on('message', (raw: Buffer) => {
       try {
         const msg = JSON.parse(raw.toString());
+
+        if (!authenticated) {
+          if (msg.action === 'auth' && msg.key === runtimeKey) {
+            authenticated = true;
+            if (authTimeout) clearTimeout(authTimeout);
+            socket.send(JSON.stringify({ type: 'auth.ok' }));
+            subscribe();
+          } else {
+            socket.close(1008, 'Invalid auth');
+          }
+          return;
+        }
+
         if (msg.type === 'ping') {
           socket.send(JSON.stringify({ type: 'pong', ts: Date.now() }));
         } else if (msg.action === 'interview:answers') {
-          // Procesar las respuestas pasándolas al engine
           if (typeof (engine as any).submitAnswers === 'function') {
             (engine as any).submitAnswers(msg.payload);
           } else {
             log.warn('engine.submitAnswers no está implementado aún en KageEngine');
           }
         }
-      } catch {
-        // Mensaje no JSON o error al procesar — ignorar para no tirar el WS
+      } catch (err) {
+        log.debug('Failed to parse WS message', err);
       }
     });
 
     socket.on('close', () => {
+      if (authTimeout) clearTimeout(authTimeout);
       unsubscribe();
       log.info('WebSocket client disconnected from /ws/events');
     });
 
     socket.on('error', (err: Error) => {
+      if (authTimeout) clearTimeout(authTimeout);
       unsubscribe();
       log.error('WebSocket error in /ws/events', err);
     });
@@ -403,7 +497,14 @@ export async function createServer(): Promise<FastifyInstance> {
   });
 
   server.post('/engine/submit', async (request, reply) => {
-    const result = await httpController.handleSubmit({ body: request.body as any });
+    const parsed = EngineSubmitSchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.status(400).send({ error: 'Invalid request body', code: 'VALIDATION_ERROR', issues: parsed.error.issues });
+    }
+    const result = await httpController.handleSubmit({ body: parsed.data as any });
+    if (env.NINJA_SESSION_TOKEN_BUDGET && result.body && (result.body as any).sessionId) {
+      modelBudgetManager.setSessionBudget((result.body as any).sessionId, env.NINJA_SESSION_TOKEN_BUDGET);
+    }
     return reply.status(result.status).send(result.body);
   });
 
@@ -454,7 +555,7 @@ export async function createServer(): Promise<FastifyInstance> {
       const data = getDashboardData();
       return reply.send(data);
     } catch (err: any) {
-      return reply.status(500).send({ error: err.message });
+      return reply.status(500).send(sanitizeError(err, env.NODE_ENV as 'production' | 'development' | 'test'));
     }
   });
 
@@ -466,31 +567,41 @@ export async function createServer(): Promise<FastifyInstance> {
   server.post('/api/approvals/:id/approve', async (request, reply) => {
     const id = (request.params as any).id;
     const body = (request.body as { notes?: string }) || {};
-    try {
-      const approver = { id: 'api-user', role: 'admin' };
-      await approvalManager.approveRequest(id as any, approver, body.notes);
-      return reply.send({ success: true });
-    } catch (err: any) {
-      return reply.status(400).send({ error: err.message });
-    }
+    const approver = deriveApprover(request);
+    await approvalManager.approveRequest(id as any, approver, body.notes);
+    return reply.send({ success: true });
   });
 
   server.post('/api/approvals/:id/reject', async (request, reply) => {
     const id = (request.params as any).id;
     const body = request.body as { reason: string };
     if (!body?.reason) return reply.status(400).send({ error: 'reason is required' });
-    try {
-      const approver = { id: 'api-user', role: 'admin' };
-      await approvalManager.rejectRequest(id as any, approver, body.reason);
-      return reply.send({ success: true });
-    } catch (err: any) {
-      return reply.status(400).send({ error: err.message });
-    }
+    const approver = deriveApprover(request);
+    await approvalManager.rejectRequest(id as any, approver, body.reason);
+    return reply.send({ success: true });
   });
 
   server.get('/api/audit', async (_request, reply) => {
     const logs = auditor.getAuditLog();
     return reply.send(logs);
+  });
+
+  // ── Agent Commits Routes (RF-16) ──────────────────────────────────────────
+  server.get('/api/commits', async (request, reply) => {
+    const { runId, limit } = request.query as { runId?: string; limit?: string };
+    const lim = limit ? parseInt(limit) : 100;
+    if (runId) {
+      return reply.send(agentCommitRepo.findByRunId(runId));
+    }
+    return reply.send(agentCommitRepo.findAll(lim));
+  });
+
+  // ── Arsenal Registry Route (S3.4) ─────────────────────────────────────────
+  server.get('/api/arsenal', async (_request, reply) => {
+    return reply.send({
+      tools: arsenalRegistry.listTools(),
+      skills: arsenalRegistry.listSkills(),
+    });
   });
 
   // ── Artifacts Routes ───────────────────────────────────────────────────────
@@ -538,41 +649,24 @@ export async function createServer(): Promise<FastifyInstance> {
       return reply.status(400).send({ error: 'Query (q) and sessionId are required' });
     }
 
-    try {
-      const results = await vaultCoordinator.query({
-        agentId: agentId || 'guest',
-        sessionId,
-        query: q,
-        layers: layers ? (layers.split(',') as any[]) : ['HOT', 'WARM', 'COLD'],
-        tokenBudget: budget ? parseInt(budget) : 2000,
-      });
-      return reply.send(results);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      return reply.status(500).send({ error: message });
-    }
+    const results = await vaultCoordinator.query({
+      agentId: agentId || 'guest',
+      sessionId,
+      query: q,
+      layers: layers ? (layers.split(',') as any[]) : ['HOT', 'WARM', 'COLD'],
+      tokenBudget: budget ? parseInt(budget) : 2000,
+    });
+    return reply.send(results);
   });
 
-  interface VaultWriteBody {
-    agentId?: string;
-    sessionId: string;
-    content: string;
-    layer: any; // MemoryLayer type from @ninja/vault should ideally be used
-  }
-
-  server.post<{ Body: VaultWriteBody }>('/api/vault/write', async (request, reply) => {
-    const { agentId, sessionId, content, layer } = request.body;
-    if (!content || !layer || !sessionId) {
-      return reply.status(400).send({ error: 'content, layer and sessionId are required' });
+  server.post('/api/vault/write', async (request, reply) => {
+    const parsed = VaultWriteSchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.status(400).send({ error: 'Invalid request body', code: 'VALIDATION_ERROR', issues: parsed.error.issues });
     }
-
-    try {
-      await vaultCoordinator.write(agentId || 'guest', sessionId, content, layer);
-      return reply.send({ success: true });
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      return reply.status(500).send({ error: message });
-    }
+    const { agentId, sessionId, content, layer } = parsed.data;
+    await vaultCoordinator.write(agentId ?? 'guest', sessionId, content, layer as any);
+    return reply.send({ success: true });
   });
 
   server.get('/api/model-gateway/status', async (_request, reply) => {
@@ -583,14 +677,18 @@ export async function createServer(): Promise<FastifyInstance> {
     });
   });
 
+  server.get('/api/budget/status', async (request, reply) => {
+    const { sessionId } = request.query as { sessionId?: string };
+    return reply.send({
+      global: modelBudgetManager.getGlobalUsage(),
+      session: sessionId ? (modelBudgetManager.getSessionSummary(sessionId) ?? null) : null,
+      limit: env.NINJA_SESSION_TOKEN_BUDGET ?? null,
+    });
+  });
+
   server.get('/api/learning/candidates', async (_request, reply) => {
-    try {
-      const candidates = await learningHarvester.harvest(7); // Harvest last 7 days
-      return reply.send(candidates);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      return reply.status(500).send({ error: message });
-    }
+    const candidates = await learningHarvester.harvest(7);
+    return reply.send(candidates);
   });
 
   server.post<{ Params: { id: string } }>('/api/learning/promote/:id', async (request, reply) => {
@@ -619,8 +717,7 @@ export async function createServer(): Promise<FastifyInstance> {
         score: report.totalScore,
       });
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      return reply.status(500).send({ error: message });
+      return reply.status(500).send(sanitizeError(err, env.NODE_ENV as 'production' | 'development' | 'test'));
     }
   });
 
@@ -629,20 +726,18 @@ export async function createServer(): Promise<FastifyInstance> {
 
   // Integrations-Shell Routes
   server.post('/api/shell/execute', async (request, reply) => {
-    const { cmd, args, cwd } = request.body as { cmd: string; args: string[]; cwd?: string };
-    try {
-      const shellCommand: ShellCommand = { cmd, args: args || [], cwd };
-      const validation = validateCommand(shellCommand);
-      if (!validation.allowed) {
-        return reply.status(403).send({ error: validation.reason });
-      }
-
-      const result = await executeCommand(shellCommand);
-      return reply.send(result);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      return reply.status(500).send({ error: message });
+    const parsed = ShellExecuteSchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.status(400).send({ error: 'Invalid request body', code: 'VALIDATION_ERROR', issues: parsed.error.issues });
     }
+    const { cmd, args, cwd } = parsed.data;
+    const shellCommand: ShellCommand = { cmd, args, cwd };
+    const validation = validateCommand(shellCommand);
+    if (!validation.allowed) {
+      return reply.status(403).send({ error: validation.reason });
+    }
+    const result = await executeCommand(shellCommand);
+    return reply.send(result);
   });
 
   // Integrations-Git Routes
@@ -656,75 +751,48 @@ export async function createServer(): Promise<FastifyInstance> {
       const result = await git.run(['status', '--porcelain', '-b']);
       return reply.send({ rawStatus: result.stdout });
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      return reply.status(500).send({ error: message });
+      return reply.status(500).send(sanitizeError(err, env.NODE_ENV as 'production' | 'development' | 'test'));
     }
   });
 
   server.get('/api/git/log', async (request, reply) => {
     const { repoPath, limit } = request.query as { repoPath?: string; limit?: string };
     const git = new GitClient(repoPath || process.cwd());
-    try {
-      const result = await git.run(['log', `-n`, limit || '20', '--oneline']);
-      return reply.send({ rawLog: result.stdout });
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      return reply.status(500).send({ error: message });
-    }
+    const result = await git.run(['log', `-n`, limit || '20', '--oneline']);
+    return reply.send({ rawLog: result.stdout });
   });
 
   server.post('/api/git/commit', async (request, reply) => {
-    const body = request.body as { repoPath?: string; message: string };
-    
-    // Validate message is provided
-    if (!body?.message || body.message.trim() === '') {
-      return reply.status(400).send({ error: 'Commit message is required' });
+    const parsed = GitCommitSchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.status(400).send({ error: 'Invalid request body', code: 'VALIDATION_ERROR', issues: parsed.error.issues });
     }
-    
+    const { message, repoPath } = parsed.data;
     try {
-      // Request approval via Sentinel
       const approvalResult = await approvalManager.createApprovalRequest({
         runId: crypto.randomUUID(),
         agentId: 'kage-runtime',
         actionType: 'git.commit',
-        actionSummary: `Git commit: "${body.message}"`,
-        technicalDetails: JSON.stringify({ repoPath: body.repoPath, message: body.message }),
+        actionSummary: `Git commit: "${message}"`,
+        technicalDetails: JSON.stringify({ repoPath, message }),
         policyId: 'git.commit.policy',
       });
-      
-      // Check if approved
       if (!approvalResult.approved) {
-        return reply.status(403).send({ 
-          error: 'Commit rejected by Sentinel policy', 
-          notes: approvalResult.notes 
-        });
+        return reply.status(403).send({ error: 'Commit rejected by Sentinel policy', notes: approvalResult.notes });
       }
-      
-      // Execute git commit if approved
-      const git = new GitClient(body.repoPath || process.cwd());
-      await commit(git, body.message);
-      
-      return reply.send({ 
-        success: true, 
-        message: 'Commit created successfully',
-        repoPath: body.repoPath || process.cwd()
-      });
+      const git = new GitClient(repoPath || process.cwd());
+      await commit(git, message);
+      return reply.send({ success: true, message: 'Commit created successfully', repoPath: repoPath || process.cwd() });
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      return reply.status(500).send({ error: message });
+      return reply.status(500).send(sanitizeError(err, env.NODE_ENV as 'production' | 'development' | 'test'));
     }
   });
 
   // Integrations-FS Routes
   server.get('/api/fs/scan', async (request, reply) => {
     const { dirPath } = request.query as { dirPath?: string };
-    try {
-      const results = await scanDirectory(dirPath || process.cwd());
-      return reply.send(results);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      return reply.status(500).send({ error: message });
-    }
+    const results = await scanDirectory(dirPath || process.cwd());
+    return reply.send(results);
   });
 
   // Forge Lab Routes
@@ -752,8 +820,7 @@ export async function createServer(): Promise<FastifyInstance> {
 
       return reply.send({ analysis, pipelineResults });
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      return reply.status(500).send({ error: message });
+      return reply.status(500).send(sanitizeError(err, env.NODE_ENV as 'production' | 'development' | 'test'));
     }
   });
 
@@ -779,18 +846,13 @@ export async function createServer(): Promise<FastifyInstance> {
       return reply.send({ sessionId: session.id, status: 'initialized' });
     } catch (err: any) {
       log.error('Failed to init session', err);
-      return reply.status(500).send({ error: err.message });
+      return reply.status(500).send(sanitizeError(err, env.NODE_ENV as 'production' | 'development' | 'test'));
     }
   });
 
   server.get('/api/session/list', async (_request, reply) => {
-    try {
-      const sessions = typeof (sessionRepo as any).findAll === 'function' ? (sessionRepo as any).findAll() : [];
-      return reply.send(sessions);
-    } catch (err: any) {
-      log.error('Failed to list sessions', err);
-      return reply.status(500).send({ error: err.message });
-    }
+    const sessions = typeof (sessionRepo as any).findAll === 'function' ? (sessionRepo as any).findAll() : [];
+    return reply.send(sessions);
   });
 
   server.post('/api/session/restore/:id', async (request, reply) => {
@@ -805,7 +867,7 @@ export async function createServer(): Promise<FastifyInstance> {
       return reply.send({ sessionId: id, status: 'restored' });
     } catch (err: any) {
       log.error('Failed to restore session', err);
-      return reply.status(500).send({ error: err.message });
+      return reply.status(500).send(sanitizeError(err, env.NODE_ENV as 'production' | 'development' | 'test'));
     }
   });
 
@@ -896,38 +958,26 @@ export async function createServer(): Promise<FastifyInstance> {
   // POST /api/install/:agentId — install Ninja into a specific agent
   server.post<{ Params: { agentId: string } }>('/api/install/:agentId', async (request, reply) => {
     const { agentId } = request.params;
-    try {
-      const result = await agentInstaller.install(agentId as ClientId, { backup: true, verify: true });
-      return reply.status(result.success ? 200 : 400).send(result);
-    } catch (err: any) {
-      return reply.status(500).send({ error: err.message });
-    }
+    const result = await agentInstaller.install(agentId as ClientId, { backup: true, verify: true });
+    return reply.status(result.success ? 200 : 400).send(result);
   });
 
   // POST /api/install/all — install Ninja into all detected agents
   server.post('/api/install/all', async (_request, reply) => {
-    try {
-      const results = await agentInstaller.installAll({ backup: true, verify: true });
-      return reply.send({
-        total: results.length,
-        succeeded: results.filter(r => r.success).length,
-        failed: results.filter(r => !r.success).length,
-        results,
-      });
-    } catch (err: any) {
-      return reply.status(500).send({ error: err.message });
-    }
+    const results = await agentInstaller.installAll({ backup: true, verify: true });
+    return reply.send({
+      total: results.length,
+      succeeded: results.filter(r => r.success).length,
+      failed: results.filter(r => !r.success).length,
+      results,
+    });
   });
 
   // POST /api/sync/:agentId — sync Ninja files to a specific agent
   server.post<{ Params: { agentId: string } }>('/api/sync/:agentId', async (request, reply) => {
     const { agentId } = request.params;
-    try {
-      const result = await agentInstaller.sync(agentId as ClientId);
-      return reply.send(result);
-    } catch (err: any) {
-      return reply.status(500).send({ error: err.message });
-    }
+    const result = await agentInstaller.sync(agentId as ClientId);
+    return reply.send(result);
   });
 
   // DELETE /api/install/:agentId — uninstall Ninja from a specific agent
@@ -936,43 +986,31 @@ export async function createServer(): Promise<FastifyInstance> {
     async (request, reply) => {
       const { agentId } = request.params;
       const restoreBackup = request.query.restore === 'true';
-      try {
-        const result = await agentInstaller.uninstall(agentId as ClientId, restoreBackup);
-        return reply.send(result);
-      } catch (err: any) {
-        return reply.status(500).send({ error: err.message });
-      }
+      const result = await agentInstaller.uninstall(agentId as ClientId, restoreBackup);
+      return reply.send(result);
     }
   );
 
   // GET /api/install/:agentId/verify — verify agent config
   server.get<{ Params: { agentId: string } }>('/api/install/:agentId/verify', async (request, reply) => {
     const { agentId } = request.params;
-    try {
-      const report = await agentInstaller.verify(agentId as ClientId);
-      return reply.send(report);
-    } catch (err: any) {
-      return reply.status(500).send({ error: err.message });
-    }
+    const report = await agentInstaller.verify(agentId as ClientId);
+    return reply.send(report);
   });
 
   // GET /api/doctor — verify all detected agents (Ninja doctor)
   server.get('/api/doctor', async (_request, reply) => {
-    try {
-      const { detectAllClients } = await import('@ninja/roster');
-      const detected = detectAllClients();
-      const reports = await Promise.all(
-        Object.keys(detected).map((id) => agentInstaller.verify(id as ClientId))
-      );
-      return reply.send({
-        total: reports.length,
-        passed: reports.filter(r => r.passed).length,
-        failed: reports.filter(r => !r.passed).length,
-        reports,
-      });
-    } catch (err: any) {
-      return reply.status(500).send({ error: err.message });
-    }
+    const { detectAllClients } = await import('@ninja/roster');
+    const detected = detectAllClients();
+    const reports = await Promise.all(
+      Object.keys(detected).map((id) => agentInstaller.verify(id as ClientId))
+    );
+    return reply.send({
+      total: reports.length,
+      passed: reports.filter(r => r.passed).length,
+      failed: reports.filter(r => !r.passed).length,
+      reports,
+    });
   });
 
   // GET /api/roster/verify — verify ALL known agents (including undetected)

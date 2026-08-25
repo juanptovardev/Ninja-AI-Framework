@@ -285,4 +285,41 @@ describe('ModelSelector', () => {
       }
     });
   });
+
+  describe('selectFastest (WP-B9)', () => {
+    const makeModel = (id: string, lastPing?: number): ModelEntry => ({
+      id,
+      provider: 'ollama',
+      name: id,
+      tier: 'free',
+      contextWindow: 8000,
+      capabilities: ['code'],
+      costPerToken: 0,
+      isAvailable: true,
+      quotaRemaining: Infinity,
+      intelligenceScore: 70,
+      ...(lastPing !== undefined ? { lastPing } : {}),
+    });
+
+    it('elige el modelo con menor ping de entre {200, 50, 120}', () => {
+      mockCatalog.setModels([makeModel('slow', 200), makeModel('fast', 50), makeModel('mid', 120)]);
+      const result = selector.select({ capability: 'code', strategy: 'fastest' });
+      expect(result.success).toBe(true);
+      if (result.success) expect(result.data.modelId).toBe('fast');
+    });
+
+    it('modelo sin ping no se prioriza sobre modelo con ping medido', () => {
+      mockCatalog.setModels([makeModel('no-ping'), makeModel('with-ping', 100)]);
+      const result = selector.select({ capability: 'code', strategy: 'fastest' });
+      expect(result.success).toBe(true);
+      if (result.success) expect(result.data.modelId).toBe('with-ping');
+    });
+
+    it('todos sin ping → devuelve el primero (Infinity === Infinity, reduce mantiene best)', () => {
+      mockCatalog.setModels([makeModel('first'), makeModel('second'), makeModel('third')]);
+      const result = selector.select({ capability: 'code', strategy: 'fastest' });
+      expect(result.success).toBe(true);
+      if (result.success) expect(result.data.modelId).toBe('first');
+    });
+  });
 });

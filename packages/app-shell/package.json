@@ -1,4 +1,5 @@
 {
+  "private": true,
   "name": "@ninja/app-shell",
   "version": "1.0.0",
   "description": "Ninja AI Framework — App Shell. Layout principal de Forge Console con sidebar y rightRail.",
@@ -22,6 +23,7 @@
     "@gsap/react": "^2.1.2",
     "@ninja/ui-kit": "workspace:*",
     "@phosphor-icons/react": "^2.1.10",
+    "@radix-ui/react-tooltip": "^1.2.10",
     "geist": "^1.7.2",
     "gsap": "^3.15.0"
   },

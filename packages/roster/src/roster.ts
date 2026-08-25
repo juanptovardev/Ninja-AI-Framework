@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import { createLogger } from '@ninja/logging';
+import { RosterError, ErrorCodes } from '@ninja/contracts';
 import { NinjaRoster, ClientId, ClientRole, ProviderId, ClientConfig } from './types.js';
 import { detectAllClients } from './detector.js';
 
@@ -52,7 +53,9 @@ export class RosterManager {
    */
   public getRoster(): NinjaRoster {
     if (!this.roster) {
-      throw new Error('Roster is not loaded. Unlock the roster first.');
+      throw new RosterError(ErrorCodes.ROSTER_INVALID_DEFINITION, 'Roster is not loaded. Unlock the roster first.', {
+        httpStatus: 500,
+      });
     }
     return this.roster;
   }
@@ -81,7 +84,10 @@ export class RosterManager {
       log.info('Roster successfully unlocked.');
     } catch (err) {
       log.error('Failed to unlock roster.', err);
-      throw new Error('Failed to unlock roster: Corrupted file.');
+      throw new RosterError(ErrorCodes.ROSTER_INVALID_DEFINITION, 'Failed to unlock roster: Corrupted file.', {
+        httpStatus: 500,
+        cause: err,
+      });
     }
   }
 
@@ -90,7 +96,9 @@ export class RosterManager {
    */
   public save(): void {
     if (!this.roster) {
-      throw new Error('Roster is not initialized.');
+      throw new RosterError(ErrorCodes.ROSTER_INVALID_DEFINITION, 'Roster is not initialized.', {
+        httpStatus: 500,
+      });
     }
 
     try {
@@ -106,7 +114,11 @@ export class RosterManager {
       log.info('Roster successfully saved.');
     } catch (err) {
       log.error('Failed to save roster.', err);
-      throw new Error(`Failed to save roster: ${err instanceof Error ? err.message : String(err)}`);
+      throw new RosterError(
+        ErrorCodes.ROSTER_INVALID_DEFINITION,
+        `Failed to save roster: ${err instanceof Error ? err.message : String(err)}`,
+        { httpStatus: 500, cause: err },
+      );
     }
   }
 
@@ -182,7 +194,10 @@ export class RosterManager {
     const roster = this.getRoster();
     const key = roster.apiKeys[provider];
     if (!key) {
-      throw new Error(`API Key for provider ${provider} not found in roster.`);
+      throw new RosterError(ErrorCodes.ROSTER_AGENT_NOT_FOUND, `API Key for provider ${provider} not found in roster.`, {
+        httpStatus: 404,
+        context: { provider },
+      });
     }
 
     return key;
@@ -195,7 +210,10 @@ export class RosterManager {
     const roster = this.getRoster();
     const client = roster.clients[clientId];
     if (!client) {
-      throw new Error(`Client ${clientId} is not registered in the roster.`);
+      throw new RosterError(ErrorCodes.ROSTER_AGENT_NOT_FOUND, `Client ${clientId} is not registered in the roster.`, {
+        httpStatus: 404,
+        context: { clientId },
+      });
     }
 
     // Reassign roles in configurations
@@ -217,10 +235,16 @@ export class RosterManager {
     } else if (role === 'worker') {
       // Remove from orchestrator or sentinel lists
       if (roster.roles.orchestrator === clientId) {
-        throw new Error('Cannot assign orchestrator to worker role without choosing a replacement.');
+        throw new RosterError(ErrorCodes.ROSTER_INVALID_DEFINITION, 'Cannot assign orchestrator to worker role without choosing a replacement.', {
+          httpStatus: 409,
+          context: { clientId },
+        });
       }
       if (roster.roles.sentinel === clientId) {
-        throw new Error('Cannot assign sentinel to worker role without choosing a replacement.');
+        throw new RosterError(ErrorCodes.ROSTER_INVALID_DEFINITION, 'Cannot assign sentinel to worker role without choosing a replacement.', {
+          httpStatus: 409,
+          context: { clientId },
+        });
       }
       if (!roster.roles.workers.includes(clientId)) {
         roster.roles.workers.push(clientId);

@@ -52,8 +52,11 @@ export class Guardian {
    */
   async evaluateAction(actionType: string, agentId: ID, runId: ID, context?: Record<string, unknown>): Promise<boolean> {
     if (!this.policyEngine) {
-      this.logger.warn('Guardian has no PolicyEngine, allowing action by default');
-      return true;
+      this.logger.error(
+        'Guardian sin PolicyEngine — deny-by-default (WP-B5)',
+        { actionType }
+      );
+      return false;
     }
 
     const decision: PolicyDecision = this.policyEngine.evaluate(actionType, {

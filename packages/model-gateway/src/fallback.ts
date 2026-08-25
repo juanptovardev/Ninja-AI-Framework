@@ -47,13 +47,24 @@ export class FallbackChain {
   }
 
   private buildDefaultChains(): void {
+    // Real catalog IDs (verified against model-gateway/src/catalog.ts)
+    // Chains ordered by: capability tier, cost, latency
     const defaultChains: Record<string, string[]> = {
-      'gpt-4': ['gpt-4-turbo', 'gpt-3.5-turbo', 'claude-3-haiku'],
-      'gpt-4-turbo': ['gpt-3.5-turbo', 'claude-3-haiku'],
-      'claude-3-opus': ['claude-3-sonnet', 'claude-3-haiku', 'gpt-3.5-turbo'],
-      'claude-3-sonnet': ['claude-3-haiku', 'gpt-3.5-turbo'],
-      'gpt-3.5-turbo': ['claude-3-haiku'],
-      'claude-3-haiku': [],
+      // OpenAI
+      'openai/gpt-4o': ['openai/gpt-4o-mini', 'anthropic/claude-3-5-sonnet', 'deepseek/deepseek-v3'],
+      'openai/gpt-4o-mini': ['anthropic/claude-3-haiku', 'google/gemini-2.0-flash', 'meta/llama-3.3-70b'],
+      'openai/gpt-3.5-turbo': ['meta/llama-3.3-70b', 'ollama/llama3.1:8b'],
+      // Anthropic
+      'anthropic/claude-3-5-sonnet': ['openai/gpt-4o-mini', 'anthropic/claude-3-haiku'],
+      'anthropic/claude-3-haiku': ['meta/llama-3.3-70b', 'google/gemini-2.0-flash'],
+      // DeepSeek / Qwen
+      'deepseek/deepseek-v3': ['openai/gpt-4o-mini', 'qwen/qwen3-235b'],
+      'qwen/qwen3-235b': ['deepseek/deepseek-v3', 'anthropic/claude-3-haiku'],
+      // Google
+      'google/gemini-2.0-flash': ['openai/gpt-4o-mini', 'meta/llama-3.3-70b'],
+      // Meta / Local (leaves — no fallback for free/local tier)
+      'meta/llama-3.3-70b': ['ollama/llama3.1:8b'],
+      'ollama/llama3.1:8b': [],
     };
 
     for (const [primaryModel, fallbacks] of Object.entries(defaultChains)) {
@@ -171,6 +182,11 @@ export class FallbackChain {
       FallbackChain.instance = new FallbackChain(eventBus ?? globalEventBus);
     }
     return FallbackChain.instance;
+  }
+
+  /** Reset singleton — for testing only */
+  static resetInstance(): void {
+    FallbackChain.instance = null;
   }
 }
 

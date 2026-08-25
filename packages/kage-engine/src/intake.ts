@@ -4,6 +4,7 @@ import type { AgentRole } from '@ninja/agent-runtime';
 import type { Logger } from '@ninja/logging';
 import type { EventBus } from '@ninja/events';
 import { LLMClient, type LLMRequest } from '@ninja/integrations-llm';
+import { EngineError, ErrorCodes } from '@ninja/contracts';
 
 export class IntakeProcessor {
   constructor(
@@ -355,7 +356,11 @@ Reglas:
     // Verificar que todos los pasos tengan asignaciones de agentes
     for (const step of steps) {
       if (!agentAssignments[step.id]) {
-        throw new Error(`Step ${step.id} has no assigned agent role`);
+        throw new EngineError(
+          ErrorCodes.ENGINE_INVALID_INTAKE,
+          `Step ${step.id} has no assigned agent role`,
+          { httpStatus: 400, context: { stepId: step.id } },
+        );
       }
     }
 
@@ -402,7 +407,11 @@ Reglas:
 
     for (const step of steps) {
       if (hasCycle(step.id)) {
-        throw new Error(`Circular dependency detected involving step ${step.id}`);
+        throw new EngineError(
+          ErrorCodes.ENGINE_PLAN_FAILED,
+          `Circular dependency detected involving step ${step.id}`,
+          { httpStatus: 400, context: { stepId: step.id } },
+        );
       }
     }
   }
@@ -416,7 +425,11 @@ Reglas:
     for (const step of steps) {
       for (const dep of step.dependsOn) {
         if (!stepIds.has(dep)) {
-          throw new Error(`Step ${step.id} depends on non-existent step ${dep}`);
+          throw new EngineError(
+            ErrorCodes.ENGINE_INVALID_INTAKE,
+            `Step ${step.id} depends on non-existent step ${dep}`,
+            { httpStatus: 400, context: { stepId: step.id, missingDep: dep } },
+          );
         }
       }
     }

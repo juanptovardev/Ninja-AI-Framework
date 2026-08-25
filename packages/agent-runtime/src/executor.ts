@@ -1,7 +1,7 @@
 import type { StepHandler, WorkflowStep, WorkflowContext, StepResult } from '@ninja/flow-matrix';
 import type { ArsenalRegistry } from '@ninja/arsenal-registry';
 import type { EventBus } from '@ninja/events';
-import type { RunRepository, ArtifactRepository } from '@ninja/trace-ledger';
+import type { RunRepository, ArtifactRepository, AgentCommitRepository } from '@ninja/trace-ledger';
 import type { Logger } from '@ninja/logging';
 import type {
   AgentDefinition,
@@ -16,8 +16,10 @@ import type {
 } from './schema';
 import { MemoryManager } from './memory';
 import { AGENT_DEFINITIONS } from './definitions';
-import { LLMClient, type LLMRequest } from '@ninja/integrations-llm';
-import { ModelSelector, type ModelCapability, type SelectionStrategy } from '@ninja/model-gateway';
+import { LLMClient, type LLMRequest, type LLMResponse, classifyLLMError } from '@ninja/integrations-llm';
+import { ModelSelector, FallbackChain, type ModelCapability, type SelectionStrategy } from '@ninja/model-gateway';
+import { LLMError, EngineError, ErrorCodes, BudgetError } from '@ninja/contracts';
+import type { BudgetManager } from '@ninja/model-gateway';
 
 const ROLE_SELECTION_MAP: Record<string, { capability: ModelCapability; strategy: SelectionStrategy }> = {
   Planner: { capability: 'reasoning', strategy: 'most-capable' },
@@ -44,8 +46,79 @@ export class AgentExecutor implements StepHandler {
     private readonly runRepository: RunRepository,
     private readonly artifactRepository: ArtifactRepository,
     private readonly logger: Logger,
-    private readonly modelSelector?: ModelSelector
+    private readonly modelSelector?: ModelSelector,
+    /** Injected FallbackChain for LLM retry (ADR-0003). If undefined, no fallback is attempted. */
+    private readonly fallbackChain?: FallbackChain,
+    /** Controls behavior when chain is exhausted (ADR-0003, NINJA_LLM_FAIL_MODE env var). */
+    private readonly llmFailMode: 'strict' | 'legacy' = 'strict',
+    private readonly budgetManager?: BudgetManager,
+    private readonly sessionTokenBudget?: number,
+    /** Optional repo for RF-16 mini-commits per agent. If undefined, no per-agent commit row is persisted. */
+    private readonly agentCommitRepository?: AgentCommitRepository,
   ) {}
+
+  /**
+   * Wrapper around llmClient.complete that implements FallbackChain retry (ADR-0003).
+   * - With FallbackChain: retries on rate_limit/timeout/server_error, tries next model.
+   * - Chain exhausted + strict: throws LLMError(LLM_ALL_PROVIDERS_FAILED).
+   * - Chain exhausted + legacy: returns { fallback: true, ... } for backward compat.
+   * - No FallbackChain or non-retryable error: propagates immediately.
+   */
+  private async completeWithFallback(
+    request: LLMRequest,
+    sessionId?: string,
+  ): Promise<LLMResponse | { fallback: true; retryable: true; status: 'failed'; result: string; timestamp: string }> {
+    if (this.budgetManager && this.sessionTokenBudget !== undefined && sessionId) {
+      if (this.budgetManager.isOverBudget(sessionId, this.sessionTokenBudget)) {
+        throw new BudgetError(
+          `Token budget exceeded for session ${sessionId} (limit: ${this.sessionTokenBudget})`,
+          { context: { sessionId, limit: this.sessionTokenBudget } },
+        );
+      }
+    }
+
+    if (!this.fallbackChain) {
+      return this.llmClient.complete(request);
+    }
+
+    let currentModel = request.model;
+    let lastError: unknown;
+
+    for (let attempt = 0; attempt < 10; attempt++) {
+      try {
+        return await this.llmClient.complete({ ...request, model: currentModel });
+      } catch (err) {
+        lastError = err;
+        const reason = classifyLLMError(err);
+        if (!reason) throw err; // non-retryable (auth, unknown) — propagate immediately
+
+        const next = this.fallbackChain.getNext(currentModel, reason, sessionId);
+        if (!next) break; // chain exhausted
+
+        this.logger.warn(`LLM fallback ${currentModel} → ${next} (${reason})`);
+        currentModel = next;
+      }
+    }
+
+    // Chain exhausted
+    if (this.llmFailMode === 'strict') {
+      throw new LLMError(
+        ErrorCodes.LLM_ALL_PROVIDERS_FAILED,
+        `LLM chain exhausted from ${request.model}`,
+        { retryable: false, cause: lastError, context: { initialModel: request.model } },
+      );
+    }
+
+    // Legacy mode: return historic fallback object
+    this.logger.warn(`[fallback] chain exhausted, using legacy fallback object (NINJA_LLM_FAIL_MODE=legacy)`);
+    return {
+      fallback: true as const,
+      retryable: true as const,
+      status: 'failed' as const,
+      result: 'Agent unavailable due to LLM service interruption',
+      timestamp: new Date().toISOString(),
+    };
+  }
 
   /**
    * Crea una nueva instancia de agente
@@ -129,7 +202,7 @@ export class AgentExecutor implements StepHandler {
         technicalDetails: JSON.stringify(result),
         artifacts: [],
         createdAt: new Date().toISOString(),
-      });
+      }, updatedInstance);
 
       // Actualizar estado a completado
       const completedInstance: AgentInstance = {
@@ -348,7 +421,7 @@ export class AgentExecutor implements StepHandler {
   private async executeWithMapReduce(task: AgentTask, instance: AgentInstance): Promise<MapReduceResult> {
     this.logger.info(`Starting Map-Reduce for task ${task.id}`);
     const agentDef = this.getAgentDefinitionById(instance.definitionId);
-    if (!agentDef) throw new Error(`Agent definition not found`);
+    if (!agentDef) throw new EngineError(ErrorCodes.ENGINE_COORDINATOR_FAILED, 'Agent definition not found', { context: { taskId: task.id } });
 
     const startTime = Date.now();
 
@@ -407,12 +480,18 @@ export class AgentExecutor implements StepHandler {
 
     let reducedOutput: Record<string, unknown> = {};
     try {
-      const reduceResponse = await this.llmClient.complete(request);
-      totalTokens += reduceResponse.usage.total_tokens;
-      try {
-        reducedOutput = JSON.parse(reduceResponse.choices[0]?.message?.content || '{}');
-      } catch {
-        reducedOutput = { raw: reduceResponse.choices[0]?.message?.content };
+      const reduceRaw = await this.completeWithFallback(request, task.workflowId);
+      // Handle legacy fallback case
+      if ('fallback' in reduceRaw) {
+        reducedOutput = { error: 'Reduce failed (LLM unavailable)', partials: successfulResults };
+      } else {
+        const reduceResponse = reduceRaw;
+        totalTokens += reduceResponse.usage.total_tokens;
+        try {
+          reducedOutput = JSON.parse(reduceResponse.choices[0]?.message?.content || '{}');
+        } catch {
+          reducedOutput = { raw: reduceResponse.choices[0]?.message?.content };
+        }
       }
     } catch (e) {
       this.logger.error(`Reduce phase failed: ${(e as Error).message}`);
@@ -439,12 +518,12 @@ export class AgentExecutor implements StepHandler {
     // Obtener definición del agente basada en el rol del step
     const role = step.agentRole as AgentRole;
     if (!role) {
-      throw new Error(`Step does not specify an agent role: ${step.id}`);
+      throw new EngineError(ErrorCodes.ENGINE_INVALID_INTAKE, `Step does not specify an agent role: ${step.id}`, { httpStatus: 400, context: { stepId: step.id } });
     }
 
     const agentDefinition = AGENT_DEFINITIONS[role];
     if (!agentDefinition) {
-      throw new Error(`Unknown agent role: ${role}`);
+      throw new EngineError(ErrorCodes.ENGINE_INVALID_INTAKE, `Unknown agent role: ${role}`, { httpStatus: 400, context: { role } });
     }
 
     // Crear instancia del agente
@@ -469,12 +548,40 @@ export class AgentExecutor implements StepHandler {
   }
 
   /**
-   * Registra el resultado tipo commit de un agente
+   * Registra el resultado tipo commit de un agente.
+   * - Persiste fila en agent_commits via AgentCommitRepository (RF-16) si está inyectado.
+   * - Actualiza Run y Artifact repositories como antes.
    */
-  private async logAgentResult(record: AgentCommitRecord): Promise<void> {
+  private async logAgentResult(
+    record: AgentCommitRecord,
+    instance?: AgentInstance,
+  ): Promise<void> {
     try {
       this.logger.info(`Agent commit recorded: ${record.summary} for task ${record.taskId}`);
-      
+
+      // RF-16: persistir en agent_commits para /api/commits y /commits page
+      if (this.agentCommitRepository) {
+        try {
+          const agentDef = instance ? this.getAgentDefinitionById(instance.definitionId) : undefined;
+          const role = agentDef?.role ?? 'unknown';
+          const filesChanged = (record.artifacts ?? [])
+            .map((a) => a.name)
+            .filter((n): n is string => typeof n === 'string');
+          const ts = Date.parse(record.createdAt);
+          this.agentCommitRepository.create({
+            id: record.id,
+            runId: record.taskId,
+            agentRole: role,
+            summary: record.summary,
+            filesChanged: JSON.stringify(filesChanged),
+            timestampMs: Number.isFinite(ts) ? ts : Date.now(),
+          });
+        } catch (e) {
+          // No matar el flujo del agente por un fallo de auditoría secundaria.
+          this.logger.error(`Failed to persist agent commit row: ${(e as Error).message}`);
+        }
+      }
+
       // Integracion Trace Ledger (Gap 4)
       if (typeof (this.runRepository as any).updateStatus === 'function') {
         await (this.runRepository as any).updateStatus(record.taskId, 'completed', {
@@ -519,7 +626,7 @@ export class AgentExecutor implements StepHandler {
   ): Promise<Record<string, unknown>> {
     const agentDef = this.getAgentDefinitionById(instance.definitionId);
     if (!agentDef) {
-      throw new Error(`Agent definition not found: ${instance.definitionId}`);
+      throw new EngineError(ErrorCodes.ENGINE_COORDINATOR_FAILED, `Agent definition not found: ${instance.definitionId}`, { context: { definitionId: instance.definitionId } });
     }
 
     if (!task.isSubTask && task.description.length > 4000) {
@@ -595,8 +702,17 @@ export class AgentExecutor implements StepHandler {
 
     try {
       const llmStartedAt = Date.now();
-      const response = await this.llmClient.complete(request);
+      const response = await this.completeWithFallback(request, task.workflowId);
       const latencyMs = Date.now() - llmStartedAt;
+
+      // Legacy mode: completeWithFallback returned a fallback object instead of a response
+      if ('fallback' in response) {
+        return {
+          ...response,
+          taskId: task.id,
+          agentInstanceId: instance.instanceId,
+        };
+      }
 
       this.eventBus.emit({
         id: crypto.randomUUID(),
@@ -662,6 +778,14 @@ export class AgentExecutor implements StepHandler {
           },
         },
       });
+
+      // In strict mode (or when FallbackChain already exhausted), re-throw so run()
+      // marks the task as failed with the correct StepResult.status = 'failed'.
+      // BudgetError always re-throws (budget enforcement is not a legacy fallback scenario).
+      // In legacy mode without FallbackChain, return the historic fallback object.
+      if (error instanceof BudgetError || (this.fallbackChain && this.llmFailMode === 'strict')) {
+        throw error;
+      }
 
       return {
         result: 'Agent unavailable due to LLM service interruption',

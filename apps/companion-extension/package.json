@@ -1,4 +1,5 @@
 {
+  "private": true,
   "name": "@ninja/companion-extension",
   "displayName": "Ninja Companion",
   "description": "VS Code Companion Extension for Ninja AI Framework (Cursor & Codex integration)",
@@ -41,6 +42,6 @@
     "@vscode/test-electron": "^2.3.0"
   },
   "dependencies": {
-    "ws": "^8.18.0"
+    "ws": "8.21.0"
   }
 }

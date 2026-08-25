@@ -4,6 +4,7 @@ import { pathToFileURL } from 'node:url';
 import { fileURLToPath } from 'node:url';
 import { eventBus, createEvent } from '@ninja/events';
 import type { NinjaEvent } from '@ninja/contracts';
+import { assertWithinBoundary } from './boundary.js';
 
 // Types
 export interface FileMetadata {
@@ -34,9 +35,9 @@ export class FsReadError extends Error {
 
 // Main functions
 export async function readFile(path: string, encoding: BufferEncoding = 'utf8'): Promise<string> {
+  const safePath = assertWithinBoundary(path);
   try {
-    const resolvedPath = resolve(path);
-    return await fsReadFile(resolvedPath, encoding);
+    return await fsReadFile(safePath, encoding);
   } catch (error) {
     throw new FsReadError(`Failed to read file: ${path}`, (error as Error).name);
   }
@@ -52,8 +53,9 @@ export async function readFileLines(path: string): Promise<string[]> {
 }
 
 export async function fileExists(path: string): Promise<boolean> {
+  const safePath = assertWithinBoundary(path);
   try {
-    await stat(path);
+    await stat(safePath);
     return true;
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
@@ -64,9 +66,9 @@ export async function fileExists(path: string): Promise<boolean> {
 }
 
 export async function readDirectory(path: string): Promise<string[]> {
+  const safePath = assertWithinBoundary(path);
   try {
-    const resolvedPath = resolve(path);
-    return await readdir(resolvedPath);
+    return await readdir(safePath);
   } catch (error) {
     throw new FsReadError(`Failed to read directory: ${path}`, (error as Error).name);
   }
