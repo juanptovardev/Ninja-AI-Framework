@@ -99,7 +99,7 @@ export async function createServer(): Promise<FastifyInstance> {
       callback(new Error(`CORS bloqueado para origin: ${origin}`), false);
     },
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Ninja-Session'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Ninja-Key'],
     credentials: true,
   });
 
