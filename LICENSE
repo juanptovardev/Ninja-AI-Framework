@@ -1,0 +1,33 @@
+Ninja AI Framework
+Copyright (c) 2026 Ninja AI (juanptovardev). All Rights Reserved.
+
+This software and its accompanying source code, documentation, build artifacts
+and associated assets (collectively, the "Software") are proprietary and
+confidential to the copyright holder.
+
+1. Ownership. The Software is licensed, not sold. The copyright holder retains
+   all right, title and interest in and to the Software, including all
+   intellectual property rights.
+
+2. Restrictions. You may NOT use, reproduce, copy, modify, merge, publish,
+   distribute, sublicense, rent, lease, loan, sell, export, publicly display,
+   publicly perform, reverse engineer, decompile or create derivative works of
+   the Software, in whole or in part, by any means, without the prior express
+   written authorization of the copyright holder.
+
+3. No implied license. Nothing in this repository, its metadata, commits or
+   availability grants any license or right to use the Software. Any use
+   without express written authorization is strictly prohibited.
+
+4. Third-party components. The Software may depend on third-party open source
+   components, which remain under their respective licenses. This notice does
+   not modify those licenses.
+
+5. No warranty. THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY
+   KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+   MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+   IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES OR
+   OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+   ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE.
+
+Licensing inquiries: https://github.com/juanptovardev

@@ -1,4 +1,5 @@
 {
+  "private": true,
   "name": "@ninja/flow-matrix",
   "version": "1.0.0",
   "description": "Workflow engine for Ninja AI Framework",

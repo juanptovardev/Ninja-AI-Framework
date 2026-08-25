@@ -1,4 +1,5 @@
 {
+  "private": true,
   "name": "@ninja/sentinel",
   "version": "1.0.0",
   "description": "Security, audit, approval and senior supervision system for Ninja AI Framework",

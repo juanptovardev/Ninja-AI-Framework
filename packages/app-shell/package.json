@@ -1,4 +1,5 @@
 {
+  "private": true,
   "name": "@ninja/app-shell",
   "version": "1.0.0",
   "description": "Ninja AI Framework — App Shell. Layout principal de Forge Console con sidebar y rightRail.",

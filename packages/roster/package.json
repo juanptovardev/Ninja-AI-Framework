@@ -1,4 +1,5 @@
 {
+  "private": true,
   "name": "@ninja/roster",
   "version": "1.0.0",
   "description": "Ninja AI Framework external integration roster",

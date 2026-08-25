@@ -1,4 +1,5 @@
 {
+  "private": true,
   "name": "@ninja/companion-extension",
   "displayName": "Ninja Companion",
   "description": "VS Code Companion Extension for Ninja AI Framework (Cursor & Codex integration)",

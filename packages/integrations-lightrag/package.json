@@ -1,4 +1,5 @@
 {
+  "private": true,
   "name": "@ninja/integrations-lightrag",
   "version": "1.0.0",
   "description": "LightRAG integration for Ninja AI Framework",

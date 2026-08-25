@@ -1,4 +1,5 @@
 {
+  "private": true,
   "name": "@ninja/arsenal-registry",
   "version": "1.0.0",
   "description": "Central registry for skills, tools and actions in Ninja AI Framework",
