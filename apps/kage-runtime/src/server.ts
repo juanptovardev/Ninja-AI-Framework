@@ -17,6 +17,7 @@ import {
 } from './route-schemas.js';
 import { RUNTIME_NAME, RUNTIME_VERSION } from './constants.js';
 import { registerBusRoutes } from './bus-router.js';
+import { registerErrorHandlers } from './error-handler.js';
 import { KageEngine, HttpController } from '@ninja/kage-engine';
 import { bootstrap as bootstrapArsenal } from '@ninja/arsenal-registry';
 import { requireActiveContext } from '@ninja/workbench';
@@ -121,6 +122,9 @@ export async function createServer(): Promise<FastifyInstance> {
       }
     });
   }
+
+  // ── Global Error Handler (WP-C1) ───────────────────────────────────────────────
+  registerErrorHandlers(server, env.NODE_ENV as 'production' | 'development' | 'test');
 
   // ── Health & Status ──────────────────────────────────────────────────────────
   server.get('/health', async (_request, _reply): Promise<HealthResponse> => {
@@ -442,8 +446,8 @@ export async function createServer(): Promise<FastifyInstance> {
             log.warn('engine.submitAnswers no está implementado aún en KageEngine');
           }
         }
-      } catch {
-        // Mensaje no JSON o error — ignorar
+      } catch (err) {
+        log.debug('Failed to parse WS message', err);
       }
     });
 
@@ -482,16 +486,11 @@ export async function createServer(): Promise<FastifyInstance> {
     if (!parsed.success) {
       return reply.status(400).send({ error: 'Invalid request body', code: 'VALIDATION_ERROR', issues: parsed.error.issues });
     }
-    try {
-      const result = await httpController.handleSubmit({ body: parsed.data as any });
-      if (env.NINJA_SESSION_TOKEN_BUDGET && result.body && (result.body as any).sessionId) {
-        modelBudgetManager.setSessionBudget((result.body as any).sessionId, env.NINJA_SESSION_TOKEN_BUDGET);
-      }
-      return reply.status(result.status).send(result.body);
-    } catch (err) {
-      log.error('Engine submit failed');
-      return reply.status(500).send(sanitizeError(err, env.NODE_ENV as 'production' | 'development' | 'test'));
+    const result = await httpController.handleSubmit({ body: parsed.data as any });
+    if (env.NINJA_SESSION_TOKEN_BUDGET && result.body && (result.body as any).sessionId) {
+      modelBudgetManager.setSessionBudget((result.body as any).sessionId, env.NINJA_SESSION_TOKEN_BUDGET);
     }
+    return reply.status(result.status).send(result.body);
   });
 
   server.get('/engine/run/:id', async (request, reply) => {
@@ -553,26 +552,18 @@ export async function createServer(): Promise<FastifyInstance> {
   server.post('/api/approvals/:id/approve', async (request, reply) => {
     const id = (request.params as any).id;
     const body = (request.body as { notes?: string }) || {};
-    try {
-      const approver = { id: 'api-user', role: 'admin' };
-      await approvalManager.approveRequest(id as any, approver, body.notes);
-      return reply.send({ success: true });
-    } catch (err: any) {
-      return reply.status(400).send(sanitizeError(err, env.NODE_ENV as 'production' | 'development' | 'test'));
-    }
+    const approver = { id: 'api-user', role: 'admin' };
+    await approvalManager.approveRequest(id as any, approver, body.notes);
+    return reply.send({ success: true });
   });
 
   server.post('/api/approvals/:id/reject', async (request, reply) => {
     const id = (request.params as any).id;
     const body = request.body as { reason: string };
     if (!body?.reason) return reply.status(400).send({ error: 'reason is required' });
-    try {
-      const approver = { id: 'api-user', role: 'admin' };
-      await approvalManager.rejectRequest(id as any, approver, body.reason);
-      return reply.send({ success: true });
-    } catch (err: any) {
-      return reply.status(400).send(sanitizeError(err, env.NODE_ENV as 'production' | 'development' | 'test'));
-    }
+    const approver = { id: 'api-user', role: 'admin' };
+    await approvalManager.rejectRequest(id as any, approver, body.reason);
+    return reply.send({ success: true });
   });
 
   server.get('/api/audit', async (_request, reply) => {
@@ -643,18 +634,14 @@ export async function createServer(): Promise<FastifyInstance> {
       return reply.status(400).send({ error: 'Query (q) and sessionId are required' });
     }
 
-    try {
-      const results = await vaultCoordinator.query({
-        agentId: agentId || 'guest',
-        sessionId,
-        query: q,
-        layers: layers ? (layers.split(',') as any[]) : ['HOT', 'WARM', 'COLD'],
-        tokenBudget: budget ? parseInt(budget) : 2000,
-      });
-      return reply.send(results);
-    } catch (err) {
-      return reply.status(500).send(sanitizeError(err, env.NODE_ENV as 'production' | 'development' | 'test'));
-    }
+    const results = await vaultCoordinator.query({
+      agentId: agentId || 'guest',
+      sessionId,
+      query: q,
+      layers: layers ? (layers.split(',') as any[]) : ['HOT', 'WARM', 'COLD'],
+      tokenBudget: budget ? parseInt(budget) : 2000,
+    });
+    return reply.send(results);
   });
 
   server.post('/api/vault/write', async (request, reply) => {
@@ -663,12 +650,8 @@ export async function createServer(): Promise<FastifyInstance> {
       return reply.status(400).send({ error: 'Invalid request body', code: 'VALIDATION_ERROR', issues: parsed.error.issues });
     }
     const { agentId, sessionId, content, layer } = parsed.data;
-    try {
-      await vaultCoordinator.write(agentId ?? 'guest', sessionId, content, layer as any);
-      return reply.send({ success: true });
-    } catch (err) {
-      return reply.status(500).send(sanitizeError(err, env.NODE_ENV as 'production' | 'development' | 'test'));
-    }
+    await vaultCoordinator.write(agentId ?? 'guest', sessionId, content, layer as any);
+    return reply.send({ success: true });
   });
 
   server.get('/api/model-gateway/status', async (_request, reply) => {
@@ -689,12 +672,8 @@ export async function createServer(): Promise<FastifyInstance> {
   });
 
   server.get('/api/learning/candidates', async (_request, reply) => {
-    try {
-      const candidates = await learningHarvester.harvest(7); // Harvest last 7 days
-      return reply.send(candidates);
-    } catch (err) {
-      return reply.status(500).send(sanitizeError(err, env.NODE_ENV as 'production' | 'development' | 'test'));
-    }
+    const candidates = await learningHarvester.harvest(7);
+    return reply.send(candidates);
   });
 
   server.post<{ Params: { id: string } }>('/api/learning/promote/:id', async (request, reply) => {
@@ -737,17 +716,13 @@ export async function createServer(): Promise<FastifyInstance> {
       return reply.status(400).send({ error: 'Invalid request body', code: 'VALIDATION_ERROR', issues: parsed.error.issues });
     }
     const { cmd, args, cwd } = parsed.data;
-    try {
-      const shellCommand: ShellCommand = { cmd, args, cwd };
-      const validation = validateCommand(shellCommand);
-      if (!validation.allowed) {
-        return reply.status(403).send({ error: validation.reason });
-      }
-      const result = await executeCommand(shellCommand);
-      return reply.send(result);
-    } catch (err) {
-      return reply.status(500).send(sanitizeError(err, env.NODE_ENV as 'production' | 'development' | 'test'));
+    const shellCommand: ShellCommand = { cmd, args, cwd };
+    const validation = validateCommand(shellCommand);
+    if (!validation.allowed) {
+      return reply.status(403).send({ error: validation.reason });
     }
+    const result = await executeCommand(shellCommand);
+    return reply.send(result);
   });
 
   // Integrations-Git Routes
@@ -768,12 +743,8 @@ export async function createServer(): Promise<FastifyInstance> {
   server.get('/api/git/log', async (request, reply) => {
     const { repoPath, limit } = request.query as { repoPath?: string; limit?: string };
     const git = new GitClient(repoPath || process.cwd());
-    try {
-      const result = await git.run(['log', `-n`, limit || '20', '--oneline']);
-      return reply.send({ rawLog: result.stdout });
-    } catch (err) {
-      return reply.status(500).send(sanitizeError(err, env.NODE_ENV as 'production' | 'development' | 'test'));
-    }
+    const result = await git.run(['log', `-n`, limit || '20', '--oneline']);
+    return reply.send({ rawLog: result.stdout });
   });
 
   server.post('/api/git/commit', async (request, reply) => {
@@ -805,12 +776,8 @@ export async function createServer(): Promise<FastifyInstance> {
   // Integrations-FS Routes
   server.get('/api/fs/scan', async (request, reply) => {
     const { dirPath } = request.query as { dirPath?: string };
-    try {
-      const results = await scanDirectory(dirPath || process.cwd());
-      return reply.send(results);
-    } catch (err) {
-      return reply.status(500).send(sanitizeError(err, env.NODE_ENV as 'production' | 'development' | 'test'));
-    }
+    const results = await scanDirectory(dirPath || process.cwd());
+    return reply.send(results);
   });
 
   // Forge Lab Routes
@@ -869,13 +836,8 @@ export async function createServer(): Promise<FastifyInstance> {
   });
 
   server.get('/api/session/list', async (_request, reply) => {
-    try {
-      const sessions = typeof (sessionRepo as any).findAll === 'function' ? (sessionRepo as any).findAll() : [];
-      return reply.send(sessions);
-    } catch (err: any) {
-      log.error('Failed to list sessions', err);
-      return reply.status(500).send(sanitizeError(err, env.NODE_ENV as 'production' | 'development' | 'test'));
-    }
+    const sessions = typeof (sessionRepo as any).findAll === 'function' ? (sessionRepo as any).findAll() : [];
+    return reply.send(sessions);
   });
 
   server.post('/api/session/restore/:id', async (request, reply) => {
@@ -981,38 +943,26 @@ export async function createServer(): Promise<FastifyInstance> {
   // POST /api/install/:agentId — install Ninja into a specific agent
   server.post<{ Params: { agentId: string } }>('/api/install/:agentId', async (request, reply) => {
     const { agentId } = request.params;
-    try {
-      const result = await agentInstaller.install(agentId as ClientId, { backup: true, verify: true });
-      return reply.status(result.success ? 200 : 400).send(result);
-    } catch (err: any) {
-      return reply.status(500).send(sanitizeError(err, env.NODE_ENV as 'production' | 'development' | 'test'));
-    }
+    const result = await agentInstaller.install(agentId as ClientId, { backup: true, verify: true });
+    return reply.status(result.success ? 200 : 400).send(result);
   });
 
   // POST /api/install/all — install Ninja into all detected agents
   server.post('/api/install/all', async (_request, reply) => {
-    try {
-      const results = await agentInstaller.installAll({ backup: true, verify: true });
-      return reply.send({
-        total: results.length,
-        succeeded: results.filter(r => r.success).length,
-        failed: results.filter(r => !r.success).length,
-        results,
-      });
-    } catch (err: any) {
-      return reply.status(500).send(sanitizeError(err, env.NODE_ENV as 'production' | 'development' | 'test'));
-    }
+    const results = await agentInstaller.installAll({ backup: true, verify: true });
+    return reply.send({
+      total: results.length,
+      succeeded: results.filter(r => r.success).length,
+      failed: results.filter(r => !r.success).length,
+      results,
+    });
   });
 
   // POST /api/sync/:agentId — sync Ninja files to a specific agent
   server.post<{ Params: { agentId: string } }>('/api/sync/:agentId', async (request, reply) => {
     const { agentId } = request.params;
-    try {
-      const result = await agentInstaller.sync(agentId as ClientId);
-      return reply.send(result);
-    } catch (err: any) {
-      return reply.status(500).send(sanitizeError(err, env.NODE_ENV as 'production' | 'development' | 'test'));
-    }
+    const result = await agentInstaller.sync(agentId as ClientId);
+    return reply.send(result);
   });
 
   // DELETE /api/install/:agentId — uninstall Ninja from a specific agent
@@ -1021,43 +971,31 @@ export async function createServer(): Promise<FastifyInstance> {
     async (request, reply) => {
       const { agentId } = request.params;
       const restoreBackup = request.query.restore === 'true';
-      try {
-        const result = await agentInstaller.uninstall(agentId as ClientId, restoreBackup);
-        return reply.send(result);
-      } catch (err: any) {
-        return reply.status(500).send(sanitizeError(err, env.NODE_ENV as 'production' | 'development' | 'test'));
-      }
+      const result = await agentInstaller.uninstall(agentId as ClientId, restoreBackup);
+      return reply.send(result);
     }
   );
 
   // GET /api/install/:agentId/verify — verify agent config
   server.get<{ Params: { agentId: string } }>('/api/install/:agentId/verify', async (request, reply) => {
     const { agentId } = request.params;
-    try {
-      const report = await agentInstaller.verify(agentId as ClientId);
-      return reply.send(report);
-    } catch (err: any) {
-      return reply.status(500).send(sanitizeError(err, env.NODE_ENV as 'production' | 'development' | 'test'));
-    }
+    const report = await agentInstaller.verify(agentId as ClientId);
+    return reply.send(report);
   });
 
   // GET /api/doctor — verify all detected agents (Ninja doctor)
   server.get('/api/doctor', async (_request, reply) => {
-    try {
-      const { detectAllClients } = await import('@ninja/roster');
-      const detected = detectAllClients();
-      const reports = await Promise.all(
-        Object.keys(detected).map((id) => agentInstaller.verify(id as ClientId))
-      );
-      return reply.send({
-        total: reports.length,
-        passed: reports.filter(r => r.passed).length,
-        failed: reports.filter(r => !r.passed).length,
-        reports,
-      });
-    } catch (err: any) {
-      return reply.status(500).send(sanitizeError(err, env.NODE_ENV as 'production' | 'development' | 'test'));
-    }
+    const { detectAllClients } = await import('@ninja/roster');
+    const detected = detectAllClients();
+    const reports = await Promise.all(
+      Object.keys(detected).map((id) => agentInstaller.verify(id as ClientId))
+    );
+    return reply.send({
+      total: reports.length,
+      passed: reports.filter(r => r.passed).length,
+      failed: reports.filter(r => !r.passed).length,
+      reports,
+    });
   });
 
   // GET /api/roster/verify — verify ALL known agents (including undetected)
