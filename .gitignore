@@ -134,21 +134,43 @@ CUsers*/
 CUsersjuanp*/
 
 # ============================================================================
-# Registro de creación / planificación / guías / arquitectura interna
-# (backup limpio y funcional: sin historia de cómo se construyó ni guías)
+# Archivo histórico / guías previas (preservado local en docs/architecture/og/)
 # ============================================================================
 logs/
-docs/architecture/
-tools/
+docs/architecture/og/
 ORIGINAL_REQUEST.md
 Ninja AI Framework v1.0.md
 
 # ============================================================================
-# Backup solo-código: excluir instrucciones de agentes IA y toda la doc
+# Gobernanza operativa — versionada en repo privado
+# NOTA: se usa tools/* (no tools/) porque un directorio excluido no admite
+# re-inclusión con !. Los hijos negados abajo sí funcionan con este patrón.
 # ============================================================================
-AGENTS.md
+tools/*
+!tools/enterprise-progress.md
+!tools/plan-wp-c1-c4.md
+!tools/verifications/
+!tools/verifications/**
+
+# ============================================================================
+# Documentación — versionada (privado)
+# AGENTS.md es matriz. CLAUDE.md eliminado (consolidado en AGENTS.md).
+# docs/architecture/coherencia+fuentes son gobernanza viva.
+# ============================================================================
 CLAUDE.md
-docs/
+# docs/* (no docs/): permite re-inclusión de hijos con negaciones
+docs/*
 !docs/adr/
 !docs/adr/**
 !docs/errors.md
+!docs/engineering/
+!docs/engineering/**
+!docs/architecture/
+!docs/architecture/coherencia-estructural.md
+!docs/architecture/fuentes-guia.md
+!docs/user/
+!docs/user/**
+!docs/security/
+!docs/security/**
+!docs/operations/
+!docs/operations/**
