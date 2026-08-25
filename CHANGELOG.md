@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased — EPIC C (parcial) & P0 fixes
+
+### Resilience (EPIC C)
+
+- **WP-C1**: Global Fastify error handler + not-found handler in Kage Runtime; all error replies routed through `sanitizeError` (no stack traces in production). Refs ADR-0009.
+- **WP-C2**: `CircuitBreaker` and hierarchical timeouts in `@ninja/common-utils`, `Retry-After` handling with automatic fallback chain across `integrations-llm`, `integrations-lightrag` and `integrations-http`; fallback events logged to Trace Ledger. Refs ADR-0010.
+
+### Fixed (P0 — audit 2026-08-24)
+
+- **CORS preflight**: `X-Ninja-Key` is now allowed in `Access-Control-Allow-Headers`, reactivating Forge Console browser authentication.
+- **Approver identity**: approvals now record the real operator identity derived from the API key (SHA-256 fingerprint) instead of a fixed `api-user` (Directiva Ley 6).
+
 ## Unreleased — EPIC B Security Foundations
 
 ### BREAKING CHANGES

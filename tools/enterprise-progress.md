@@ -1,5 +1,5 @@
 # Plan Maestro Enterprise — Ninja AI Framework
-> **Rama activa**: `fix/epic-b-foundations` · **Última actualización**: 2026-06-24
+> **Rama activa**: `fix/epic-b-foundations` · **Última actualización**: 2026-08-25
 
 ---
 
@@ -28,15 +28,15 @@ EPIC A — Estabilización base
 
 ## Checklist global por EPIC
 
-### 🟢 EPIC A — Estabilización base (`~44-50h`)
+### ✅ EPIC A — Estabilización base (`~44-50h`) — CERRADO
 
-- [ ] **S0** — Trazabilidad git (~20 commits semánticos)
-- [ ] **S0.bis** — Pre-flight coherencia (grep anti-deps prohibidas)
-- [ ] **S1** — Vulns NPM (`next@^15.5.18`, `fast-uri@^3.1.2`) + path boundary FS
-- [ ] **S2** — TODOs CLI, WS env var, Auto-PRD
-- [ ] **S3** — Mini-commits RF-16, toasts, modals, /arsenal, widgets, LiveTimeline
-- [ ] **S4** — Office Grid CSS 3D, tooltips, skeletons, a11y, responsive, Ctrl+K
-- [ ] **S5** — Dogfooding + E2E + docs usuario
+- [x] **S0** — Trazabilidad git (~20 commits semánticos) · dossier `s0.md`
+- [x] **S0.bis** — Pre-flight coherencia (grep anti-deps prohibidas)
+- [x] **S1** — Vulns NPM (`next@^15.5.18`, `fast-uri@^3.1.2`) + path boundary FS · dossier `s1.md`
+- [x] **S2** — TODOs CLI, WS env var, Auto-PRD · dossier `s2.md`
+- [x] **S3** — Mini-commits RF-16, toasts, modals, /arsenal, widgets, LiveTimeline · dossier `s3.md`
+- [x] **S4** — Office Grid CSS 3D, tooltips, skeletons, a11y, responsive, Ctrl+K · dossier `s4.md`
+- [x] **S5** — Dogfooding + E2E + docs usuario · dossier `s5.md`
 
 ---
 
@@ -148,10 +148,10 @@ EPIC A — Estabilización base
 
 ---
 
-### 🔵 EPIC C — Resiliencia & Error Handling (`~18-22h`)
+### 🟡 EPIC C — Resiliencia & Error Handling (`~18-22h`) — 50%
 
-- [ ] **WP-C1** — Error handler global Fastify + not-found handler
-- [ ] **WP-C2** — Circuit Breaker + Retry/backoff + timeouts jerárquicos
+- [x] **WP-C1** — Error handler global Fastify + not-found handler · commit f337e14 · ADR-0009 · dossier `wp-c1-closure.md`
+- [x] **WP-C2** — Circuit Breaker + Retry/backoff + timeouts jerárquicos · commit 58a6cde · ADR-0010
 - [ ] **WP-C3** — Graceful degradation + reconexión WS + health granular
 - [ ] **WP-C4** — Graceful shutdown + persistir Pulse/Audit
 
@@ -159,7 +159,7 @@ EPIC A — Estabilización base
 
 ### 🔵 EPIC D — Calidad de código & Testing (`~30-36h`)
 
-- [ ] **WP-D1** — Implementar `@ninja/common-utils` (reemplaza placeholder)
+- [ ] **WP-D1** — Implementar `@ninja/common-utils` (reemplaza placeholder) *(implementado de facto vía WP-C2: circuit-breaker + timeouts + tests en common-utils; dossier propio pendiente)*
 - [ ] **WP-D2** — Quality gates CI (quitar `--passWithNoTests`, thresholds)
 - [ ] **WP-D3** — Suites de test para 16 packages sin tests *(antes de D2)*
 - [ ] **WP-D4** — Eliminar `any` + Error Boundaries + dead code + settings dedup
@@ -178,7 +178,7 @@ EPIC A — Estabilización base
 
 ### 🔵 EPIC F — DevOps & Operabilidad (`~20-26h`)
 
-- [x] **WP-F1 (adelantado)** — CI/CD GitHub Actions mínimo (`.github/workflows/ci-minimal.yml`)
+- [ ] **WP-F1 (adelantado)** — ~~CI/CD GitHub Actions mínimo~~ eliminado 2026-08-24 (limpieza de repo); reemplazo: gates locales husky + lint-staged (F1)
 - [ ] **WP-F1 completo** — Matriz 2 OS × 2 Node + `pnpm audit` + dependabot
 - [ ] **WP-F2** — Pre-commit hooks (husky + lint-staged) + build optimization
 - [ ] **WP-F3** — Backup SQLite + migraciones up/down + checksums
@@ -213,18 +213,19 @@ EPIC A — Estabilización base
 
 | KPI | Baseline | Meta v1 | Estado |
 |-----|----------|---------|--------|
-| Vulnerabilidades NPM High | 9 | 0 | ⏳ |
-| Endpoints sin auth | todos | 0 (excepto `/health`) | ⏳ |
-| `any`/`as any` en runtime core | 85 | 0 | ⏳ |
-| `throw new Error(` total en packages | 74 | 0 | 🟡 51 |
-| Packages sin tests | 16/32 | 0 | ⏳ |
-| Cobertura global | sin medir | ≥50% gating | ⏳ |
-| CI pipelines | 0 | 1 (matriz 2 OS × 2 Node) | 🟡 CI mínimo |
-| Commits semánticos | 1 | ≥20 | ✅ 24+ |
+| Vulnerabilidades NPM High | 9 | 0 | 🟡 13 High (`pnpm audit --prod`; cadena postcss@8.4.31 vía next@16.2.7) |
+| Endpoints sin auth | todos | 0 (excepto `/health`) | ✅ 0 (B11; excepciones `/health` + `/api/status`) |
+| `any`/`as any` en runtime core | 85 | 0 | 🟡 114 globales (deuda F3.4, contados con `git grep`) |
+| `throw new Error(` total en packages | 74 | 0 | 🟡 35 (prod packages, sin tests) |
+| Packages sin tests | 16/32 | 0 | 🟡 11/32 |
+| Cobertura global | sin medir | ≥50% gating | ⏳ sin medir |
+| CI pipelines | 0 | 1 (matriz 2 OS × 2 Node) | 🔴 CI mínima eliminada 2026-08-24 → reemplazo gates locales F1 |
+| Commits semánticos | 1 | ≥20 | ✅ 100 (rama `fix/epic-b-foundations`) |
+| Tests suite | 292 | verde y creciente | ✅ 766 passing + 1 skip (56 archivos) |
 | LLM failures como fake success | sí | 0 | ✅ (strict mode + B6 closure) |
 | Stability Score fijo en 100 | sí | refleja latencia real | ✅ (B7 — 6 tests) |
-| `alert()/confirm()` en UI | 17 | 0 | ⏳ |
-| `sk-placeholder` | sí | 0 | ✅ |
+| `alert()/confirm()` en UI | 17 | 0 | ✅ 0 (reemplazados por toasts/modals en S3) |
+| `sk-placeholder` | sí | 0 | ✅ 0 en código (solo refs históricas en docs/dossiers) |
 | Guardian deny-by-default | No (allow) | deny sin engine | ✅ (B5) |
 | Budget pre-call enforcement | No | `BudgetError` en 1 línea | ✅ (B4) |
 | isAnchor filter correcto | No (siempre vacío) | `type==='anchor'` | ✅ (B8) |
@@ -234,13 +235,13 @@ EPIC A — Estabilización base
 ## Progreso por EPIC
 
 ```
-EPIC A  ░░░░░░░░░░  0%   (por iniciar)
+EPIC A  ██████████ 100%  (S0–S5 ✅ — EPIC A CERRADO)
 EPIC B  ██████████ 100%  (B1-B15 ✅ — EPIC B CERRADO)
-EPIC C  ░░░░░░░░░░  0%
-EPIC D  ░░░░░░░░░░  0%
-EPIC E  ░░░░░░░░░░  0%
-EPIC F  █░░░░░░░░░  10%  (CI mínimo ✅)
-EPIC G  ░░░░░░░░░░  0%
+EPIC C  █████░░░░░  50%  (C1+C2 ✅ · C3-C4 pendientes)
+EPIC D  ░░░░░░░░░░   0%  (D1 de facto vía C2, dossier pendiente)
+EPIC E  ░░░░░░░░░░   0%
+EPIC F  ░░░░░░░░░░   0%  (CI adelantada eliminada 2026-08-24 → gates locales F1)
+EPIC G  ░░░░░░░░░░   0%
 ```
 
 ---
@@ -249,14 +250,14 @@ EPIC G  ░░░░░░░░░░  0%
 
 | Fase | Horas | Estado |
 |------|-------|--------|
-| EPIC A (S0–S5) | 44–50h | ⏳ |
+| EPIC A (S0–S5) | 44–50h | ✅ CERRADO |
 | EPIC B (correctitud + seguridad P0) | 38–48h | ✅ CERRADO (B1-B15) |
-| EPIC C (resiliencia) | 18–22h | ⏳ |
-| EPIC D (calidad + testing) | 30–36h | ⏳ |
+| EPIC C (resiliencia) | 18–22h | 🟡 50% (C1+C2 ✅) |
+| EPIC D (calidad + testing) | 30–36h | ⏳ (D1 de facto vía C2) |
 | EPIC E (frontend) | 28–34h | ⏳ |
-| EPIC F (devops) | 20–26h | 🟡 ~4h ejecutadas |
+| EPIC F (devops) | 20–26h | ⏳ (CI adelantada revertida 2026-08-24) |
 | EPIC G (extensibilidad) | 24–30h | ⏳ |
-| Total v1 (A–G) | **~202–246h** | **~48h ejecutadas (~20%)** |
+| Total v1 (A–G) | **~202–246h** | **~52h ejecutadas (~23%)** |
 | Fase H (v2.0 opcional) | +60–100h | 🔒 requiere aprobación |
 
 ---
@@ -266,8 +267,8 @@ EPIC G  ░░░░░░░░░░  0%
 | # | Riesgo | Mitigación | Estado |
 |---|--------|------------|--------|
 | R1 | Next.js 15.5.18 rompe estilos | snapshot visual previo | ⏳ |
-| R2 | Auth rompe CLI/Console/Companion | actualizar los 3 en mismo PR | ⏳ |
-| R3 | Shell allowlist bloquea legítimos | `SHELL_ALLOWLIST_EXTRA` | ⏳ |
+| R2 | Auth rompe CLI/Console/Companion | actualizar los 3 en mismo PR | ✅ Mitigado (clientes actualizados en B11 + fix CORS preflight `X-Ninja-Key`, F0.5) |
+| R3 | Shell allowlist bloquea legítimos | `SHELL_ALLOWLIST_EXTRA` | ✅ Mitigado (allowlist viva desde B12 + hardening follow-ups) |
 | R4 | Eliminar 85 `any` rompe rutas | commit por archivo | ⏳ |
 | R5 | WP-B6 cambia semántica de fallos | **✅ `NINJA_LLM_FAIL_MODE` flag (B3) + `strict` default (B6 cierre formal)** | ✅ Mitigado |
 | R6 | Coverage thresholds rompen CI | D3 antes de D2/F1 | ⏳ |
@@ -276,4 +277,4 @@ EPIC G  ░░░░░░░░░░  0%
 
 ---
 
-*Fuente: `tools/plan-mejoras-ENTERPRISE-MASTER.md` · ADRs en `docs/adr/` · **36 commits en fix/epic-b-foundations (B1–B8 ✅)**
+*Fuente: `tools/plan-mejoras-ENTERPRISE-MASTER.md` · ADRs en `docs/adr/` · **100 commits en fix/epic-b-foundations — EPIC A+B cerrados · C1-C2 ✅ · 766 tests verdes***
