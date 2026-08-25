@@ -45,8 +45,9 @@ describe('Event Flow', () => {
     subscriptions.push(subscription);
 
     const testString = `ninja-integration-test-${randomUUID().slice(0, 8)}`;
-    const cmd = 'cmd';
-    const args = ['/c', 'echo', testString];
+    // WP-B12: allowlist deny-by-default — usar comando permitido (echo), no cmd
+    const cmd = 'echo';
+    const args = [testString];
 
     const result = await executeCommand({
       cmd,

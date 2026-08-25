@@ -1,8 +1,15 @@
 import type { NinjaEvent, EventHandler, EventSubscription } from '@ninja/contracts';
 
+interface MockSubscriptionEntry {
+  id: string;
+  handler: EventHandler<NinjaEvent>;
+}
+
+let mockSubCounter = 0;
+
 export class MockEventBus {
   private emittedEvents: NinjaEvent[] = [];
-  private handlers: Map<string, EventHandler<NinjaEvent>[]> = new Map();
+  private handlers: Map<string, MockSubscriptionEntry[]> = new Map();
 
   emit(event: NinjaEvent): void {
     this.emittedEvents.push(event);
@@ -12,9 +19,9 @@ export class MockEventBus {
       ...(this.handlers.get('*') ?? []),
     ];
 
-    for (const handler of targets) {
+    for (const entry of targets) {
       try {
-        void handler(event);
+        void entry.handler(event);
       } catch {
         // No propagamos errores de handlers individuales en el mock
       }
@@ -26,14 +33,15 @@ export class MockEventBus {
     handler: EventHandler<TEvent>
   ): EventSubscription {
     const existing = this.handlers.get(type) ?? [];
-    this.handlers.set(type, [...existing, handler as EventHandler<NinjaEvent>]);
+    const id = `mock-sub-${Date.now()}-${++mockSubCounter}-${Math.random().toString(36).slice(2)}`;
+    this.handlers.set(type, [...existing, { id, handler: handler as EventHandler<NinjaEvent> }]);
 
     const bus = this;
     return {
-      id: `mock-sub-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      id,
       eventType: type,
       unsubscribe() {
-        bus.off(handler as EventHandler<NinjaEvent>);
+        bus.off(id);
       },
     };
   }
@@ -44,15 +52,12 @@ export class MockEventBus {
 
   off(subscriptionIdOrHandler: string | EventHandler<NinjaEvent>): void {
     for (const [type, entries] of this.handlers.entries()) {
-      const filtered = entries.filter((entry) => {
-        if (typeof subscriptionIdOrHandler === 'string') {
-          return true;
-        }
-        return entry !== subscriptionIdOrHandler;
-      });
-      if (typeof subscriptionIdOrHandler === 'string') {
-        this.handlers.delete(type);
-      } else if (filtered.length !== entries.length) {
+      const filtered = entries.filter((entry) =>
+        typeof subscriptionIdOrHandler === 'string'
+          ? entry.id !== subscriptionIdOrHandler
+          : entry.handler !== subscriptionIdOrHandler
+      );
+      if (filtered.length !== entries.length) {
         if (filtered.length === 0) {
           this.handlers.delete(type);
         } else {
