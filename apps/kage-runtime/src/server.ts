@@ -1,6 +1,7 @@
-import fastify, { FastifyInstance } from 'fastify';
+import fastify, { FastifyInstance, FastifyRequest } from 'fastify';
 import cors from '@fastify/cors';
 import websocketPlugin from '@fastify/websocket';
+import { createHash } from 'node:crypto';
 import type { HealthResponse, RuntimeStatus } from '@ninja/contracts';
 import { createLogger } from '@ninja/logging';
 import { eventBus } from '@ninja/events';
@@ -36,6 +37,7 @@ import { registerMcpRuntimeRoutes } from './mcp-runtime-server.js';
 import { registerRosterVerifyRoute } from './routes/roster-verify.js';
 import { FailoverManager } from './failover.js';
 import { PolicyEngine, ApprovalManager, Auditor, Guardian } from '@ninja/sentinel';
+import type { ApproverIdentity } from '@ninja/sentinel';
 import path from 'path';
 
 // Phase 5: Intelligence & Memory
@@ -81,6 +83,19 @@ const ALLOWED_ORIGINS = [
   'http://localhost:3141',
   'http://127.0.0.1:3141',
 ];
+
+/**
+ * Identidad real del approver derivada de la key autenticada (Ley 6 — doble
+ * aprobación trazable). Antes se hardcodeaba `api-user/admin`, lo que hacía
+ * imposible saber quién aprobó y permitía que cualquier key aprobara como
+ * "admin" anónimo.
+ */
+function deriveApprover(request: FastifyRequest): ApproverIdentity {
+  const raw = request.headers['x-ninja-key'];
+  const key = Array.isArray(raw) ? (raw[0] ?? '') : (raw ?? '');
+  const fingerprint = createHash('sha256').update(key).digest('hex').slice(0, 12);
+  return { id: `operator-${fingerprint}`, role: 'operator' };
+}
 
 export async function createServer(): Promise<FastifyInstance> {
   // Re-parse env to get typed values — already validated by loadEnv() at boot (ADR-0004)
@@ -552,7 +567,7 @@ export async function createServer(): Promise<FastifyInstance> {
   server.post('/api/approvals/:id/approve', async (request, reply) => {
     const id = (request.params as any).id;
     const body = (request.body as { notes?: string }) || {};
-    const approver = { id: 'api-user', role: 'admin' };
+    const approver = deriveApprover(request);
     await approvalManager.approveRequest(id as any, approver, body.notes);
     return reply.send({ success: true });
   });
@@ -561,7 +576,7 @@ export async function createServer(): Promise<FastifyInstance> {
     const id = (request.params as any).id;
     const body = request.body as { reason: string };
     if (!body?.reason) return reply.status(400).send({ error: 'reason is required' });
-    const approver = { id: 'api-user', role: 'admin' };
+    const approver = deriveApprover(request);
     await approvalManager.rejectRequest(id as any, approver, body.reason);
     return reply.send({ success: true });
   });
