@@ -9,7 +9,7 @@
   "scripts": {
     "dev": "turbo run dev --parallel",
     "build": "turbo run build",
-    "lint": "turbo run lint",
+    "lint": "eslint --config eslint.config.mjs packages/agent-runtime/src packages/arsenal-registry/src packages/integrations-lightrag/src apps/companion-extension/src apps/forge-console/app apps/forge-console/components apps/forge-console/lib",
     "test": "vitest run --passWithNoTests",
     "typecheck": "turbo run typecheck",
     "clean": "turbo run clean && rimraf node_modules .turbo",
@@ -28,7 +28,10 @@
     "prepare": "husky"
   },
   "lint-staged": {
-    "*.ts": ["prettier --write", "cross-env ESLINT_USE_FLAT_CONFIG=false eslint --fix"]
+    "*.ts": [
+      "prettier --write",
+      "eslint --fix"
+    ]
   },
   "pnpm": {
     "overrides": {
@@ -50,6 +53,10 @@
     "rimraf": "^6.0.0",
     "turbo": "^2.2.0",
     "typescript": "^5.7.0",
+    "typescript-eslint": "^8.69.0",
     "vitest": "^4.1.4"
+  },
+  "apps/agent-runtime": {
+    "script": "eslint --config ../../eslint.config.mjs packages/agent-runtime"
   }
 }

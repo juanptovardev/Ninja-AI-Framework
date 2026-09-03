@@ -28,7 +28,6 @@
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
     "pretest": "npm run compile && npm run lint",
-    "lint": "cross-env ESLINT_USE_FLAT_CONFIG=false eslint src --ext ts",
     "test": "node ./out/test/runTest.js"
   },
   "devDependencies": {

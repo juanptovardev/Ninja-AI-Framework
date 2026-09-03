@@ -20,7 +20,6 @@
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
-    "lint": "cross-env ESLINT_USE_FLAT_CONFIG=false eslint src --ext .ts,.tsx",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

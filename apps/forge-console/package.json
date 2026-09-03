@@ -7,7 +7,6 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "cross-env ESLINT_USE_FLAT_CONFIG=false eslint app components lib",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

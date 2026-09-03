@@ -11,8 +11,7 @@
   "scripts": {
     "build": "tsup src/index.ts --format cjs,esm --dts",
     "dev": "tsup src/index.ts --format cjs,esm --dts --watch",
-    "typecheck": "tsc --noEmit",
-    "lint": "cross-env ESLINT_USE_FLAT_CONFIG=false eslint src --ext .ts,.tsx"
+    "typecheck": "tsc --noEmit"
   },
   "keywords": [
     "ninja",
