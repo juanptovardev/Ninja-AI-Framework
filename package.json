@@ -10,7 +10,7 @@
     "dev": "turbo run dev --parallel",
     "build": "turbo run build",
     "lint": "eslint --config eslint.config.mjs packages/agent-runtime/src packages/arsenal-registry/src packages/integrations-lightrag/src apps/companion-extension/src apps/forge-console/app apps/forge-console/components apps/forge-console/lib",
-    "test": "vitest run --passWithNoTests",
+    "test": "vitest run",
     "typecheck": "turbo run typecheck",
     "clean": "turbo run clean && rimraf node_modules .turbo",
     "format": "prettier --write .",
