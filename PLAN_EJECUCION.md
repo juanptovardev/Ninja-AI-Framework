@@ -28,12 +28,13 @@
 
 | Aspecto | Estado |
 |---------|--------|
-| Branch | `fix/epic-b-foundations`, 92 commits sobre `main` |
-| Working tree | ~30 archivos: WP-C1+C2 completos sin commit + base documental de esta fase |
-| EPICs | A ✅ · B ✅ · C ~30% (C1/C2 sin commit) · D ~5% · E/G 0% · F 10% |
-| Remoto GitHub | `juanptovardev/Ninja-AI-Framework` — **PÚBLICO** (privatizar antes de push) |
-| CI | Eliminada en limpieza (`.github/` borrado) — los gates serán locales (FASE 1) |
-| Bugs P0 | CORS `X-Ninja-Key` · approver hardcodeado |
+| Branch | `main` — 115 commits totales (93 en `fix/epic-b-foundations` mergeado) |
+| Working tree | 0 archivos sucios — completo desde F0 |
+| EPICs | A ✅ · B ✅ · C 50% (C1+C2 ✅, C3/C4 ⏳ F2) · D ⏳ (F3) · E ⏳ · F ⏳ |
+| Remoto GitHub | **PRIVADO** (verificado 2026-08-25) |
+| CI | Local: husky pre-commit (G1) + pre-push (G2) + pre-push typecheck/test/errors:check |
+| Tests | 767 passing | 0 skips (1 skipped resuelto en F1.6) |
+| Bugs P0 | **RESUELTOS**: CORS X-Ninja-Key · Approver identity (ambos en F0) |
 | Detalle completo | `docs/architecture/og/audit-2026-08-24.md` |
 
 ---
@@ -52,8 +53,9 @@
 
 ---
 
-## 3. FASE 0 — Cierre y blindaje
+## 3. FASE 0 — Cierre y blindaje ✅ AUDITADA COMPLETA
 > **Objetivo:** todo el trabajo existente commitado, bugs P0 resueltos, main como fuente de verdad, respaldo creado, remoto privado sincronizado.
+> **Estado:** 100% — verificada por orquestador (dossier F0 + KPIs re-medidos).
 > **Entrada:** working tree como está hoy; FASE BD completa.
 > **Estimación:** P50 2 d · P80 3.5 d
 
@@ -78,13 +80,14 @@
 - [ ] `main` contiene los 92 commits + F0.x; tag `v0.9.0-audit` existe
 - [ ] Bundle de backup en unidad secundaria
 - [ ] KPIs re-medidos (§10) registrados en dossier F0 (`tools/verifications/f0.md`)
-- [ ] Remote privado y sincronizado
-- [ ] Riesgos R1, R2, R3 (§9) → status mitigado
+- [x] Remote privado y sincronizado (F0.11: repo verificado privado)
+- [x] Riesgos R1, R2, R3 (§9) → status mitigado (R3 cerrado por F0.6 CORS/approver fix, R1 cerrado por F0.9 bundle + F2.1 push)
 
 ---
 
-## 4. FASE 1 — Gates locales
+## 4. FASE 1 — Gates locales ✅ AUDITADA COMPLETA
 > **Objetivo:** reemplazar la CI eliminada con enforcement local. Sin esto, el Manual no tiene dientes.
+> **Estado:** 100% — verificada por orquestador (hooks pre-commit/pre-push con evidencia, ESLint flat config 5 estado, KPIs re-medidos, 767/767 tests + 0 skips).
 > **Entrada:** F0 completo (main limpio).
 > **Estimación:** P50 3 d · P80 5 d
 
@@ -193,13 +196,14 @@
 | B | B11 | 0008 | auth handshake 5s | `wp-b11.md` | ✅ |
 | B | B12–B14 | 0006 | 15+3+12+5 tests | `wp-b12–14.md` | ✅ |
 | B | B15 | 0007 | 8 tests schemas | `wp-b15.md` | ✅ |
-| C | C1 | 0009 (disco) | 6 tests handler | `wp-c1-closure.md` (disco) | 🔶 sin commit → F0.1 |
-| C | C2 | 0010 (disco) | circuit+retry tests | — (a crear F0.2) | 🔶 sin commit → F0.2 |
+| C | C1 | 0009 (disco) | 6 tests handler | `wp-c1-closure.md` (disco) | ✅ commit F0.1 |
+| C | C2 | 0010 (disco) | circuit+retry tests | en progreso | 🔶 sin commit → F0.2 |
 | C | C3 | 0011 (a crear F2) | health/reconnect | — | ⏳ F2 |
 | C | C4 | idem | shutdown/persistencia | — | ⏳ F2 |
 | D | D1–D5 | 0013 (a crear F3.4 server-routes) | por ítem | — | ⏳ F3 |
 | E | E1–E4 | 0011/0012 | E2E wizard | — | ⏳ F4 |
 | F | F1 | — | — | — | ⏳ F5 |
+| **Gates** | **F0.0-F0.12** | — | husky + ESLint flat + tests 767/0-skips | `f0.md` cerrado, `f1.md` cerrado ✅ | **✅ Fases 0-1 COMPLETAS** |
 
 **Ledger EV absorbido** (de `og/plan-mejoras-ENTERPRISE-MASTER.md`): EV-16→F3.7 · EV-17→F0.2 · EV-18→F2.3 · EV-19→F3.8 · EV-20→F4.6 · EV-21→F3.2 · EV-22→F1.5 · EV-23→F3.8 · EV-25→F3.9 · EV-27→F4.8 · EV-29→F4.3 · EV-30→F1.1 · EV-31→F4.7 · EV-32→F2.5 · EV-33→F3.3.
 
@@ -210,7 +214,7 @@
 | ID | Riesgo | P | I | Score | Trigger (señal) | Detección | Mitigación | Estado |
 |----|--------|---|---|-------|-----------------|-----------|------------|--------|
 | R1 | Pérdida de trabajo local (92 commits + WT sin respaldo) | 2 | 5 | **10** | fallo disco / borrado accidental | `git ls-remote origin` desactualizado | F0.1–F0.3 commits + F0.9 bundle ANTES de todo lo demás | 🔶→F0 |
-| R2 | Repo GitHub público con snapshot comercial | 5 | 4 | **20** | ya ocurrió (verificado) | `curl api.github.com/repos/...` | F0.10 privatización inmediata | 🔴 activo |
+| R2 | Repo GitHub público con snapshot comercial | 5 | 4 | **20** | ya ocurrió (verificado) | `curl api.github.com/repos/...` | F0.10 privatización inmediata | ✅ **CERRADO** (F0.11: repo privado verificado) |
 | R3 | Defectos P0 en superficie de seguridad (CORS/approver) | 4 | 4 | **16** | bug #1/#2 auditoría | tests F0.5/F0.6 | Fixes con red→green + revisión adversarial §6.3 | 🔴→F0 |
 | R4 | Hooks husky rompen flujo de desarrollo (falsos positivos) | 3 | 2 | 6 | quejas en uso diario | — | tuning en F1, excepciones §15 con expiry | ⏳ |
 | R5 | Thresholds de cobertura rompen builds (R6 clásico) | 3 | 2 | 6 | `pnpm test` rojo tras F3.5 | gate | orden estricto D3→D2 | ⏳ |
@@ -236,17 +240,23 @@ git grep -oE "alert\(|confirm\(" -- apps/forge-console | wc -l  # dialogs nativo
 git grep -c "\.skip(" -- "*.test.ts" 2>/dev/null      # skips                  → 1 hoy, meta 0 (F1)
 ```
 
-Estado por fase (se actualiza al cerrar cada fase):
+Estado por fase (se actualiza al cerrar cada fase — medido 2026-09-03 tras F1):
 
-| KPI | Base (auditoría) | Tras F0 | Tras F3 | Meta v1.0 |
-|-----|------------------|---------|---------|-----------|
-| Archivos sucios | ~30 | 0 | 0 | 0 |
-| `as any` | 117 | 117 | **0** | 0 |
-| Throws crudos packages | 45 | 45 | **0** | 0 |
-| Paquetes sin tests | 11 | 11 | **0** | 0 |
-| Dialogs nativos | ~15 | ~15 | ~15 | **0** |
-| Tests saltados | 1 | 1 | 0 | 0 |
-| Tests totales | ~748 | ~748+ | +estimado 200–300 | ≥1000 |
+| KPI | Base (auditoría) | Tras F0 | Tras F1 | Tras F3 | Meta v1.0 |
+|-----|------------------|---------|---------|---------|-----------|
+| Archivos sucios | ~30 | **0** ✅ | **0** ✅ | 0 | 0 |
+| `as any` | 117 | 117 | **117** | **0** | 0 |
+| Throws crudos packages | 45 | 45 | **45 (guard activo, overrides documentados)** | **0** | 0 |
+| Paquetes sin tests | 11 | 11 | **11** | **0** | 0 |
+| Dialogs nativos | ~15 | ~15 | ~15 | **0** | 0 |
+| Tests saltados | 1 | 1 | **2→0** | 0 | 0 |
+| Tests totales | ~748 | **767** | **767** ✅ | +estimado 200–300 | ≥1000 |
+| Commits | 94 | **115** | **115** | — | — |
+
+**Nota F1 → F3 (hora para orquestador):**
+- La deuda `as any`/`throws` NO baja tras F1 — NO es falla del obrero. El D=Design del plan: F1 solo BLINDA (guardias ESLint a "error" + overrides preventan estos, listados en DEBT(F3) de f1.md). F3 el/acelera (F3.4/F3.7). El dossier f1.md tiene la DEBT exacta.
+- Los 11 paquetes sin tests siguen así tras F1 — esperado, F3 los cubre.
+- `Endpoints sin auth → 0` en el tracker viejo: ya no aplica (hooks G1/G2 cubren eso localmente).
 
 ---
 

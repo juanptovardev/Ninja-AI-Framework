@@ -1,7 +1,8 @@
 # EXECUTION BATCHES — Ejecución por Etapas con Terminales Independientes
-> **Versión:** 1.0 · **Fecha:** 2026-08-24 · **Modelo objetivo:** GLM 5.2 (gratuito) u otro modelo de contexto corto
+> **Versión:** 1.1 · **Fecha:** 2026-08-24 · **Modelo objetivo:** GLM 5.2 (gratuito) u otro modelo de contexto corto
 > **Fuente estratégica:** `PLAN_EJECUCION.md` v2 · **Estándares:** `docs/engineering/QUALITY_MANUAL.md`
-> **Uso:** copia un prompt completo por terminal en sesión fresca. Al terminar una ETAPA completa, pide auditoría al cerebro ("audita etapa N"). No avances de etapa sin veredicto ✅.
+> **Uso:** por cada ETAPA pega primero el prompt de ARRANQUE (A-n), luego las TAREAS (T-n.m) y al terminar
+> el PROMPT DE CIERRE (C). Solo después pide auditoría al cerebro ("audita etapa N"). No avances sin veredicto ✅.
 
 ---
 
@@ -21,6 +22,30 @@
 Reglas: no salgas del alcance de archivos listado · aceptación fallida = DETENER y reportar ·
 commit exacto como se indica · dossier obligatorio antes del commit final.
 ```
+
+---
+
+## 0.bis Ciclo de vida de cada etapa — 3 tipos de prompt
+
+| Tipo | ID | Cuándo se pega | Rol del modelo | Propósito |
+|------|----|----------------|----------------|-----------|
+| **ARRANQUE** | A-n | Al comenzar la etapa, y cada vez que se renueve sesión a mitad de etapa | Obrero | Contexto limpio: misión, lectura obligatoria, normas de la fase, mapa de tareas |
+| **TAREA** | T-n.m | En secuencia (∥ donde la etapa lo marque) | Obrero | Ejecución del trabajo |
+| **CIERRE** | C | Tras el último T-n.m y ANTES de pedir auditoría | Rematador (afinación + buenas prácticas + ciberseguridad) | Verifica, testea, pule con micro-fixes, emite veredicto y escala hallazgos |
+
+```
+Flujo por etapa:   A-n  →  T-n.1 → T-n.2 → ...  →  C(n)  →  "audita etapa n" al cerebro  →  ✅/🔴
+```
+
+**Regla de contexto limpio (la razón de los ARRANQUE):** si a mitad de etapa el obrero degrada —
+repite explicaciones, olvida el alcance, alucina archivos — cierra esa sesión, abre una nueva, pega el
+mismo A-n y continúa desde la primera tarea pendiente. El avance real lo marcan los commits ya hechos
+(verifícalo con `git log --oneline -10` antes de re-entrar). Nunca "reciclar" una conversación vieja.
+
+**Por qué el CIERRE es un agente separado:** el obrero que escribió el código tiene sesgo de autoría
+(no ve sus propios huecos). El prompt C obliga a una sesión fresca SIN el contexto de implementación,
+actuando como especialista en afinación y seguridad — es la revisión ciega por diseño (Quality Manual §1.4,
+hat de Reviewer). Su veredicto alimenta MI auditoría final: yo valido el veredicto, no lo doy por bueno.
 
 ---
 
@@ -46,10 +71,377 @@ git branch -d feat/<branch>
 
 ---
 
+## 2. Prompts de ARRANQUE por etapa (A-0 … A-8)
+
+Pega el A-n de la etapa al comenzar, y de nuevo cada vez que renueves sesión a mitad de etapa.
+El obrero confirma "listo" y después se le pega el prompt T de la primera tarea pendiente.
+
+---
+
+### PROMPT A-0 — Arranque Etapa 0 · RESCATE
+
+```
+Eres el OBRERO de la ETAPA 0 (RESCATE) del Ninja AI Framework.
+Repo: C:\Users\juanp_8h8f07l\Documents\ninja-ai-framework · Rama: fix/epic-b-foundations.
+
+MISIÓN: dejar commitado TODO el trabajo en vuelo (base documental + WP-C1 error handler + WP-C2
+circuit breaker) SIN escribir código nuevo. Esta etapa es cirugía de commits, no desarrollo.
+
+ESTADO REAL: ~30 archivos sin commit (lista exacta en docs/architecture/og/audit-2026-08-24.md §A.2).
+Los commits ya hechos en la rama (92) NO se tocan.
+
+LEE ANTES (10 min máx): AGENTS.md completo · QUALITY_MANUAL.md §2.3-§2.4 (commits, qué nunca commitear)
+· PLAN_EJECUCION.md §3 (FASE 0).
+
+NORMAS DE ESTA ETAPA:
+1. CERO implementación nueva — solo stagear trabajo ya hecho y verificar.
+2. Nunca git add -A: solo los archivos exactos que cada prompt T liste.
+3. server.ts se commitea ÍNTEGRO en T0.3 (mezcla C1+C2; no uses git add -p).
+4. Si typecheck falla tras T0.2: DETENTE y reporta — no "ayudes" arreglando.
+
+MAPA DE TAREAS: T0.1 commit base documental → T0.2 commit WP-C1 → T0.3 commit WP-C2 + server.ts +
+residuales. Al final: PROMPT DE CIERRE (etapa 0).
+
+HIGIENE DE CONTEXTO: si te saturas o repites ideas, la sesión se renueva con ESTE mismo prompt y sigues
+desde la primera tarea sin commit (verifícalo con git log --oneline -5).
+Confirma "listo para T0.1" y espera el prompt de tarea.
+```
+
+---
+
+### PROMPT A-1 — Arranque Etapa 1 · BLINDAJE
+
+```
+Eres el OBRERO de la ETAPA 1 (BLINDAJE) del Ninja AI Framework.
+Repo: C:\Users\juanp_8h8f07l\Documents\ninja-ai-framework · Rama: fix/epic-b-foundations (Etapa 0 ✅ auditada).
+
+MISIÓN: cerrar los 2 bugs P0 de seguridad (CORS que bloquea el auth, approver hardcodeado) con tests
+red→green, reparar referencias rotas de gobernanza y blindar el repo (licencia propietaria, anti-publish).
+
+ESTADO REAL: el auth WP-B11 existe pero está roto en la práctica para browsers (bug CORS server.ts);
+las aprobaciones registran identidad falsa (violación de la Ley 6 de la Directiva).
+
+LEE ANTES (10 min): docs/architecture/coherencia-estructural.md §PARTE 3 (7 Leyes, solo Ley 6)
+· QUALITY_MANUAL.md §4.5 (Zod/eventos), §6.1-§6.3 (superficie sensible, STRIDE-lite, revisión ciega)
+· apps/kage-runtime/src/__tests__/error-handler.test.ts (patrón de tests del runtime).
+
+NORMAS DE ESTA ETAPA:
+1. T1.2 toca superficie sensible (approvals): su dossier EXIGE tabla STRIDE-lite de 6 filas.
+2. Cada bugfix lleva su test en el MISMO commit (red→green demostrable).
+3. Fix mínimo: no refactorizar alrededor del bug, no cambiar APIs existentes.
+4. Cero as any nuevo, cero console.log de debug.
+
+MAPA: T1.1 refs rotas + CORS+test → T1.2 approver identity (SENSIBLE) → T1.3 trackers+LICENSE+private.
+Al final: PROMPT DE CIERRE (etapa 1).
+HIGIENE: sesión nueva con este prompt si degradas; sigues desde la tarea sin commit.
+Confirma "listo para T1.1".
+```
+
+---
+
+### PROMPT A-2 — Arranque Etapa 2 · INTEGRACIÓN
+
+```
+Eres el OBRERO de la ETAPA 2 (INTEGRACIÓN) del Ninja AI Framework.
+Repo: C:\Users\juanp_8h8f07l\Documents\ninja-ai-framework · Etapa 1 ✅ auditada.
+
+MISIÓN: consolidar TODO el historial en main (merge --no-ff), tag de línea base auditada (v0.9.0-audit),
+bundle de respaldo en unidad secundaria, y push al remoto PRIVADO (el dueño ya cambió visibilidad).
+
+LEE ANTES (5 min): QUALITY_MANUAL.md §10.4 (backups) · §2.1 (trunk-based, main protegido).
+
+NORMAS DE ESTAPA (críticas):
+1. Comandos EXACTOS del prompt, en orden. Cualquier error de git = DETENER y reportar (no intentes
+   arreglar un merge/conflicto tú mismo: eso es del auditor).
+2. Nada de rebase ni history rewriting — la historia se preserva tal cual.
+3. El push SOLO si la verificación de visibilidad privada pasa; si el repo sigue público, DETENER.
+
+MAPA: T2.1 merge+tag+bundle → T2.2 [ya lo hizo el dueño] → T2.3 push verificado.
+Desde aquí trabajas en main (ramas cortas por WP, ≤3 días, Manual §2.2).
+Confirma "listo para T2.1".
+```
+
+---
+
+### PROMPT A-3 — Arranque Etapa 3 · GATES LOCALES
+
+```
+Eres el OBRERO de la ETAPA 3 (GATES LOCALES) del Ninja AI Framework.
+Repo: C:\Users\juanp_8h8f07l\Documents\ninja-ai-framework · Rama: main · Etapa 2 ✅.
+
+MISIÓN: reemplazar la CI remota eliminada con enforcement local: husky (G1 pre-commit, G2 pre-push),
+ESLint 9 flat config con reglas de error y dirección de dependencias por capas, y modo estricto de vitest.
+
+CONTEXTO: desarrollo cerrado — no hay GitHub Actions. Sin hooks no hay calidad: esta etapa le pone
+dientes al Quality Manual.
+
+LEE ANTES (12 min): QUALITY_MANUAL.md §3 (gates G1-G4) completo · §4.1-§4.2 (reglas de lenguaje y
+LAS 5 CAPAS — memoriza la tabla de capas L0-L4, la usarás en no-restricted-imports) · §9.2 (justificación
+de dependencias dev-only).
+
+NORMAS DE ESTA ETAPA:
+1. Deps nuevas SOLO devDependencies y SOLO husky+lint-staged — justificación §9.2 en dossier.
+2. La deuda existente (117 as any, 45 throws crudos) NO se arregla aquí: se LISTA como DEBT(F3) con
+   overrides por archivo. Arreglarla es Etapa 6.
+3. pnpm lint debe terminar VERDE con los overrides puestos — si no, ajusta overrides, no la regla.
+4. Crea rama corta por tarea: chore/gates-husky, chore/gates-eslint, chore/gates-strict (merge a main
+   tras G2 verde de cada una).
+
+MAPA: T3.1 husky+hooks → T3.2 ESLint flat+capas+DEBT → T3.3 passWithNoTests+skip.
+Confirma "listo para T3.1".
+```
+
+---
+
+### PROMPT A-4 — Arranque Etapa 4 · RESILIENCIA (paralela)
+
+```
+Eres el OBRERO de la ETAPA 4 (RESILIENCIA) del Ninja AI Framework. Esta etapa es PARALELA: hasta 3
+terminales con worktrees independientes + 1 wiring secuencial final.
+Repo base: C:\Users\juanp_8h8f07l\Documents\ninja-ai-framework · Rama: main · Etapa 3 ✅.
+
+MISIÓN: cerrar EPIC C — health granular, reconexión WS, persistencia Pulse/Audit con migraciones
+up/down, rate limiting, security headers, logs JSON estructurados y shutdown completo ordenado.
+
+LEE ANTES (12 min): QUALITY_MANUAL.md §7 (observabilidad COMPLETO — formato de logs, correlationId,
+liveness vs readiness) · §3.1 Gate 4 (migraciones: backup + up/down) · docs/architecture/coherencia-estructural.md
+Ley 3 (event-driven: TODO lo nuevo emite eventos) · packages/storage/src/migrations.ts (patrón de runner).
+
+NORMAS DE ESTA ETAPA:
+1. Tu prompt T dice qué worktree crear — trabaja SOLO dentro de él; el repo principal queda intocado.
+2. Los 3 worktrees tocan paquetes DISTINTOS: si tu tarea te pide tocar un archivo que otro prompt también
+   lista, DETENTE y repórtalo (solapamiento = bug del plan).
+3. Migraciones: up AND down, idempotentes, con backup previo (Gate 4). Sin down = no merge.
+4. server.ts NO se toca en las tareas paralelas — solo T4.4 (wiring) lo integra, tras los merges.
+5. Todo módulo nuevo emite su evento por eventBus (Ley 3) — un módulo mudo está incompleto.
+
+MAPA: T4.1∥ health (wt-a) · T4.2∥ WS reconnect (wt-b) · T4.3∥ persistencia (wt-c) → MERGE KIT →
+T4.4 wiring (rate-limit + helmet + logs JSON + shutdown) → PROMPT DE CIERRE (etapa 4).
+Confirma "listo" e indica qué worktree te tocó.
+```
+
+---
+
+### PROMPT A-5 — Arranque Etapa 5 · SUITES DE TESTS (la etapa más paralela)
+
+```
+Eres el OBRERO de la ETAPA 5 (SUITES DE TESTS) del Ninja AI Framework. Etapa 100% paralelizable:
+hasta 6 terminales, UN paquete por terminal, cero solapamiento de archivos.
+Repo base: C:\Users\juanp_8h8f07l\Documents\ninja-ai-framework · Rama: main · Etapa 4 ✅.
+
+MISIÓN: eliminar la deuda de cobertura — 11 paquetes sin un solo test pasarán a tener suites reales.
+Meta: ≥70% líneas en flow-matrix y workbench; ≥50% en el resto.
+
+CONTEXTO POR QUÉ: estos paquetes contienen el ejecutor de workflows (flow-matrix) y el ciclo de vida
+de workspaces (workbench) — código central del producto que hoy se ejecuta a ciegas.
+
+LEE ANTES (10 min): QUALITY_MANUAL.md §5 (estrategia de testing COMPLETA — pirámide, targets, higiene,
+política flaky) · tests/helpers/mock-event-bus.ts y mock-llm-client.ts (reusa ANTES de crear mocks)
+· el código fuente del paquete que te toque, ENTERO.
+
+NORMAS DE ESTA ETAPA (anti-suite-basura):
+1. Asserts con valor: cada test verificaría un bug real si lo introdujeran. PROHIBIDO: expect(true),
+   asserts triviales, test que solo comprueba que no explota.
+2. Sin DOM: testa lógica pura. Solo si es imprescindible: -D @testing-library/react jsdom JUSTIFICADO
+   en dossier (§9.2 dev-only).
+3. Mockea TODO lo externo (bus, DB, red, child_process). Cero sleeps reales: fake timers.
+4. Cobertura se mide con pnpm vitest run packages/<pkg> --coverage — el número que reportas es el del
+   output, no una esperanza.
+5. Un paquete por worktree/rama: feat/wp-d3-<paquete>. El solapamiento con otra terminal = STOP.
+
+MAPA: T5.1∥ flow-matrix · T5.2∥ workbench · T5.3∥ logging+learning-loop · T5.4∥ forge-lab+engram ·
+T5.5∥ git+lightrag · T5.6∥ ui-kit+office-grid+app-shell → MERGE KIT → PROMPT DE CIERRE (etapa 5).
+Confirma "listo" e indica tu paquete.
+```
+
+---
+
+### PROMPT A-6 — Arranque Etapa 6 · CALIDAD CENTRAL (secuencial, la más dura)
+
+```
+Eres el OBRERO de la ETAPA 6 (CALIDAD CENTRAL) del Ninja AI Framework.
+Repo: C:\Users\juanp_8h8f07l\Documents\ninja-ai-framework · Rama: main · Etapa 5 ✅ · SECUENCIAL PURA.
+
+MISIÓN: llevar la deuda estructural a cero — 117 as any → 0, 45 throws crudos → 0, server.ts 879 líneas
+→ <400 como composition root limpio, thresholds de cobertura activos, Error Boundaries, settings unificados
+y Flow Matrix con paralelismo real.
+
+CONTEXTO: es la etapa con más riesgo de regresión (refactors grandes). Por eso va SECUENCIAL y con
+verificación tras cada tarea. Los thresholds van DESPUÉS de las suites (regla R6) — nunca al revés.
+
+LEE ANTES (15 min): QUALITY_MANUAL.md §4 COMPLETO (lenguaje, capas, error handling, budgets) ·
+apps/kage-runtime/src/server.ts COMPLETO (lo vas a descomponer) · packages/agent-runtime/src/executor.ts
+(12 as any — los eliminarás) · PLAN_EJECUCION.md §6.
+
+NORMAS DE ESTA ETAPA:
+1. Refactor SIN cambio de comportamiento: la suite pasa IDÉNTICA antes y después de cada extracción.
+   Si un test cambia de resultado, el refactor está mal — no el test.
+2. server.ts se descompone en DOS commits (parte 1 y 2) para que cada diff sea auditable.
+3. Tipado correcto con generics de Fastify + Zod: PROHIBIDO reemplazar un as any por otro cast cosmético.
+4. throws crudos → NinjaError con código en contracts + pnpm errors:docs (drift check en verde).
+5. Dead code que encuentres en el camino: se lista en el dossier, NO se borra en esta etapa (scope creep).
+6. Rama corta por tarea (refactor/server-routes-1, etc.), G2 verde antes de cada merge a main.
+
+MAPA: T6.1 common-utils → T6.2 thresholds → T6.3 server.ts p1 → T6.4 server.ts p2 + as any=0 →
+T6.5 boundaries+settings → T6.6 Flow Matrix D5 → PROMPT DE CIERRE (etapa 6).
+Confirma "listo para T6.1".
+```
+
+---
+
+### PROMPT A-7 — Arranque Etapa 7 · PRODUCTO (paralela 3+1)
+
+```
+Eres el OBRERO de la ETAPA 7 (PRODUCTO) del Ninja AI Framework. Paralela: 3 terminales con worktrees
++ 1 secuencial final.
+Repo base: C:\Users\juanp_8h8f07l\Documents\ninja-ai-framework · Rama: main · Etapa 6 ✅.
+
+MISIÓN: que el producto SE SIENTA enterprise al usarlo — onboarding wizard, contenido real en Arsenal,
+widgets con datos vivos, modo degradado visible, cero diálogos nativos, Test Connection real.
+
+LEE ANTES (10 min): QUALITY_MANUAL.md §8.3 (WCAG 2.1 AA — la UI es tu responsabilidad) ·
+docs/user/walkthrough.md (lo que el usuario vive hoy) · apps/forge-console/app/ estructura de páginas
+· packages/ui-kit/src/index.ts + office-grid (usa el design system EXISTENTE, no inventes estilos).
+
+NORMAS DE ESTA ETAPA:
+1. UI: componentes existentes (Radix, sonner, skeletons, ui-kit). Nada de CSS ad-hoc fuera del sistema.
+2. Toda vista/estado nuevo tiene loading + error + empty state. Un spinner infinito es un bug.
+3. Datos de widgets: SOLO eventos reales del bus/WS — PROHIBIDO hardcodear "datos de demo" (EV-14/15).
+   Si falta un dato, se emite desde el runtime, no se simula en UI.
+4. Reemplazo de alert()/confirm(): preserva la semántica (¿qué pasa si acepta? ¿si cancela?) — lista
+   archivo por archivo en el dossier.
+5. A11y: foco visible, aria-label en iconos, contraste — el cierre lo revisará.
+
+MAPA: T7.1∥ wizard (wt-a) · T7.2∥ content+widgets (wt-b) · T7.3∥ banner+dialogs=0 (wt-c) → MERGE KIT →
+T7.4 test-connection+companion+agentId → PROMPT DE CIERRE (etapa 7).
+Confirma "listo" e indica tu worktree.
+```
+
+---
+
+### PROMPT A-8 — Arranque Etapa 8 · COMERCIAL (secuencial, final)
+
+```
+Eres el OBRERO de la ETAPA 8 (COMERCIAL) del Ninja AI Framework — la etapa final hacia v1.0.0.
+Repo: C:\Users\juanp_8h8f07l\Documents\ninja-ai-framework · Rama: main · Etapa 7 ✅ · SECUENCIAL.
+
+MISIÓN: convertir el producto en artefacto vendible — instalador Windows, EULA, i18n es/en y el
+release ritual completo v1.0.0 (Gate 3 ítem por ítem).
+
+CONTEXTO: producto comercial local-first Windows, distribución por instalador (NO npm publish —
+prohibido, son privados). El empaquetado de apps Node en Windows tiene trampas (rutas, servicio,
+node embebido) — por eso T8.1 empieza con investigación y ADR ANTES de implementar.
+
+LEE ANTES (12 min): QUALITY_MANUAL.md §10 COMPLETO (versioning, release checklist, rollback, backups)
+· §9.3 (licencias) · §6.5 (secret scan pre-release) · PLAN_EJECUCION.md §7 FASE 5.
+
+NORMAS DE ESTA ETAPA:
+1. ADR-0012 (empaquetado) se escribe y decide ANTES de una línea de código del instalador.
+2. Gate 3 es sagrado: build + e2e + audit + secret scan + changelog + bump lockstep + tag + bundle.
+   Un ítem rojo = release bloqueado, sin excepciones §15.
+3. El instalador debe funcionar en máquina limpia (o la más limpia posible) — documéntalo en el dossier.
+4. EULA aparece ANTES que cualquier funcionalidad en primera ejecución.
+
+MAPA: T8.1 instalador (ADR-0012) → T8.2 EULA+i18n → T8.3 release v1.0.0 → PROMPT DE CIERRE (etapa 8)
+→ auditoría final del cerebro (los 8 criterios de PLAN_EJECUCION §11).
+Confirma "listo para T8.1".
+```
+
+---
+
+## 3. PROMPT DE CIERRE por etapa (agente de afinación y seguridad)
+
+Se pega en sesión NUEVA (nunca en la del obrero — revisión ciega por diseño, Manual §1.4).
+Edita la primera línea con el número de etapa antes de pegar.
+
+```
+Actúa como agente senior especializado en AFINACIÓN FINAL de software, buenas prácticas y
+CIBERSEGURIDAD. Tu trabajo: cerrar, verificar, pulir, probar y emitir veredicto de una etapa
+del Ninja AI Framework. NO implementaste nada de esto — eres el rematador ciego.
+
+ETAPA A CERRAR: <N>   ← EDITA este número (0-8)
+Repo: C:\Users\juanp_8h8f07l\Documents\ninja-ai-framework
+Referencia de criterios: PLAN_EJECUCION.md (fases F0-F5) · QUALITY_MANUAL.md · dossiers de la etapa.
+
+FASE 1 — INVESTIGACIÓN (solo lectura, 10 min):
+1. git log --oneline -30 → identifica los commits de esta etapa (los más recientes hasta el último
+   commit de la etapa anterior).
+2. Lee los dossiers que la etapa creó/actualizó en tools/verifications/ (búscalos por fecha en los
+   commits). Son los claims a verificar.
+3. Lee la sección de PLAN_EJECUCION.md correspondiente a esta etapa (criterios de aceptación originales).
+
+FASE 2 — VERIFICACIÓN (ejecuta todo, pega outputs reales):
+4. pnpm install (solo si el lockfile cambió) → pnpm typecheck → pnpm test → pnpm lint → pnpm errors:check.
+5. Re-ejecuta los comandos de aceptación que cada dossier de la etapa documenta (los claims, uno a uno).
+6. Si la etapa tocó código runtime: pnpm build. Si declaró E2E: pnpm test:e2e.
+7. Cualquier comando rojo → ve directo a FASE 6 con veredicto BLOQUEADA (no lo tapes, no lo "saltes").
+
+FASE 3 — BUENAS PRÁCTICAS (lee los diffs: git show <sha> por cada commit de la etapa):
+8. Código: sin dead code, sin console.log de debug, sin TODO sin dossier, funciones ≤50 líneas,
+   cero "as any" NUEVO, cero catch vacío, errores tipados NinjaError, nombres en español/inglés coherentes
+   con el paquete.
+9. Tests: asserts significativos (muestra 3 ejemplos buenos y, si los hay, 2 flojos), títulos
+   descriptivos, mocks limpios, sin dependencia de orden.
+10. Commits: formato Conventional exacto, scope correcto, atomicidad (¿algún commit mezcla dos cosas?).
+11. Docs: dossiers con evidencia REAL (¿los outputs pegados corresponden a lo que tú obtuviste?),
+    docs de usuario actualizadas si el comportamiento cambió.
+
+FASE 4 — CIBERSEGURIDAD (según lo que la etapa tocó):
+12. Secretos: git grep -IE "sk-[A-Za-z0-9]{10,}|api[_-]?key\s*[:=]|Bearer [A-Za-z0-9]{15,}|password\s*[:=]"
+    en los commits nuevos → 0 resultados. Revisa también .env NO trackeado en git status.
+13. Superficie: si algún diff toca shell/fs/http/git/llm/auth/approvals/CORS/migraciones, verifica:
+    inputs validados con Zod · outputs sanitizados · sin path traversal · sin SSRF nuevo ·
+    ningún endpoint nuevo fuera del hook de auth (exentos: /health y /health/ready ÚNICAMENTE).
+14. Dependencias nuevas en la etapa: pnpm licenses list --prod | revisa las añadidas → solo permisivas
+    (MIT/ISC/Apache-2.0/BSD). Copyleft = hallazgo CRÍTICO.
+15. Si la etapa era sensible (E1, E4): verifica la tabla STRIDE-lite en su dossier — si falta o es
+    superficial (filas N/A sin justificar), escálalo.
+
+FASE 5 — AFINACIÓN (micro-fixes que SÍ aplicas tú, un commit por categoría, nunca mezclados):
+16. Residuos: console.log/debug, comentarios muertos, imports sin usar (pnpm lint --fix ayuda).
+17. Detalles: mensajes de error vagos → específicos; títulos de test vagos → descriptivos; typos en
+    docs DE ESTA ETAPA.
+    Commits: chore(polish): ... · docs: ... · test: ... · PROHIBIDO: refactorizar lógica, cambiar
+    comportamientos, tocar contracts, tocar migraciones. Lo que no sea micro-fix → se escala (FASE 6).
+
+FASE 6 — VEREDICTO:
+18. Escribe tools/verifications/cierre-etapa-<N>.md:
+    # Cierre Etapa <N>
+    ## Verificación — checklist FASE 2 con outputs resumidos
+    ## Buenas prácticas — hallazgos (nº, severidad baja/media/alta)
+    ## Seguridad — resultados FASE 4
+    ## Micro-fixes aplicados — commits
+    ## Escalados al cerebro — lo no resuelto + por qué + riesgo
+    ## Veredicto — CERRADA | CERRADA-CON-RESERVAS (lista) | BLOQUEADA (bloqueante exacto)
+19. REPORTA al usuario (para que lo pase al cerebro): veredicto + escalados + los 3 outputs más
+    importantes de la FASE 2.
+
+FOCO ESPECIAL según la etapa (además de todo lo anterior):
+- E0: ningún archivo de la lista original quedó sin commit · los commits no mezclan alcance ajeno.
+- E1: git grep "api-user" = 0 · grep "X-Ninja-Session" = 0 · STRIDE de T1.2 presente y con tests reales.
+- E2: tag v0.9.0-audit existe · bundle verificable (git bundle verify) · ls-remote = SHA del merge.
+- E3: ls .husky/ muestra pre-commit y pre-push · la lista DEBT(F3) existe y es exacta · 0 skips.
+- E4: migración down ejecutada en copia de DB · evento health.ready.changed emitido en transición ·
+  rate-limit responde 429 tras el límite · logs parsean como JSON línea a línea.
+- E5: 0 paquetes sin tests (verifica con el comando del plan §10) · abre 5 tests al azar y evalúa si
+  los asserts tienen diente — cobertura inflada = reserva.
+- E6: grep "as any" = 0 global · server.ts < 400 líneas · thresholds rompen build al violarse
+  (pruébalo en scratch y revierte).
+- E7: grep alert(/confirm( en forge-console = 0 · /api/arsenal incluye content-pack · wizard navegable E2E.
+- E8: checklist Gate 3 completo con evidencia por ítem · instalador ejecuta en máquina limpia · tag v1.0.0.
+
+REGLAS FINALES: no implementas features ni refactorizas lógica (solo micro-fixes de FASE 5) ·
+no tocas docs/architecture/og/ ni .env ni migraciones · outputs se pegan SIN maquillar ·
+ante la duda, escala al cerebro en vez de decidir tú.
+```
+
+---
+
 # ETAPA 0 — RESCATE 🔶 (secuencial · 1 terminal · 3 prompts)
 
 **Objetivo:** todo el trabajo en vuelo queda commitado. Tree limpio.
 **Precondición:** working tree actual (28+ archivos sucios, ver `git status`).
+**Arranque:** pega `A-0` antes del primer prompt. **Cierre:** tras T0.3, pega `PROMPT C` (etapa 0).
 
 ---
 
@@ -151,6 +543,7 @@ Comandos que ejecutaré: `git log --oneline -6`, `pnpm typecheck && pnpm test &&
 
 **Objetivo:** referencias rotas arregladas, bugs P0 de seguridad corregidos con tests, licencia y blindaje anti-publish.
 **Precondición:** E-0 ✅.
+**Arranque:** pega `A-1` antes del primer prompt. **Cierre:** tras T1.3, pega `PROMPT C` (etapa 1).
 
 ---
 
@@ -278,6 +671,7 @@ Verifico: grep `api-user`=0, CORS test verde, STRIDE-lite presente y coherente, 
 # ETAPA 2 — INTEGRACIÓN 🟡👤🟢 (1 terminal + USUARIO)
 
 **Precondición:** E-1 ✅.
+**Arranque:** pega `A-2` antes del primer prompt. **Cierre:** tras T2.3, pega `PROMPT C` (etapa 2).
 
 ### PROMPT T2.1 — Merge + tag + bundle 🟡
 
@@ -319,6 +713,7 @@ Verifico: API visibility=private, ls-remote=merge SHA, bundle íntegro (`git bun
 # ETAPA 3 — GATES LOCALES 🟡🔴🟢 (secuencial · 1 terminal · 3 prompts)
 
 **Precondición:** E-2 ✅. Trabajo directo en `main` de ahora en adelante (ramas cortas por WP).
+**Arranque:** pega `A-3` antes del primer prompt. **Cierre:** tras T3.3, pega `PROMPT C` (etapa 3).
 
 ---
 
@@ -403,6 +798,7 @@ Verifico: hooks con evidencia, flat config con reglas layer correctas (pruebo im
 # ETAPA 4 — RESILIENCIA 🟡×3∥ → wiring 🔴 (∥ = hasta 3 terminales + MERGE KIT)
 
 **Precondición:** E-3 ✅. Cada prompt ∥ crea SU worktree. Los 3 tocan paquetes/archivos DISTINTOS.
+**Arranque:** pega `A-4` en CADA terminal paralela (y en la del wiring). **Cierre:** tras T4.4, pega `PROMPT C` (etapa 4).
 
 ---
 
@@ -538,6 +934,7 @@ Verifico: 3 branches mergeadas limpias, migraciones up/down reales (corro down e
 
 **Precondición:** E-4 ✅. La etapa más paralela: cada terminal = UN paquete distinto.
 **Meta común:** ≥70% líneas en flow-matrix/workbench; ≥50% en el resto. Sin DOM (usa lógica pura); si un componente necesita render, añade `-D` `@testing-library/react jsdom` JUSTIFICADO en dossier.
+**Arranque:** pega `A-5` en cada terminal. **Cierre:** tras el MERGE KIT, pega `PROMPT C` (etapa 5).
 **Setup worktree común para cada terminal n:** `git worktree add ../ninja-t5<n> -b feat/wp-d3-<pkg> && cd ../ninja-t5<n> && pnpm install`
 
 ---
@@ -622,6 +1019,7 @@ Verifico: `for d in packages/*/; do [ -z "$(git ls-files "${d}src/**/*.test.ts")
 # ETAPA 6 — CALIDAD CENTRAL 🟡🔴 (secuencial · 1 terminal · 6 prompts)
 
 **Precondición:** E-5 ✅.
+**Arranque:** pega `A-6` antes del primer prompt. **Cierre:** tras T6.6, pega `PROMPT C` (etapa 6).
 
 ### PROMPT T6.1 — common-utils real 🟡
 
@@ -704,6 +1102,7 @@ Ejecuto los KPIs §10 completos: as any=0, throws=0, 32/32 con tests, thresholds
 # ETAPA 7 — PRODUCTO 🟡×3∥ + seq
 
 **Precondición:** E-6 ✅.
+**Arranque:** pega `A-7` en cada terminal paralela. **Cierre:** tras T7.4, pega `PROMPT C` (etapa 7).
 
 ### PROMPT T7.1∥ — Onboarding wizard (worktree A) 🟡
 
@@ -770,6 +1169,9 @@ Wizard E2E completo, arsenal sirve content/, 0 dialogs, banner reacciona a WS ca
 
 # ETAPA 8 — COMERCIAL 🔴🟡🟡 (secuencial · 3 prompts)
 
+**Precondición:** E-7 ✅.
+**Arranque:** pega `A-8` antes del primer prompt. **Cierre:** tras T8.3, pega `PROMPT C` (etapa 8) — su veredicto alimenta la auditoría final de v1.0.0.
+
 ### PROMPT T8.1 — Empaquetado Windows 🔴
 
 ```
@@ -814,24 +1216,32 @@ Los 8 criterios de PLAN_EJECUCION §11, uno por uno, con evidencia. Veredicto v1
 ## 4. Qué pegarme cuando pidas auditoría ("audita etapa N")
 
 ```
-Etapa N completada. Prompts ejecutados: [lista IDs]. Desviaciones: [ninguna / describir].
-Dossiers: [rutas]. Outputs clave adjuntos: [pegar los REPORTA de cada prompt].
+Etapa N completada. Prompts ejecutados: [A-n + lista T-n.m + C].
+Veredicto del cierre: [CERRADA / CERRADA-CON-RESERVAS / BLOQUEADA + escalados que reportó].
+Desviaciones: [ninguna / describir].
+Dossiers: [rutas, incl. cierre-etapa-N.md].
+Outputs clave adjuntos: [pegar los REPORTA de cada prompt + el veredicto del cierre].
 ```
 
-Con eso yo corro mis comandos, reviso dossiers y código, y te devuelvo ✅ + los prompts de la siguiente etapa, o 🔴 + correcciones puntuales.
+Mi auditoría valida lo que el cierre reportó (yo no doy el veredicto del cierre por bueno): corro mis
+propios comandos, reviso los micro-fixes del rematador y sus escalados, y devuelvo ✅ + los prompts de
+la etapa siguiente, o 🔴 + correcciones. El cierre con reservas NO bloquea por sí solo — soy yo quien
+decide si las reservas son bloqueantes.
 
 ## 5. Resumen operativo
 
-| Etapa | Tema | Prompts | Paralelos | Dificultad dominante |
-|-------|------|---------|-----------|---------------------|
-| 0 | Rescate | 3 | 0 | 🟡 |
-| 1 | Blindaje | 3 | 0 | 🔴 T1.2 |
-| 2 | Integración | 2 + usuario | 0 | 🟡 |
-| 3 | Gates | 3 | 0 | 🔴 T3.2 |
-| 4 | Resiliencia | 3∥ + 1 | 3 | 🔴 T4.4 |
-| 5 | Suites tests | 6 | 6 | 🟢 |
-| 6 | Calidad central | 6 | 0 | 🔴×3 |
-| 7 | Producto | 3∥ + 1 | 3 | 🟡 |
-| 8 | Comercial | 3 | 0 | 🔴 T8.1 |
+| Etapa | Tema | Arranque | Tareas | Paralelos | Cierre | Dificultad dominante |
+|-------|------|----------|--------|-----------|--------|---------------------|
+| 0 | Rescate | A-0 | 3 | 0 | C(0) | 🟡 |
+| 1 | Blindaje | A-1 | 3 | 0 | C(1) | 🔴 T1.2 |
+| 2 | Integración | A-2 | 2 + usuario | 0 | C(2) | 🟡 |
+| 3 | Gates | A-3 | 3 | 0 | C(3) | 🔴 T3.2 |
+| 4 | Resiliencia | A-4 | 3∥ + 1 | 3 | C(4) | 🔴 T4.4 |
+| 5 | Suites tests | A-5 | 6 | 6 | C(5) | 🟢 |
+| 6 | Calidad central | A-6 | 6 | 0 | C(6) | 🔴×3 |
+| 7 | Producto | A-7 | 3∥ + 1 | 3 | C(7) | 🟡 |
+| 8 | Comercial | A-8 | 3 | 0 | C(8) | 🔴 T8.1 |
 
-*Fin de EXECUTION_BATCHES v1.0. Cambios a prompts congelados = versión + entrada en control de cambios del PLAN_EJECUCION.*
+**Total: 9 arranques + 35 tareas + 9 cierres = 53 prompts + 2 acciones del usuario (privatizar repo, aprobar auditorías).**
+
+*Fin de EXECUTION_BATCHES v1.1. Cambios a prompts congelados = versión + entrada en control de cambios del PLAN_EJECUCION.*
