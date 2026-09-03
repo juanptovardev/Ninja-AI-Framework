@@ -25,7 +25,9 @@ const APPROVER: ApproverIdentity = { id: 'user-admin', role: 'admin' };
 
 function collectEvents(bus: EventBus): NinjaEvent[] {
   const events: NinjaEvent[] = [];
-  bus.onAny((event) => { events.push(event); });
+  bus.onAny((event) => {
+    events.push(event);
+  });
   return events;
 }
 
@@ -98,7 +100,7 @@ describe('Guardian — require-approval actions', () => {
     if (pending.length > 0) {
       await approvalManager.rejectRequest(pending[0].id, APPROVER, 'Not authorized');
     }
-    
+
     const result = await promise;
     expect(result).toBe(false);
   });
@@ -110,7 +112,7 @@ describe('Guardian — require-approval actions', () => {
     if (pending.length > 0) {
       await approvalManager.approveRequest(pending[0].id, APPROVER, 'Looks good');
     }
-    
+
     const result = await promise;
     expect(result).toBe(true);
   });
@@ -164,10 +166,8 @@ describe('Guardian — allowed actions', () => {
   });
 });
 
-describe('Guardian — without PolicyEngine (legacy — will be removed after WP-B5)', () => {
-  // These tests are superseded by WP-B5 deny-by-default tests below.
-  // Kept to document the OLD behaviour that WP-B5 flips.
-});
+// F1.6: el describe legacy vacío "without PolicyEngine" fue eliminado — sus casos
+// están superseded por los tests deny-by-default de WP-B5 (Manual §5.4: 0 suites vacías).
 
 describe('Guardian deny-by-default (WP-B5)', () => {
   let bus: EventBus;
@@ -243,11 +243,13 @@ describe('Guardian — health degradation reaction', () => {
   it('emits sentinel.intervention on health.degradation.detected', () => {
     const events = collectEvents(bus);
 
-    bus.emit(createEvent('health.degradation.detected', 'pulse-center', {
-      providerId: 'provider-openai',
-      severity: 'critical',
-      message: 'API latency exceeded threshold',
-    }));
+    bus.emit(
+      createEvent('health.degradation.detected', 'pulse-center', {
+        providerId: 'provider-openai',
+        severity: 'critical',
+        message: 'API latency exceeded threshold',
+      })
+    );
 
     const interventionEvents = events.filter((e) => e.type === 'sentinel.intervention');
     expect(interventionEvents).toHaveLength(1);
@@ -256,10 +258,12 @@ describe('Guardian — health degradation reaction', () => {
   it('intervention payload contains action pause_affected_agents and reason', () => {
     const events = collectEvents(bus);
 
-    bus.emit(createEvent('health.degradation.detected', 'pulse-center', {
-      providerId: 'provider-openai',
-      severity: 'critical',
-    }));
+    bus.emit(
+      createEvent('health.degradation.detected', 'pulse-center', {
+        providerId: 'provider-openai',
+        severity: 'critical',
+      })
+    );
 
     const interventionEvents = events.filter((e) => e.type === 'sentinel.intervention');
     const payload = interventionEvents[0].payload as Record<string, unknown>;
@@ -270,10 +274,12 @@ describe('Guardian — health degradation reaction', () => {
   it('health.context.inefficient logs warning but does not emit sentinel intervention', () => {
     const events = collectEvents(bus);
 
-    bus.emit(createEvent('health.context.inefficient', 'pulse-center', {
-      agentId: AGENT_ID,
-      contextUtilization: 0.95,
-    }));
+    bus.emit(
+      createEvent('health.context.inefficient', 'pulse-center', {
+        agentId: AGENT_ID,
+        contextUtilization: 0.95,
+      })
+    );
 
     const interventionEvents = events.filter((e) => e.type === 'sentinel.intervention');
     expect(interventionEvents).toHaveLength(0);
@@ -301,15 +307,17 @@ describe('Guardian — agent failure + controlled degradation', () => {
   it('health degradation + agent action evaluation both work independently', async () => {
     const events = collectEvents(bus);
 
-    bus.emit(createEvent('health.degradation.detected', 'pulse-center', {
-      providerId: 'provider-openai',
-      severity: 'critical',
-    }));
+    bus.emit(
+      createEvent('health.degradation.detected', 'pulse-center', {
+        providerId: 'provider-openai',
+        severity: 'critical',
+      })
+    );
 
     // Bloquear la acción para que no quede pending
-    const evaluationResult = await guardian.evaluateAction(
-      'git.push', AGENT_ID, RUN_ID, { branch: 'main' }
-    );
+    const evaluationResult = await guardian.evaluateAction('git.push', AGENT_ID, RUN_ID, {
+      branch: 'main',
+    });
 
     const interventionEvents = events.filter((e) => e.type === 'sentinel.intervention');
     expect(interventionEvents).toHaveLength(1);
@@ -320,10 +328,12 @@ describe('Guardian — agent failure + controlled degradation', () => {
   it('degradation does not affect allow decisions for safe actions', async () => {
     const events = collectEvents(bus);
 
-    bus.emit(createEvent('health.degradation.detected', 'pulse-center', {
-      providerId: 'provider-openai',
-      severity: 'degraded',
-    }));
+    bus.emit(
+      createEvent('health.degradation.detected', 'pulse-center', {
+        providerId: 'provider-openai',
+        severity: 'degraded',
+      })
+    );
 
     const allowResult = await guardian.evaluateAction('agent.spawn', AGENT_ID, RUN_ID);
     expect(allowResult).toBe(true);

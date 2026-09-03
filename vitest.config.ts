@@ -40,7 +40,12 @@ export default defineConfig({
     alias: baseAliases,
   },
   test: {
-    include: ['packages/*/src/**/*.test.ts', 'apps/*/src/**/*.test.ts', 'tests/**/*.test.ts', 'src/**/*.test.ts'],
+    include: [
+      'packages/*/src/**/*.test.ts',
+      'apps/*/src/**/*.test.ts',
+      'tests/**/*.test.ts',
+      'src/**/*.test.ts',
+    ],
     exclude: [
       'node_modules',
       'dist',
@@ -51,7 +56,6 @@ export default defineConfig({
       'tests/e2e/**',
     ],
     testTimeout: 10000,
-    passWithNoTests: true,
     globals: true,
     environment: 'node',
     coverage: {
