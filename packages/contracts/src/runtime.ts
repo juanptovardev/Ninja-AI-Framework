@@ -11,12 +11,7 @@ import type { Timestamp } from './common.js';
 // ---------------------------------------------------------------------------
 
 /** Estados del ciclo de vida del Kage Runtime. */
-export type RuntimeStatusValue =
-  | 'starting'
-  | 'running'
-  | 'stopping'
-  | 'stopped'
-  | 'error';
+export type RuntimeStatusValue = 'starting' | 'running' | 'stopping' | 'stopped' | 'error';
 
 /**
  * Snapshot del estado del runtime en un momento dado.
@@ -49,6 +44,39 @@ export interface HealthResponse {
   readonly status: HealthStatusValue;
   /** Timestamp ISO 8601 del momento en que se generó esta respuesta. */
   readonly timestamp: Timestamp;
+  /** Segundos de uptime del proceso (opcional, WP-C3a). */
+  readonly uptime?: number;
+}
+
+// ---------------------------------------------------------------------------
+// Granular Readiness (WP-C3a / F2.1)
+// ---------------------------------------------------------------------------
+
+/** Checks individuales que componen el readiness del runtime (§7.4). */
+export interface ReadyChecks {
+  /** Probe SQLite: `SELECT 1` ejecutado contra la conexión de storage. */
+  readonly db: boolean;
+  /** Migraciones aplicadas en la base de datos global. */
+  readonly migrations: boolean;
+  /** Env LLM presente (LLM_BASE_URL + LLM_API_KEY). */
+  readonly llmEnv: boolean;
+}
+
+/**
+ * Respuesta del endpoint GET /health/ready.
+ * 200 con status "ready" cuando todos los checks pasan; 503 "not-ready" si alguno falla.
+ */
+export interface ReadinessResponse {
+  readonly status: 'ready' | 'not-ready';
+  readonly timestamp: Timestamp;
+  readonly checks: ReadyChecks;
+}
+
+/** Payload del evento `health.ready.changed` — emitido solo en transición. */
+export interface HealthReadyChangedPayload {
+  readonly ready: boolean;
+  readonly previous: boolean;
+  readonly checks: ReadyChecks;
 }
 
 // ---------------------------------------------------------------------------

@@ -5,6 +5,7 @@
  */
 
 import type { ID, Timestamp } from './common.js';
+import type { ReadyChecks, HealthReadyChangedPayload } from './runtime.js';
 
 // ---------------------------------------------------------------------------
 // Base Event
@@ -37,7 +38,8 @@ export type RuntimeEventType =
   | 'runtime.stopping'
   | 'runtime.stopped'
   | 'runtime.error'
-  | 'runtime.health.check';
+  | 'runtime.health.check'
+  | 'health.ready.changed';
 
 /** Payload para runtime.started */
 export interface RuntimeStartedPayload {
@@ -64,11 +66,12 @@ export interface RuntimeHealthCheckPayload {
  * El tipo del payload varía según `type`.
  */
 export type RuntimeEvent =
-  | NinjaEvent<RuntimeStartedPayload> & { readonly type: 'runtime.started' }
-  | NinjaEvent<Record<string, never>> & { readonly type: 'runtime.stopping' }
-  | NinjaEvent<Record<string, never>> & { readonly type: 'runtime.stopped' }
-  | NinjaEvent<RuntimeErrorPayload> & { readonly type: 'runtime.error' }
-  | NinjaEvent<RuntimeHealthCheckPayload> & { readonly type: 'runtime.health.check' };
+  | (NinjaEvent<RuntimeStartedPayload> & { readonly type: 'runtime.started' })
+  | (NinjaEvent<Record<string, never>> & { readonly type: 'runtime.stopping' })
+  | (NinjaEvent<Record<string, never>> & { readonly type: 'runtime.stopped' })
+  | (NinjaEvent<RuntimeErrorPayload> & { readonly type: 'runtime.error' })
+  | (NinjaEvent<RuntimeHealthCheckPayload> & { readonly type: 'runtime.health.check' })
+  | (NinjaEvent<HealthReadyChangedPayload> & { readonly type: 'health.ready.changed' });
 
 // ---------------------------------------------------------------------------
 // Shell Events
@@ -107,10 +110,10 @@ export interface ShellCommandTimeoutPayload {
  * Evento específico de Integrations Shell.
  */
 export type ShellEvent =
-  | NinjaEvent<ShellCommandExecutedPayload> & { readonly type: 'shell.command.executed' }
-  | NinjaEvent<ShellCommandBlockedPayload> & { readonly type: 'shell.command.blocked' }
-  | NinjaEvent<ShellCommandTimeoutPayload> & { readonly type: 'shell.command.timeout' }
-  | NinjaEvent<{ message: string }> & { readonly type: 'shell.command.error' };
+  | (NinjaEvent<ShellCommandExecutedPayload> & { readonly type: 'shell.command.executed' })
+  | (NinjaEvent<ShellCommandBlockedPayload> & { readonly type: 'shell.command.blocked' })
+  | (NinjaEvent<ShellCommandTimeoutPayload> & { readonly type: 'shell.command.timeout' })
+  | (NinjaEvent<{ message: string }> & { readonly type: 'shell.command.error' });
 
 // ---------------------------------------------------------------------------
 // Filesystem Events
@@ -146,11 +149,11 @@ export interface FsScanCompletedPayload {
  * Evento específico de Integrations Filesystem.
  */
 export type FsEvent =
-  | NinjaEvent<FsFileWrittenPayload> & { readonly type: 'fs.file.written' }
-  | NinjaEvent<FsFileDeletedPayload> & { readonly type: 'fs.file.deleted' }
-  | NinjaEvent<{ path: string }> & { readonly type: 'fs.directory.created' }
-  | NinjaEvent<FsScanCompletedPayload> & { readonly type: 'fs.scan.completed' }
-  | NinjaEvent<{ path: string; message: string }> & { readonly type: 'fs.error' };
+  | (NinjaEvent<FsFileWrittenPayload> & { readonly type: 'fs.file.written' })
+  | (NinjaEvent<FsFileDeletedPayload> & { readonly type: 'fs.file.deleted' })
+  | (NinjaEvent<{ path: string }> & { readonly type: 'fs.directory.created' })
+  | (NinjaEvent<FsScanCompletedPayload> & { readonly type: 'fs.scan.completed' })
+  | (NinjaEvent<{ path: string; message: string }> & { readonly type: 'fs.error' });
 
 // ---------------------------------------------------------------------------
 // Handler & Subscription

@@ -152,7 +152,8 @@ EPIC A — Estabilización base
 
 - [x] **WP-C1** — Error handler global Fastify + not-found handler · commit f337e14 · ADR-0009 · dossier `wp-c1-closure.md`
 - [x] **WP-C2** — Circuit Breaker + Retry/backoff + timeouts jerárquicos · commit 58a6cde · ADR-0010
-- [ ] **WP-C3** — Graceful degradation + reconexión WS + health granular
+- [x] **WP-C3a** — Health granular (F2.1): `/health` liveness + `/health/ready` readiness (probes SQLite/migraciones/env LLM) + evento `health.ready.changed` en transición · dossier `wp-c3-health.md` *(WP-C3 completo queda pendiente de WS reconnect C3b — F2.2)*
+- [ ] **WP-C3b** — WS reconnect forge-console (F2.2)
 - [ ] **WP-C4** — Graceful shutdown + persistir Pulse/Audit
 
 ---

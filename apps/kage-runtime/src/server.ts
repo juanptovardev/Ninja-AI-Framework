@@ -2,7 +2,7 @@ import fastify, { FastifyInstance, FastifyRequest } from 'fastify';
 import cors from '@fastify/cors';
 import websocketPlugin from '@fastify/websocket';
 import { createHash } from 'node:crypto';
-import type { HealthResponse, RuntimeStatus } from '@ninja/contracts';
+import type { RuntimeStatus } from '@ninja/contracts';
 import { createLogger } from '@ninja/logging';
 import { eventBus } from '@ninja/events';
 import { parseEnv } from './env-schema.js';
@@ -19,6 +19,7 @@ import {
 import { RUNTIME_NAME, RUNTIME_VERSION } from './constants.js';
 import { registerBusRoutes } from './bus-router.js';
 import { registerErrorHandlers } from './error-handler.js';
+import { registerHealthRoutes } from './routes/health.js';
 import { KageEngine, HttpController } from '@ninja/kage-engine';
 import { bootstrap as bootstrapArsenal } from '@ninja/arsenal-registry';
 import { requireActiveContext } from '@ninja/workbench';
@@ -26,7 +27,12 @@ import { initDb, runMigrations } from '@ninja/storage';
 import { WORKSPACE_MIGRATIONS } from '@ninja/workbench';
 import { WorkflowExecutor } from '@ninja/flow-matrix';
 import { AgentExecutor } from '@ninja/agent-runtime';
-import { SessionRepository, RunRepository, ArtifactRepository, AgentCommitRepository } from '@ninja/trace-ledger';
+import {
+  SessionRepository,
+  RunRepository,
+  ArtifactRepository,
+  AgentCommitRepository,
+} from '@ninja/trace-ledger';
 import type { NinjaEvent } from '@ninja/contracts';
 import { getNinjaGlobalDir } from '@ninja/config';
 import { LLMRegistry } from '@ninja/integrations-llm';
@@ -122,7 +128,8 @@ export async function createServer(): Promise<FastifyInstance> {
   await server.register(websocketPlugin);
 
   // ── API Key auth (WP-B11) ────────────────────────────────────────────────────
-  const PUBLIC_PATHS = ['/health', '/api/status', '/status'];
+  // /health/ready es público: probe de infraestructura, solo expone booleanos (WP-C3a).
+  const PUBLIC_PATHS = ['/health', '/health/ready', '/api/status', '/status'];
   const authDisabled = process.env.NINJA_AUTH_DISABLED === 'true';
   const runtimeKey = authDisabled ? null : getOrCreateRuntimeKey();
 
@@ -133,7 +140,9 @@ export async function createServer(): Promise<FastifyInstance> {
       const key = request.headers['x-ninja-key'];
       if (key !== runtimeKey) {
         const err = new AuthError('Missing or invalid X-Ninja-Key header');
-        return reply.status(401).send(sanitizeError(err, env.NODE_ENV as 'production' | 'development' | 'test'));
+        return reply
+          .status(401)
+          .send(sanitizeError(err, env.NODE_ENV as 'production' | 'development' | 'test'));
       }
     });
   }
@@ -142,14 +151,8 @@ export async function createServer(): Promise<FastifyInstance> {
   registerErrorHandlers(server, env.NODE_ENV as 'production' | 'development' | 'test');
 
   // ── Health & Status ──────────────────────────────────────────────────────────
-  server.get('/health', async (_request, _reply): Promise<HealthResponse> => {
-    log.debug('Health check requested');
-    return {
-      status: 'ok',
-      timestamp: new Date().toISOString(),
-    };
-  });
-
+  // GET /health y GET /health/ready se registran más abajo (registerHealthRoutes,
+  // WP-C3a) una vez que la DB y el env validado están disponibles.
   server.get('/api/status', async (_request, _reply): Promise<RuntimeStatus> => {
     log.debug('Status check requested');
     return {
@@ -186,6 +189,14 @@ export async function createServer(): Promise<FastifyInstance> {
   log.info('Running database migrations...');
   runMigrations(db, WORKSPACE_MIGRATIONS);
 
+  // ── Health granular (WP-C3a): liveness + readiness con probes reales ────────
+  registerHealthRoutes(server, {
+    db,
+    env: { LLM_BASE_URL: env.LLM_BASE_URL, LLM_API_KEY: env.LLM_API_KEY },
+    expectedMigrations: WORKSPACE_MIGRATIONS.length,
+  });
+  log.info('Granular health routes registered (/health, /health/ready)');
+
   // Inicializar Repositories del Trace Ledger
   const sessionRepo = new SessionRepository(db);
   const runRepo = new RunRepository(db);
@@ -196,7 +207,8 @@ export async function createServer(): Promise<FastifyInstance> {
   const llmRegistry = LLMRegistry.getInstance();
 
   // Registrar proveedor por defecto (usando OpenAI como base si no hay nada)
-  const providerId = (process.env.LLM_PROVIDER as import('@ninja/integrations-llm').LLMProvider) || 'openai';
+  const providerId =
+    (process.env.LLM_PROVIDER as import('@ninja/integrations-llm').LLMProvider) || 'openai';
   const baseUrl = process.env.LLM_BASE_URL || 'https://api.openai.com/v1';
   const apiKey = process.env['LLM_API_KEY']!; // validated by loadEnv() at boot (ADR-0004)
 
@@ -274,11 +286,11 @@ export async function createServer(): Promise<FastifyInstance> {
     artifactRepo,
     log,
     modelSelector,
-    fallbackChain,               // FallbackChain wired (WP-B3 / ADR-0003)
-    env.NINJA_LLM_FAIL_MODE,     // Feature flag from validated env (ADR-0003)
-    modelBudgetManager,          // BudgetManager for pre-call enforcement (WP-B4)
+    fallbackChain, // FallbackChain wired (WP-B3 / ADR-0003)
+    env.NINJA_LLM_FAIL_MODE, // Feature flag from validated env (ADR-0003)
+    modelBudgetManager, // BudgetManager for pre-call enforcement (WP-B4)
     env.NINJA_SESSION_TOKEN_BUDGET, // Per-session token budget (WP-B4)
-    agentCommitRepo,             // RF-16: persist agent commits for /api/commits and /commits page
+    agentCommitRepo // RF-16: persist agent commits for /api/commits and /commits page
   );
 
   // ── Kage Engine ──────────────────────────────────────────────────────────────
@@ -307,7 +319,13 @@ export async function createServer(): Promise<FastifyInstance> {
   server.post('/api/roster/assign', async (request, reply) => {
     const parsed = RosterAssignSchema.safeParse(request.body);
     if (!parsed.success) {
-      return reply.status(400).send({ error: 'Invalid request body', code: 'VALIDATION_ERROR', issues: parsed.error.issues });
+      return reply
+        .status(400)
+        .send({
+          error: 'Invalid request body',
+          code: 'VALIDATION_ERROR',
+          issues: parsed.error.issues,
+        });
     }
     const { clientId, role } = parsed.data;
     try {
@@ -318,7 +336,9 @@ export async function createServer(): Promise<FastifyInstance> {
         log.info(`Mocking roster assignment for UI agent: ${clientId} to ${role}`);
         return reply.send({ success: true });
       }
-      return reply.status(400).send(sanitizeError(err, env.NODE_ENV as 'production' | 'development' | 'test'));
+      return reply
+        .status(400)
+        .send(sanitizeError(err, env.NODE_ENV as 'production' | 'development' | 'test'));
     }
   });
 
@@ -333,7 +353,6 @@ export async function createServer(): Promise<FastifyInstance> {
 
   // Expose on server so we can stop them during shutdown if needed
   (server as any).failoverManager = failoverManager;
-
 
   // ── Pulse Center & Sentinel ──────────────────────────────────────────────────
   const pulseMonitor = new PulseMonitor(eventBus, {
@@ -353,7 +372,7 @@ export async function createServer(): Promise<FastifyInstance> {
     action: 'require-approval',
     priority: 10,
   });
-  
+
   // Register policy for git commits
   policyEngine.registerPolicy({
     id: 'git.commit.policy',
@@ -402,7 +421,6 @@ export async function createServer(): Promise<FastifyInstance> {
     engine,
   });
 
-  
   /**
    * Canal WS de eventos en tiempo real.
    */
@@ -499,11 +517,20 @@ export async function createServer(): Promise<FastifyInstance> {
   server.post('/engine/submit', async (request, reply) => {
     const parsed = EngineSubmitSchema.safeParse(request.body);
     if (!parsed.success) {
-      return reply.status(400).send({ error: 'Invalid request body', code: 'VALIDATION_ERROR', issues: parsed.error.issues });
+      return reply
+        .status(400)
+        .send({
+          error: 'Invalid request body',
+          code: 'VALIDATION_ERROR',
+          issues: parsed.error.issues,
+        });
     }
     const result = await httpController.handleSubmit({ body: parsed.data as any });
     if (env.NINJA_SESSION_TOKEN_BUDGET && result.body && (result.body as any).sessionId) {
-      modelBudgetManager.setSessionBudget((result.body as any).sessionId, env.NINJA_SESSION_TOKEN_BUDGET);
+      modelBudgetManager.setSessionBudget(
+        (result.body as any).sessionId,
+        env.NINJA_SESSION_TOKEN_BUDGET
+      );
     }
     return reply.status(result.status).send(result.body);
   });
@@ -555,7 +582,9 @@ export async function createServer(): Promise<FastifyInstance> {
       const data = getDashboardData();
       return reply.send(data);
     } catch (err: any) {
-      return reply.status(500).send(sanitizeError(err, env.NODE_ENV as 'production' | 'development' | 'test'));
+      return reply
+        .status(500)
+        .send(sanitizeError(err, env.NODE_ENV as 'production' | 'development' | 'test'));
     }
   });
 
@@ -662,7 +691,13 @@ export async function createServer(): Promise<FastifyInstance> {
   server.post('/api/vault/write', async (request, reply) => {
     const parsed = VaultWriteSchema.safeParse(request.body);
     if (!parsed.success) {
-      return reply.status(400).send({ error: 'Invalid request body', code: 'VALIDATION_ERROR', issues: parsed.error.issues });
+      return reply
+        .status(400)
+        .send({
+          error: 'Invalid request body',
+          code: 'VALIDATION_ERROR',
+          issues: parsed.error.issues,
+        });
     }
     const { agentId, sessionId, content, layer } = parsed.data;
     await vaultCoordinator.write(agentId ?? 'guest', sessionId, content, layer as any);
@@ -717,7 +752,9 @@ export async function createServer(): Promise<FastifyInstance> {
         score: report.totalScore,
       });
     } catch (err) {
-      return reply.status(500).send(sanitizeError(err, env.NODE_ENV as 'production' | 'development' | 'test'));
+      return reply
+        .status(500)
+        .send(sanitizeError(err, env.NODE_ENV as 'production' | 'development' | 'test'));
     }
   });
 
@@ -728,7 +765,13 @@ export async function createServer(): Promise<FastifyInstance> {
   server.post('/api/shell/execute', async (request, reply) => {
     const parsed = ShellExecuteSchema.safeParse(request.body);
     if (!parsed.success) {
-      return reply.status(400).send({ error: 'Invalid request body', code: 'VALIDATION_ERROR', issues: parsed.error.issues });
+      return reply
+        .status(400)
+        .send({
+          error: 'Invalid request body',
+          code: 'VALIDATION_ERROR',
+          issues: parsed.error.issues,
+        });
     }
     const { cmd, args, cwd } = parsed.data;
     const shellCommand: ShellCommand = { cmd, args, cwd };
@@ -751,7 +794,9 @@ export async function createServer(): Promise<FastifyInstance> {
       const result = await git.run(['status', '--porcelain', '-b']);
       return reply.send({ rawStatus: result.stdout });
     } catch (err) {
-      return reply.status(500).send(sanitizeError(err, env.NODE_ENV as 'production' | 'development' | 'test'));
+      return reply
+        .status(500)
+        .send(sanitizeError(err, env.NODE_ENV as 'production' | 'development' | 'test'));
     }
   });
 
@@ -765,7 +810,13 @@ export async function createServer(): Promise<FastifyInstance> {
   server.post('/api/git/commit', async (request, reply) => {
     const parsed = GitCommitSchema.safeParse(request.body);
     if (!parsed.success) {
-      return reply.status(400).send({ error: 'Invalid request body', code: 'VALIDATION_ERROR', issues: parsed.error.issues });
+      return reply
+        .status(400)
+        .send({
+          error: 'Invalid request body',
+          code: 'VALIDATION_ERROR',
+          issues: parsed.error.issues,
+        });
     }
     const { message, repoPath } = parsed.data;
     try {
@@ -778,13 +829,21 @@ export async function createServer(): Promise<FastifyInstance> {
         policyId: 'git.commit.policy',
       });
       if (!approvalResult.approved) {
-        return reply.status(403).send({ error: 'Commit rejected by Sentinel policy', notes: approvalResult.notes });
+        return reply
+          .status(403)
+          .send({ error: 'Commit rejected by Sentinel policy', notes: approvalResult.notes });
       }
       const git = new GitClient(repoPath || process.cwd());
       await commit(git, message);
-      return reply.send({ success: true, message: 'Commit created successfully', repoPath: repoPath || process.cwd() });
+      return reply.send({
+        success: true,
+        message: 'Commit created successfully',
+        repoPath: repoPath || process.cwd(),
+      });
     } catch (err) {
-      return reply.status(500).send(sanitizeError(err, env.NODE_ENV as 'production' | 'development' | 'test'));
+      return reply
+        .status(500)
+        .send(sanitizeError(err, env.NODE_ENV as 'production' | 'development' | 'test'));
     }
   });
 
@@ -809,18 +868,22 @@ export async function createServer(): Promise<FastifyInstance> {
         targetTypes: ['skill', 'pattern'],
       });
 
-      const pipelineResults = await Promise.all(extracted.map(async (e) => {
-        const norm = normalizeContent(e);
-        const score = scoreContent(norm);
-        // Use LabPromoter for database persistence
-        const labPromoter = new LabPromoter(artifactRepo, crypto.randomUUID(), eventBus, log);
-        const promo = await labPromoter.promoteContent(norm, score);
-        return { file: e.sourcePath, score, promoted: promo.promoted };
-      }));
+      const pipelineResults = await Promise.all(
+        extracted.map(async (e) => {
+          const norm = normalizeContent(e);
+          const score = scoreContent(norm);
+          // Use LabPromoter for database persistence
+          const labPromoter = new LabPromoter(artifactRepo, crypto.randomUUID(), eventBus, log);
+          const promo = await labPromoter.promoteContent(norm, score);
+          return { file: e.sourcePath, score, promoted: promo.promoted };
+        })
+      );
 
       return reply.send({ analysis, pipelineResults });
     } catch (err) {
-      return reply.status(500).send(sanitizeError(err, env.NODE_ENV as 'production' | 'development' | 'test'));
+      return reply
+        .status(500)
+        .send(sanitizeError(err, env.NODE_ENV as 'production' | 'development' | 'test'));
     }
   });
 
@@ -840,18 +903,24 @@ export async function createServer(): Promise<FastifyInstance> {
         workspaceId,
         startedAt: new Date().toISOString(),
       });
-      
-      await engramClient.recordObservation('session.init', `Initialized blank session ${session.id} for workspace ${workspaceId}`);
-      
+
+      await engramClient.recordObservation(
+        'session.init',
+        `Initialized blank session ${session.id} for workspace ${workspaceId}`
+      );
+
       return reply.send({ sessionId: session.id, status: 'initialized' });
     } catch (err: any) {
       log.error('Failed to init session', err);
-      return reply.status(500).send(sanitizeError(err, env.NODE_ENV as 'production' | 'development' | 'test'));
+      return reply
+        .status(500)
+        .send(sanitizeError(err, env.NODE_ENV as 'production' | 'development' | 'test'));
     }
   });
 
   server.get('/api/session/list', async (_request, reply) => {
-    const sessions = typeof (sessionRepo as any).findAll === 'function' ? (sessionRepo as any).findAll() : [];
+    const sessions =
+      typeof (sessionRepo as any).findAll === 'function' ? (sessionRepo as any).findAll() : [];
     return reply.send(sessions);
   });
 
@@ -862,12 +931,14 @@ export async function createServer(): Promise<FastifyInstance> {
       if (!session) {
         return reply.status(404).send({ error: 'Session not found' });
       }
-      
+
       await engramClient.recordObservation('session.restore', `Restored session ${id}`);
       return reply.send({ sessionId: id, status: 'restored' });
     } catch (err: any) {
       log.error('Failed to restore session', err);
-      return reply.status(500).send(sanitizeError(err, env.NODE_ENV as 'production' | 'development' | 'test'));
+      return reply
+        .status(500)
+        .send(sanitizeError(err, env.NODE_ENV as 'production' | 'development' | 'test'));
     }
   });
 
@@ -877,14 +948,12 @@ export async function createServer(): Promise<FastifyInstance> {
     try {
       const pulseData = getDashboardData();
       const pendingApprovals = approvalManager.listPendingApprovals();
-      const activeRuns = typeof (engine as any).getActiveRuns === 'function'
-        ? (engine as any).getActiveRuns()
-        : [];
+      const activeRuns =
+        typeof (engine as any).getActiveRuns === 'function' ? (engine as any).getActiveRuns() : [];
 
       // Get recent tasks from runs
-      const recentTasks = typeof (runRepo as any).findRecent === 'function'
-        ? (runRepo as any).findRecent(20)
-        : [];
+      const recentTasks =
+        typeof (runRepo as any).findRecent === 'function' ? (runRepo as any).findRecent(20) : [];
 
       return reply.send({
         systemState: 'running',
@@ -914,19 +983,20 @@ export async function createServer(): Promise<FastifyInstance> {
   server.get('/api/settings/providers', async (_request, reply) => {
     try {
       const registry = LLMRegistry.getInstance();
-      const providers = typeof (registry as any).getAll === 'function'
-        ? (registry as any).getAll()
-        : [];
+      const providers =
+        typeof (registry as any).getAll === 'function' ? (registry as any).getAll() : [];
       return reply.send(providers);
     } catch (err: any) {
       // Return current env-configured provider as fallback
-      return reply.send([{
-        id: providerId,
-        name: providerId,
-        baseUrl: baseUrl,
-        models: [process.env.LLM_DEFAULT_MODEL || 'unknown'],
-        isActive: true,
-      }]);
+      return reply.send([
+        {
+          id: providerId,
+          name: providerId,
+          baseUrl: baseUrl,
+          models: [process.env.LLM_DEFAULT_MODEL || 'unknown'],
+          isActive: true,
+        },
+      ]);
     }
   });
 
@@ -958,7 +1028,10 @@ export async function createServer(): Promise<FastifyInstance> {
   // POST /api/install/:agentId — install Ninja into a specific agent
   server.post<{ Params: { agentId: string } }>('/api/install/:agentId', async (request, reply) => {
     const { agentId } = request.params;
-    const result = await agentInstaller.install(agentId as ClientId, { backup: true, verify: true });
+    const result = await agentInstaller.install(agentId as ClientId, {
+      backup: true,
+      verify: true,
+    });
     return reply.status(result.success ? 200 : 400).send(result);
   });
 
@@ -967,8 +1040,8 @@ export async function createServer(): Promise<FastifyInstance> {
     const results = await agentInstaller.installAll({ backup: true, verify: true });
     return reply.send({
       total: results.length,
-      succeeded: results.filter(r => r.success).length,
-      failed: results.filter(r => !r.success).length,
+      succeeded: results.filter((r) => r.success).length,
+      failed: results.filter((r) => !r.success).length,
       results,
     });
   });
@@ -992,11 +1065,14 @@ export async function createServer(): Promise<FastifyInstance> {
   );
 
   // GET /api/install/:agentId/verify — verify agent config
-  server.get<{ Params: { agentId: string } }>('/api/install/:agentId/verify', async (request, reply) => {
-    const { agentId } = request.params;
-    const report = await agentInstaller.verify(agentId as ClientId);
-    return reply.send(report);
-  });
+  server.get<{ Params: { agentId: string } }>(
+    '/api/install/:agentId/verify',
+    async (request, reply) => {
+      const { agentId } = request.params;
+      const report = await agentInstaller.verify(agentId as ClientId);
+      return reply.send(report);
+    }
+  );
 
   // GET /api/doctor — verify all detected agents (Ninja doctor)
   server.get('/api/doctor', async (_request, reply) => {
@@ -1007,8 +1083,8 @@ export async function createServer(): Promise<FastifyInstance> {
     );
     return reply.send({
       total: reports.length,
-      passed: reports.filter(r => r.passed).length,
-      failed: reports.filter(r => !r.passed).length,
+      passed: reports.filter((r) => r.passed).length,
+      failed: reports.filter((r) => !r.passed).length,
       reports,
     });
   });
