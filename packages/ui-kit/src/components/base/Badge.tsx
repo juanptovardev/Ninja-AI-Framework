@@ -13,6 +13,8 @@ export interface BadgeProps {
   className?: string;
   /** Show pulsating dot indicator */
   pulse?: boolean;
+  /** Announce content changes politely to screen readers (a11y §8.3) */
+  'aria-live'?: 'polite' | 'assertive' | 'off';
 }
 
 // ─── Style Maps ──────────────────────────────────────────────
@@ -42,6 +44,7 @@ export const Badge: React.FC<BadgeProps> = ({
   children,
   className = '',
   pulse = false,
+  'aria-live': ariaLive,
 }) => {
   const classes = [
     'inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium',
@@ -53,7 +56,7 @@ export const Badge: React.FC<BadgeProps> = ({
     .join(' ');
 
   return (
-    <span className={classes}>
+    <span className={classes} aria-live={ariaLive}>
       {pulse ? (
         <span className="relative flex h-2 w-2">
           <span

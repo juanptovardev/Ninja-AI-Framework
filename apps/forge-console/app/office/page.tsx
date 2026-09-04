@@ -9,8 +9,7 @@ import { useGSAP } from '@gsap/react';
 gsap.registerPlugin(useGSAP);
 
 export default function OfficePage() {
-  // S2.4 follow-up: 127.0.0.1 unifies the WS host with lib/api.ts and lib/ws.ts
-  // (avoids CORS-origin mismatch in strict browsers).
+  // WS host unificado en 127.0.0.1 (lib/api.ts) — evita CORS mismatch en browsers estrictos.
   const wsUrl = process.env.NEXT_PUBLIC_RUNTIME_WS_URL ?? 'ws://127.0.0.1:3141/ws/events';
   const container = useRef<HTMLDivElement>(null);
 
