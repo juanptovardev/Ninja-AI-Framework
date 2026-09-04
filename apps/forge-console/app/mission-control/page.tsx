@@ -12,7 +12,7 @@ import { PaperPlaneRight, Robot, WarningCircle } from '@phosphor-icons/react';
 gsap.registerPlugin(useGSAP);
 
 const GrillMeSection = () => {
-  const { messages, connected, connect, disconnect, sendMessage } = useWsClient();
+  const { messages, status, connect, disconnect, sendMessage } = useWsClient();
   const [input, setInput] = useState('');
   const chatContainerRef = useRef<HTMLDivElement>(null);
 
@@ -55,8 +55,18 @@ const GrillMeSection = () => {
           <p className="text-base text-[var(--ninja-text-secondary)] mt-1 font-light">Refine your Specification interactively</p>
         </div>
         <div className="flex items-center gap-4 mt-4 sm:mt-0">
-          <Badge variant={connected ? 'success' : 'warning'}>
-            {connected ? 'WS Connected' : 'Connecting...'}
+          <Badge
+            variant={status === 'open' ? 'success' : status === 'closed' ? 'danger' : 'warning'}
+            pulse={status !== 'open'}
+            aria-live="polite"
+          >
+            {status === 'open'
+              ? 'WS Connected'
+              : status === 'reconnecting'
+                ? 'WS Reconnecting…'
+                : status === 'connecting'
+                  ? 'WS Connecting…'
+                  : 'WS Offline'}
           </Badge>
           <Button 
             className="bg-[var(--ninja-accent)] hover:bg-[var(--ninja-accent-hover)] text-[var(--ninja-bg-primary)] transition-all font-bold px-6 py-2.5 rounded-lg shadow-[0_0_20px_var(--ninja-accent-muted)] hover:shadow-[0_0_30px_var(--ninja-accent-muted)]"

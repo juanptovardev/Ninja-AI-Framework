@@ -148,12 +148,12 @@ EPIC A — Estabilización base
 
 ---
 
-### 🟡 EPIC C — Resiliencia & Error Handling (`~18-22h`) — 50%
+### 🟡 EPIC C — Resiliencia & Error Handling (`~18-22h`) — 75%
 
 - [x] **WP-C1** — Error handler global Fastify + not-found handler · commit f337e14 · ADR-0009 · dossier `wp-c1-closure.md`
 - [x] **WP-C2** — Circuit Breaker + Retry/backoff + timeouts jerárquicos · commit 58a6cde · ADR-0010
-- [x] **WP-C3a** — Health granular (F2.1): `/health` liveness + `/health/ready` readiness (probes SQLite/migraciones/env LLM) + evento `health.ready.changed` en transición · dossier `wp-c3-health.md` *(WP-C3 completo queda pendiente de WS reconnect C3b — F2.2)*
-- [ ] **WP-C3b** — WS reconnect forge-console (F2.2)
+- [x] **WP-C3a** — Health granular (F2.1): `/health` liveness + `/health/ready` readiness (probes SQLite/migraciones/env LLM) + evento `health.ready.changed` en transición · dossier `wp-c3-health.md`
+- [x] **WP-C3b** — WS reconnect forge-console (F2.2): backoff exponencial 1s→30s + jitter ±20%, re-auth handshake en cada reconexión, indicador UI de estado, `lib/ws.ts` muerto eliminado · dossier `wp-c3-ws.md`
 - [ ] **WP-C4** — Graceful shutdown + persistir Pulse/Audit
 
 ---
