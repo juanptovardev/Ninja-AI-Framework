@@ -105,7 +105,7 @@
 
 ---
 
-## 5. FASE 2 — Cierre EPIC C (Resiliencia)
+## 5. FASE 2 — Cierre EPIC C (Resiliencia) ✅ COMPLETA (2026-09-07, dossier `tools/verifications/f2.md`)
 > **Objetivo:** runtime resiliente: health granular, WS con reconexión, shutdown completo, persistencia de Pulse/Audit, rate limiting.
 > **Entrada:** F1 completo.
 > **Estimación:** P50 5 d · P80 8 d
@@ -240,18 +240,18 @@ git grep -oE "alert\(|confirm\(" -- apps/forge-console | wc -l  # dialogs nativo
 git grep -c "\.skip(" -- "*.test.ts" 2>/dev/null      # skips                  → 1 hoy, meta 0 (F1)
 ```
 
-Estado por fase (se actualiza al cerrar cada fase — medido 2026-09-03 tras F1):
+Estado por fase (se actualiza al cerrar cada fase — medido 2026-09-07 tras F2, output crudo en `tools/verifications/f2.md`):
 
-| KPI | Base (auditoría) | Tras F0 | Tras F1 | Tras F3 | Meta v1.0 |
-|-----|------------------|---------|---------|---------|-----------|
-| Archivos sucios | ~30 | **0** ✅ | **0** ✅ | 0 | 0 |
-| `as any` | 117 | 117 | **117** | **0** | 0 |
-| Throws crudos packages | 45 | 45 | **45 (guard activo, overrides documentados)** | **0** | 0 |
-| Paquetes sin tests | 11 | 11 | **11** | **0** | 0 |
-| Dialogs nativos | ~15 | ~15 | ~15 | **0** | 0 |
-| Tests saltados | 1 | 1 | **2→0** | 0 | 0 |
-| Tests totales | ~748 | **767** | **767** ✅ | +estimado 200–300 | ≥1000 |
-| Commits | 94 | **115** | **115** | — | — |
+| KPI | Base (auditoría) | Tras F0 | Tras F1 | Tras F2 | Tras F3 | Meta v1.0 |
+|-----|------------------|---------|---------|---------|---------|-----------|
+| Archivos sucios | ~30 | **0** ✅ | **0** ✅ | **0** ✅ | 0 | 0 |
+| `as any` | 117 | 117 | **117** | **114** (−3) | **0** | 0 |
+| Throws crudos packages | 45 | 45 | **45 (guard activo, overrides documentados)** | **35 prod (=; método ahora separa 11 de tests)** | **0** | 0 |
+| Paquetes sin tests | 11 | 11 | **11** | **9** (−2: pulse-center, sentinel) | **0** | 0 |
+| Dialogs nativos | ~15 | ~15 | ~15 | **0** ✅ | **0** | 0 |
+| Tests saltados | 1 | 1 | **2→0** | **0** ✅ | 0 | 0 |
+| Tests totales | ~748 | **767** | **767** ✅ | **821** | +estimado 200–300 | ≥1000 |
+| Commits | 94 | **115** | **115** | **128** | — | — |
 
 **Nota F1 → F3 (hora para orquestador):**
 - La deuda `as any`/`throws` NO baja tras F1 — NO es falla del obrero. El D=Design del plan: F1 solo BLINDA (guardias ESLint a "error" + overrides preventan estos, listados en DEBT(F3) de f1.md). F3 el/acelera (F3.4/F3.7). El dossier f1.md tiene la DEBT exacta.

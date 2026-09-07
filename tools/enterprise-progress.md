@@ -148,7 +148,7 @@ EPIC A — Estabilización base
 
 ---
 
-### 🟡 EPIC C — Resiliencia & Error Handling (`~18-22h`) — 100%
+### ✅ EPIC C — Resiliencia & Error Handling (`~18-22h`) — 100% · **FASE 2 CERRADA (2026-09-07, dossier `f2.md`)**
 
 - [x] **WP-C1** — Error handler global Fastify + not-found handler · commit f337e14 · ADR-0009 · dossier `wp-c1-closure.md`
 - [x] **WP-C2** — Circuit Breaker + Retry/backoff + timeouts jerárquicos · commit 58a6cde · ADR-0010
