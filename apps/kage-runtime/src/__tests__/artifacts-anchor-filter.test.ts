@@ -24,7 +24,9 @@ vi.mock('@ninja/kage-engine', () => {
   };
   return {
     KageEngine: class {
-      constructor() { return mockEngine; }
+      constructor() {
+        return mockEngine;
+      }
     },
     HttpController: class {
       constructor() {
@@ -49,11 +51,28 @@ vi.mock('@ninja/arsenal-registry', () => ({
 vi.mock('@ninja/trace-ledger', () => {
   // Inline seed data — no external references allowed inside vi.mock factory
   const seedData = [
-    { id: 'art-anchor-1', runId: 'run-1', type: 'anchor', name: 'decision-log', content: '{}', createdAt: '2026-01-01T00:00:00.000Z' },
-    { id: 'art-other-1',  runId: 'run-1', type: 'output', name: 'result',       content: '{}', createdAt: '2026-01-01T00:00:00.000Z' },
+    {
+      id: 'art-anchor-1',
+      runId: 'run-1',
+      type: 'anchor',
+      name: 'decision-log',
+      content: '{}',
+      createdAt: '2026-01-01T00:00:00.000Z',
+    },
+    {
+      id: 'art-other-1',
+      runId: 'run-1',
+      type: 'output',
+      name: 'result',
+      content: '{}',
+      createdAt: '2026-01-01T00:00:00.000Z',
+    },
   ];
   return {
-    SessionRepository: class { create = vi.fn(); findById = vi.fn(); },
+    SessionRepository: class {
+      create = vi.fn();
+      findById = vi.fn();
+    },
     RunRepository: class {
       create = vi.fn();
       updateStatus = vi.fn();
@@ -74,6 +93,14 @@ vi.mock('@ninja/trace-ledger', () => {
       findAll = vi.fn().mockReturnValue([]);
       findById = vi.fn().mockReturnValue(null);
     },
+    PulseMetricRepository: class {
+      insert = vi.fn().mockReturnValue({ id: 1 });
+      findByMetric = vi.fn().mockReturnValue([]);
+    },
+    AuditLogRepository: class {
+      insert = vi.fn().mockReturnValue({ id: 1 });
+      findByActor = vi.fn().mockReturnValue([]);
+    },
   };
 });
 
@@ -82,7 +109,7 @@ import { createServer } from '../server.js';
 
 // ── Tests ──────────────────────────────────────────────────────────────────
 describe('WP-B8: GET /api/artifacts?isAnchor=true', () => {
-  let server: any;
+  let server: Awaited<ReturnType<typeof createServer>>;
 
   beforeAll(async () => {
     server = await createServer();

@@ -2,7 +2,12 @@
 export { initDb, closeDb, type Database } from './db.js';
 
 // Migration system
-export { runMigrations, type Migration } from './migrations.js';
+export {
+  runMigrations,
+  revertMigrations,
+  type Migration,
+  type RevertResult,
+} from './migrations.js';
 
 // Schema types
 export type {
