@@ -52,8 +52,24 @@ pnpm vitest run       # run unit tests
 
 ## Checking logs
 
-Runtime logs are printed to stdout with structured JSON. Filter by level:
+Runtime logs are printed to stdout as **structured JSON, one event per line** (JSONL). Each line:
+
+```json
+{"ts":"2026-09-07T20:00:00.000Z","level":"info","logger":"kage-runtime:access","msg":"GET /api/status 200","correlationId":"<uuid>","method":"GET","url":"/api/status","statusCode":200,"durationMs":1.24,"remoteAddress":"127.0.0.1"}
+```
+
+Mandatory fields: `ts` (ISO 8601) · `level` (`debug|info|warn|error`) · `logger` (module name) ·
+`msg`. Errors add `err: { name, message, stack }`. HTTP requests log via
+`kage-runtime:access` with `correlationId` (UUID per request — use it to trace a request across
+log lines).
+
+In an interactive terminal (TTY) logs render pretty instead; force JSON with
+`NINJA_LOG_FORMAT=json` (or pretty with `NINJA_LOG_FORMAT=pretty`). Minimum level via
+`LOG_LEVEL`.
+
+Filter by level and follow one request:
 
 ```bash
 pnpm runtime:dev 2>&1 | grep '"level":"error"'
+pnpm runtime:dev 2>&1 | grep '"correlationId":"<uuid>"'
 ```

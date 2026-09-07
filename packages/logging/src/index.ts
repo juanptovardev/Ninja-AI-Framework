@@ -11,6 +11,8 @@ export {
   createLogger,
   setGlobalLogLevel,
   getGlobalLogLevel,
+  setGlobalLogFormat,
+  getGlobalLogFormat,
 } from './logger';
 
-export type { Logger, LogLevel } from './logger';
+export type { Logger, LogLevel, LogFormatSetting } from './logger';
