@@ -20,6 +20,8 @@ import { RUNTIME_NAME, RUNTIME_VERSION } from './constants.js';
 import { registerBusRoutes } from './bus-router.js';
 import { registerErrorHandlers } from './error-handler.js';
 import { registerHealthRoutes } from './routes/health.js';
+import { registerShutdownStep, getShutdownSteps, clearShutdownSteps } from './shutdown-registry.js';
+import { closeDb } from '@ninja/storage';
 import { KageEngine, HttpController } from '@ninja/kage-engine';
 import { bootstrap as bootstrapArsenal } from '@ninja/arsenal-registry';
 import { requireActiveContext } from '@ninja/workbench';
@@ -106,6 +108,9 @@ function deriveApprover(request: FastifyRequest): ApproverIdentity {
 export async function createServer(): Promise<FastifyInstance> {
   // Re-parse env to get typed values — already validated by loadEnv() at boot (ADR-0004)
   const env = parseEnv(process.env as Record<string, string | undefined>);
+
+  // Idempotencia en tests/arranques múltiples: el registro de shutdown es por-proceso.
+  clearShutdownSteps();
 
   const server = fastify({ logger: false }); // logging gestionado por @ninja/logging
 
@@ -319,13 +324,11 @@ export async function createServer(): Promise<FastifyInstance> {
   server.post('/api/roster/assign', async (request, reply) => {
     const parsed = RosterAssignSchema.safeParse(request.body);
     if (!parsed.success) {
-      return reply
-        .status(400)
-        .send({
-          error: 'Invalid request body',
-          code: 'VALIDATION_ERROR',
-          issues: parsed.error.issues,
-        });
+      return reply.status(400).send({
+        error: 'Invalid request body',
+        code: 'VALIDATION_ERROR',
+        issues: parsed.error.issues,
+      });
     }
     const { clientId, role } = parsed.data;
     try {
@@ -350,9 +353,6 @@ export async function createServer(): Promise<FastifyInstance> {
 
   const failoverManager = new FailoverManager(rosterManager);
   failoverManager.start();
-
-  // Expose on server so we can stop them during shutdown if needed
-  (server as any).failoverManager = failoverManager;
 
   // ── Pulse Center & Sentinel ──────────────────────────────────────────────────
   const pulseMonitor = new PulseMonitor(eventBus, {
@@ -391,6 +391,24 @@ export async function createServer(): Promise<FastifyInstance> {
   guardian.start();
 
   log.info('Sentinel System started');
+
+  // ── Shutdown Registry (WP-C4a / F2.4) ─────────────────────────────────────
+  // Orden dictado por el plan: WS/HTTP → Executor/Failover → Pulse → Auditor
+  // (flush) → Engram → SQLite (última). WS/HTTP lo cierra lifecycle.ts
+  // directamente (server.close()); aquí registramos el resto en orden.
+  registerShutdownStep('failover-manager', () => failoverManager.stop());
+  registerShutdownStep('pulse-monitor', () => pulseMonitor.stop());
+  registerShutdownStep('sentinel-auditor', () => auditor.stop());
+  registerShutdownStep('engram-warm-memory', () => engramClient.close());
+  registerShutdownStep('sqlite-db', () => {
+    closeDb(db);
+    log.info('SQLite database closed (last step)');
+  });
+  log.info(
+    `Shutdown steps registered: ${getShutdownSteps()
+      .map((s) => s.name)
+      .join(' → ')}`
+  );
 
   const httpController = new HttpController(engine, async (workspaceId: string) => {
     try {
@@ -517,13 +535,11 @@ export async function createServer(): Promise<FastifyInstance> {
   server.post('/engine/submit', async (request, reply) => {
     const parsed = EngineSubmitSchema.safeParse(request.body);
     if (!parsed.success) {
-      return reply
-        .status(400)
-        .send({
-          error: 'Invalid request body',
-          code: 'VALIDATION_ERROR',
-          issues: parsed.error.issues,
-        });
+      return reply.status(400).send({
+        error: 'Invalid request body',
+        code: 'VALIDATION_ERROR',
+        issues: parsed.error.issues,
+      });
     }
     const result = await httpController.handleSubmit({ body: parsed.data as any });
     if (env.NINJA_SESSION_TOKEN_BUDGET && result.body && (result.body as any).sessionId) {
@@ -691,13 +707,11 @@ export async function createServer(): Promise<FastifyInstance> {
   server.post('/api/vault/write', async (request, reply) => {
     const parsed = VaultWriteSchema.safeParse(request.body);
     if (!parsed.success) {
-      return reply
-        .status(400)
-        .send({
-          error: 'Invalid request body',
-          code: 'VALIDATION_ERROR',
-          issues: parsed.error.issues,
-        });
+      return reply.status(400).send({
+        error: 'Invalid request body',
+        code: 'VALIDATION_ERROR',
+        issues: parsed.error.issues,
+      });
     }
     const { agentId, sessionId, content, layer } = parsed.data;
     await vaultCoordinator.write(agentId ?? 'guest', sessionId, content, layer as any);
@@ -765,13 +779,11 @@ export async function createServer(): Promise<FastifyInstance> {
   server.post('/api/shell/execute', async (request, reply) => {
     const parsed = ShellExecuteSchema.safeParse(request.body);
     if (!parsed.success) {
-      return reply
-        .status(400)
-        .send({
-          error: 'Invalid request body',
-          code: 'VALIDATION_ERROR',
-          issues: parsed.error.issues,
-        });
+      return reply.status(400).send({
+        error: 'Invalid request body',
+        code: 'VALIDATION_ERROR',
+        issues: parsed.error.issues,
+      });
     }
     const { cmd, args, cwd } = parsed.data;
     const shellCommand: ShellCommand = { cmd, args, cwd };
@@ -810,13 +822,11 @@ export async function createServer(): Promise<FastifyInstance> {
   server.post('/api/git/commit', async (request, reply) => {
     const parsed = GitCommitSchema.safeParse(request.body);
     if (!parsed.success) {
-      return reply
-        .status(400)
-        .send({
-          error: 'Invalid request body',
-          code: 'VALIDATION_ERROR',
-          issues: parsed.error.issues,
-        });
+      return reply.status(400).send({
+        error: 'Invalid request body',
+        code: 'VALIDATION_ERROR',
+        issues: parsed.error.issues,
+      });
     }
     const { message, repoPath } = parsed.data;
     try {
