@@ -56,6 +56,9 @@ export default defineConfig({
       'tests/e2e/**',
     ],
     testTimeout: 10000,
+    // Hooks que bootan el runtime completo (createServer) bajo forks paralelos
+    // pueden superar 10s de carga — WP-C4b: 30s de margen determinista.
+    hookTimeout: 30000,
     globals: true,
     environment: 'node',
     coverage: {

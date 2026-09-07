@@ -3,14 +3,32 @@ import type { Logger } from '@ninja/logging';
 import type { ID, Timestamp } from '@ninja/contracts';
 import type { AuditEntry } from './schema.js';
 
+/**
+ * Hook de persistencia del audit log (WP-C4b / F2.5).
+ * Estructuralmente compatible con AuditLogRepository.insert (@ninja/trace-ledger).
+ */
+export type AuditPersistence = (entry: {
+  actor: string;
+  action: string;
+  target?: string | null;
+  result: string;
+  detail?: string | null;
+  createdAt?: string;
+}) => { id: number | string };
+
 export class Auditor {
   private readonly auditLog: AuditEntry[] = [];
   private subscriptions: EventSubscription[] = [];
+  private readonly persistence: AuditPersistence | null;
+  /** Ids ya persistidos (evita duplicados entre log() inmediato y flush() en stop). */
+  private readonly persistedIds = new Set<ID>();
 
   constructor(
     private readonly eventBus: EventBus,
-    private readonly logger: Logger
+    private readonly logger: Logger,
+    persistence?: AuditPersistence
   ) {
+    this.persistence = persistence ?? null;
     this.logger.info('Auditor initialized');
   }
 
@@ -65,17 +83,47 @@ export class Auditor {
   }
 
   /**
-   * Flush de entradas de auditoría pendientes.
-   * Hoy el audit log es in-memory; el flush lo persiste vía logger (nivel info)
-   * para que ninguna entrada se pierda en el cierre. Cuando WP-C4b migre el
-   * audit log a SQLite (tabla audit_log), este método escribirá ahí.
+   * Flush de entradas de auditoría pendientes (WP-C4a/C4b).
+   * Con hook de persistencia: escribe en audit_log (SQLite) solo las entradas
+   * aún no persistidas. Sin hook: persiste vía logger (nivel info).
    */
   flush(): void {
     if (this.auditLog.length === 0) return;
+    let newlyPersisted = 0;
+    for (const entry of this.auditLog) {
+      if (!this.persistedIds.has(entry.id)) {
+        this.persistEntry(entry);
+        newlyPersisted++;
+      }
+    }
     this.logger.info('Audit log flush', {
       entries: this.auditLog.length,
+      persisted: this.persistence ? 'sqlite' : 'logger-only',
+      newlyPersisted,
       summary: this.auditLog.map((e) => `${e.actionType}:${e.result}`).join(','),
     });
+  }
+
+  /**
+   * Persiste una entrada vía el hook y la marca como persistida.
+   * Nunca lanza: la auditoría en memoria es la fuente de verdad del runtime,
+   * la persistencia es best-effort y su fallo se loguea.
+   */
+  private persistEntry(entry: AuditEntry): void {
+    if (!this.persistence) return;
+    try {
+      this.persistence({
+        actor: entry.agentId ?? 'unknown',
+        action: entry.actionType,
+        target: entry.runId ?? entry.approvalId ?? null,
+        result: entry.result,
+        detail: entry.reason ?? null,
+        createdAt: entry.timestamp,
+      });
+      this.persistedIds.add(entry.id);
+    } catch (err) {
+      this.logger.error('Audit persistence failed', err);
+    }
   }
 
   log(entry: AuditEntry): void {
@@ -85,6 +133,9 @@ export class Auditor {
       actionType: entry.actionType,
       result: entry.result,
     });
+    if (this.persistence) {
+      this.persistEntry(entry);
+    }
   }
 
   getAuditLog(): AuditEntry[] {

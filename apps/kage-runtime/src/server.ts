@@ -34,6 +34,8 @@ import {
   RunRepository,
   ArtifactRepository,
   AgentCommitRepository,
+  PulseMetricRepository,
+  AuditLogRepository,
 } from '@ninja/trace-ledger';
 import type { NinjaEvent } from '@ninja/contracts';
 import { getNinjaGlobalDir } from '@ninja/config';
@@ -355,9 +357,14 @@ export async function createServer(): Promise<FastifyInstance> {
   failoverManager.start();
 
   // ── Pulse Center & Sentinel ──────────────────────────────────────────────────
+  // Repos de persistencia Pulse/Audit (WP-C4b / F2.5) — misma DB global de storage
+  const pulseMetricRepo = new PulseMetricRepository(db);
+  const auditLogRepo = new AuditLogRepository(db);
+
   const pulseMonitor = new PulseMonitor(eventBus, {
     stabilityThreshold: 60,
     contextEfficiencyThreshold: 40,
+    persistMetric: (entry) => pulseMetricRepo.insert(entry),
   });
   pulseMonitor.start();
   setDashboardMonitor(pulseMonitor);
@@ -384,7 +391,7 @@ export async function createServer(): Promise<FastifyInstance> {
   });
 
   const approvalManager = new ApprovalManager(eventBus, log);
-  const auditor = new Auditor(eventBus, log);
+  const auditor = new Auditor(eventBus, log, (entry) => auditLogRepo.insert(entry));
   auditor.start();
 
   const guardian = new Guardian(eventBus, log, approvalManager, policyEngine);

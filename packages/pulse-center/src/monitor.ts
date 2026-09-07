@@ -34,6 +34,17 @@ export interface PulseMonitorConfig {
   maxLatencyMeasurements?: number;
   /** Máximo número de scores de eficiencia a mantener en caché (default: 100) */
   maxContextEfficiencyScores?: number;
+  /**
+   * Hook de persistencia de métricas (WP-C4b / F2.5).
+   * Estructurally compatible con PulseMetricRepository.insert (@ninja/trace-ledger).
+   * Opcional: sin él el monitor sigue funcionando solo en memoria.
+   */
+  persistMetric?: (entry: {
+    metric: string;
+    value: number;
+    capturedAt?: string;
+    context?: string | null;
+  }) => { id: number | string };
 }
 
 // ============================================================================
@@ -58,6 +69,7 @@ export class PulseMonitor {
   private readonly contextEfficiencyThreshold: number;
   private readonly maxLatencyMeasurements: number;
   private readonly maxContextEfficiencyScores: number;
+  private readonly persistMetric: PulseMonitorConfig['persistMetric'];
 
   constructor(
     private readonly eventBus: EventBus,
@@ -67,6 +79,25 @@ export class PulseMonitor {
     this.contextEfficiencyThreshold = config.contextEfficiencyThreshold ?? 40;
     this.maxLatencyMeasurements = config.maxLatencyMeasurements ?? 1000;
     this.maxContextEfficiencyScores = config.maxContextEfficiencyScores ?? 100;
+    this.persistMetric = config.persistMetric;
+  }
+
+  /**
+   * Persiste una métrica si hay hook configurado (WP-C4b).
+   * Nunca lanza: la persistencia no debe romper el cálculo en memoria.
+   */
+  private saveMetric(metric: string, value: number, context?: Record<string, unknown>): void {
+    if (!this.persistMetric) return;
+    try {
+      this.persistMetric({
+        metric,
+        value,
+        context: context ? JSON.stringify(context) : null,
+      });
+    } catch (err) {
+      // Silenciar sería un empty-catch (§4.3): logueamos el fallo de persistencia.
+      console.error('[pulse-center] persistMetric hook failed:', err);
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -157,9 +188,24 @@ export class PulseMonitor {
     this.latencyMeasurements.push(measurement);
     this.trimLatencyMeasurements();
 
+    // Persistir métrica de latencia LLM (WP-C4b)
+    this.saveMetric('llm_latency_ms', measurement.latencyMs, {
+      providerId: measurement.providerId,
+      role: payload.role,
+    });
+    if (typeof tokensUsed === 'number') {
+      this.saveMetric('llm_tokens_used', tokensUsed, {
+        providerId: measurement.providerId,
+        role: payload.role,
+      });
+    }
+
     // Recalcular StabilityScore
     const score = calculateStabilityScore(measurement.providerId, this.latencyMeasurements);
     this.stabilityScores.set(measurement.providerId, score);
+
+    // Persistir stability score (WP-C4b)
+    this.saveMetric('stability_score', score.score, { providerId: measurement.providerId });
 
     // Emitir evento de score actualizado
     const scorePayload: HealthScoreUpdatedPayload = {
@@ -236,6 +282,13 @@ export class PulseMonitor {
     const cacheKey = `${agentInstanceId}:${sessionId}`;
     this.contextEfficiencyScores.set(cacheKey, score);
     this.trimContextEfficiencyScores();
+
+    // Persistir context efficiency score (WP-C4b)
+    this.saveMetric('context_efficiency_score', score.score, {
+      agentId: agentInstanceId,
+      taskId: sessionId,
+      tokensUsed: score.tokensUsed,
+    });
 
     // Emitir evento de score actualizado
     const scorePayload: HealthScoreUpdatedPayload = {

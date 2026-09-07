@@ -13,6 +13,14 @@ export interface Migration {
   name: string;
   /** Function that applies the migration to the database */
   up: (db: Database.Database) => void;
+  /** Function that reverts the migration (Gate 4 §3.1: up AND down). */
+  down?: (db: Database.Database) => void;
+}
+
+/** Resultado de revertMigration — sin throws para API determinista. */
+export interface RevertResult {
+  reverted: boolean;
+  reason?: 'not-found' | 'no-down-path' | 'not-applied';
 }
 
 /**
@@ -70,4 +78,60 @@ export function runMigrations(db: Database.Database, migrations: Migration[]): v
   }
 
   log.info(`Migration run completed. Applied ${appliedCount} new migrations.`);
+}
+
+/**
+ * Revierte la ÚLTIMA migración aplicada que tenga down path (Gate 4 §3.1).
+ * Ejecuta down dentro de una transacción y borra su fila de __migrations.
+ * Idempotente: re-ejecutar sobre la misma DB es seguro.
+ *
+ * @param db - Database instance
+ * @param migrations - Array de migraciones conocidas (las mismas que runMigrations)
+ */
+export function revertMigrations(db: Database.Database, migrations: Migration[]): RevertResult {
+  // La tabla __migrations puede no existir aún (nunca se migró)
+  const table = db
+    .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='__migrations'")
+    .get();
+  if (!table) {
+    log.warn('revertMigrations: __migrations table does not exist — nothing to revert');
+    return { reverted: false, reason: 'not-applied' };
+  }
+
+  const applied = db.prepare('SELECT id FROM __migrations ORDER BY id DESC').all() as {
+    id: number;
+  }[];
+  if (applied.length === 0) {
+    log.info('revertMigrations: no applied migrations — nothing to revert');
+    return { reverted: false, reason: 'not-applied' };
+  }
+
+  // Buscar la última aplicada que exista en el registro conocido Y tenga down
+  for (const appliedRow of applied) {
+    const migration = migrations.find((m) => m.id === appliedRow.id);
+    if (!migration) {
+      log.warn(
+        `revertMigrations: applied migration ${appliedRow.id} is not in the known registry — skipping`
+      );
+      continue;
+    }
+    const down = migration.down;
+    if (!down) {
+      log.warn(
+        `revertMigrations: migration ${migration.id} (${migration.name}) has no down path — skipping`
+      );
+      continue;
+    }
+
+    const transaction = db.transaction(() => {
+      down(db);
+      db.prepare('DELETE FROM __migrations WHERE id = ?').run(migration.id);
+    });
+    transaction();
+
+    log.info(`Reverted migration ${migration.id}: ${migration.name}`);
+    return { reverted: true };
+  }
+
+  return { reverted: false, reason: 'no-down-path' };
 }

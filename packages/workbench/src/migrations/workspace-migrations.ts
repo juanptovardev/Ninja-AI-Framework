@@ -99,4 +99,47 @@ export const WORKSPACE_MIGRATIONS: Migration[] = [
       `);
     },
   },
+  {
+    id: 7,
+    name: 'Create pulse_metrics table (WP-C4b / F2.5)',
+    up: (db) => {
+      db.exec(`
+        CREATE TABLE pulse_metrics (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          captured_at TEXT NOT NULL,
+          metric TEXT NOT NULL,
+          value REAL NOT NULL,
+          context TEXT
+        )
+      `);
+      db.exec(`
+        CREATE INDEX idx_pulse_metrics_metric_captured
+        ON pulse_metrics (metric, captured_at)
+      `);
+    },
+    down: (db) => {
+      db.exec('DROP INDEX IF EXISTS idx_pulse_metrics_metric_captured');
+      db.exec('DROP TABLE IF EXISTS pulse_metrics');
+    },
+  },
+  {
+    id: 8,
+    name: 'Create audit_log table (WP-C4b / F2.5)',
+    up: (db) => {
+      db.exec(`
+        CREATE TABLE audit_log (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          created_at TEXT NOT NULL,
+          actor TEXT NOT NULL,
+          action TEXT NOT NULL,
+          target TEXT,
+          result TEXT NOT NULL,
+          detail TEXT
+        )
+      `);
+    },
+    down: (db) => {
+      db.exec('DROP TABLE IF EXISTS audit_log');
+    },
+  },
 ];
