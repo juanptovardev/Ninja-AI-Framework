@@ -1,5 +1,6 @@
 # Plan Maestro Enterprise — Ninja AI Framework
-> **Rama activa**: `fix/epic-b-foundations` · **Última actualización**: 2026-08-25
+> **Rama activa**: `main` (129 commits) · **Última actualización**: 2026-09-07 (auditoría F2)
+> **Operativo:** `PLAN_EJECUCION.md` v2.1 → FASE 3 AUTORIZADA · Prompts: `docs/engineering/EXECUTION_BATCHES.md`
 
 ---
 
@@ -220,12 +221,12 @@ EPIC A — Estabilización base
 | Vulnerabilidades NPM High | 9 | 0 | 🟡 13 High (`pnpm audit --prod`; cadena postcss@8.4.31 vía next@16.2.7) |
 | Endpoints sin auth | todos | 0 (excepto `/health`) | ✅ 0 (B11; excepciones `/health` + `/api/status`) |
 | `any`/`as any` en runtime core | 85 | 0 | 🟡 114 globales (deuda F3.4, contados con `git grep`) |
-| `throw new Error(` total en packages | 74 | 0 | 🟡 35 (prod packages, sin tests) |
-| Packages sin tests | 16/32 | 0 | 🟡 11/32 |
-| Cobertura global | sin medir | ≥50% gating | ⏳ sin medir |
-| CI pipelines | 0 | 1 (matriz 2 OS × 2 Node) | 🔴 CI mínima eliminada 2026-08-24 → reemplazo gates locales F1 |
-| Commits semánticos | 1 | ≥20 | ✅ 100 (rama `fix/epic-b-foundations`) |
-| Tests suite | 292 | verde y creciente | ✅ 766 passing + 1 skip (56 archivos) |
+| `throw new Error(` total en packages | 74 | 0 | 🟡 35 prod (= sin delta tras F2; 11 son fixtures de tests) |
+| Packages sin tests | 16/32 | 0 | 🟡 9/32 (−2 en F2: pulse-center, sentinel; resto → F3) |
+| Cobertura global | sin medir | ≥50% gating | ⏳ sin medir (→ F3.5) |
+| CI pipelines | 0 | 1 (matriz 2 OS × 2 Node) | 🟢 Gates locales G1+G2 (husky F1; matriz remota no aplica — desarrollo cerrado) |
+| Commits semánticos | 1 | ≥20 | ✅ 128 en `main` (F0-F2) |
+| Tests suite | 292 | verde y creciente | ✅ 821 passing + 0 skips (67 archivos) |
 | LLM failures como fake success | sí | 0 | ✅ (strict mode + B6 closure) |
 | Stability Score fijo en 100 | sí | refleja latencia real | ✅ (B7 — 6 tests) |
 | `alert()/confirm()` en UI | 17 | 0 | ✅ 0 (reemplazados por toasts/modals en S3) |
@@ -241,10 +242,10 @@ EPIC A — Estabilización base
 ```
 EPIC A  ██████████ 100%  (S0–S5 ✅ — EPIC A CERRADO)
 EPIC B  ██████████ 100%  (B1-B15 ✅ — EPIC B CERRADO)
-EPIC C  █████░░░░░  50%  (C1+C2 ✅ · C3-C4 pendientes)
-EPIC D  ░░░░░░░░░░   0%  (D1 de facto vía C2, dossier pendiente)
+EPIC C  ██████████ 100%  (C1–C4 ✅ — FASE 2 CERRADA 2026-09-07, dossier f2.md)
+EPIC D  ░░░░░░░░░░   0%  (⏭ SIGUIENTE — F3 AUTORIZADA: D3→D1→D2→D4→D5)
 EPIC E  ░░░░░░░░░░   0%
-EPIC F  ░░░░░░░░░░   0%  (CI adelantada eliminada 2026-08-24 → gates locales F1)
+EPIC F  🟢 gates locales (F1: husky G1/G2 operativos)
 EPIC G  ░░░░░░░░░░   0%
 ```
 
@@ -256,8 +257,8 @@ EPIC G  ░░░░░░░░░░   0%
 |------|-------|--------|
 | EPIC A (S0–S5) | 44–50h | ✅ CERRADO |
 | EPIC B (correctitud + seguridad P0) | 38–48h | ✅ CERRADO (B1-B15) |
-| EPIC C (resiliencia) | 18–22h | 🟡 50% (C1+C2 ✅) |
-| EPIC D (calidad + testing) | 30–36h | ⏳ (D1 de facto vía C2) |
+| EPIC C (resiliencia) | 18–22h | ✅ CERRADO (4 d reales, 2026-09-03→09-07) |
+| EPIC D (calidad + testing) | 30–36h | ⏭ AUTORIZADA (F3: D3→D1→D2→D4→D5 en ese orden) |
 | EPIC E (frontend) | 28–34h | ⏳ |
 | EPIC F (devops) | 20–26h | ⏳ (CI adelantada revertida 2026-08-24) |
 | EPIC G (extensibilidad) | 24–30h | ⏳ |
@@ -281,4 +282,4 @@ EPIC G  ░░░░░░░░░░   0%
 
 ---
 
-*Fuente: `tools/plan-mejoras-ENTERPRISE-MASTER.md` · ADRs en `docs/adr/` · **100 commits en fix/epic-b-foundations — EPIC A+B cerrados · C1-C2 ✅ · 766 tests verdes***
+**Ledger EV absorbido** (de `og/plan-mejoras-ENTERPRISE-MASTER.md`): EV-16→F3.7 · EV-17→F0.2 · EV-18→F2.3 · EV-19→F3.8 · EV-20→F4.6 · EV-21→F3.2 · EV-22→F1.5 · EV-23→F3.8 · EV-25→F3.9 · EV-27→F4.8 · EV-29→F4.3 · EV-30→F1.1 · EV-31→F4.7 · EV-32→F2.5 · EV-33→F3.3.

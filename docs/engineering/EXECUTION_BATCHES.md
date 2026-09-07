@@ -1230,18 +1230,80 @@ decide si las reservas son bloqueantes.
 
 ## 5. Resumen operativo
 
-| Etapa | Tema | Arranque | Tareas | Paralelos | Cierre | Dificultad dominante |
-|-------|------|----------|--------|-----------|--------|---------------------|
-| 0 | Rescate | A-0 | 3 | 0 | C(0) | 🟡 |
-| 1 | Blindaje | A-1 | 3 | 0 | C(1) | 🔴 T1.2 |
-| 2 | Integración | A-2 | 2 + usuario | 0 | C(2) | 🟡 |
-| 3 | Gates | A-3 | 3 | 0 | C(3) | 🔴 T3.2 |
-| 4 | Resiliencia | A-4 | 3∥ + 1 | 3 | C(4) | 🔴 T4.4 |
-| 5 | Suites tests | A-5 | 6 | 6 | C(5) | 🟢 |
-| 6 | Calidad central | A-6 | 6 | 0 | C(6) | 🔴×3 |
-| 7 | Producto | A-7 | 3∥ + 1 | 3 | C(7) | 🟡 |
-| 8 | Comercial | A-8 | 3 | 0 | C(8) | 🔴 T8.1 |
+| Etapa | Tema | Arranque | Tareas | Paralelos | Cierre | Estado |
+|-------|------|----------|--------|-----------|--------|--------|
+| 0 | Rescate | A-0 | 3 | 0 | C(0) | ✅ CERRADA (auditoría E-0) |
+| 1 | Blindaje | A-1 | 3 | 0 | C(1) | ✅ CERRADA (auditoría E-1) |
+| 2 | Integración | A-2 | 2 + usuario | 0 | C(2) | ✅ CERRADA (auditoría E-2) |
+| 3 | Gates | A-3 | 3 | 0 | C(3) | ✅ CERRADA (auditoría de orquestador F1) |
+| 4 | Resiliencia | A-4 | 3∥ + 1 | 3 | C(4) | ✅ CERRADA (veredicto orquestador 2026-09-07) |
+| 5 | Suites tests | A-5 | 6 | **6** | C(5) | ⏭ **SIGUIENTE — ver guía abajo** |
+| 6 | Calidad central | A-6 | 6 | 0 | C(6) | ⏳ (bloqueada por E-5) |
+| 7 | Producto | A-7 | 3∥ + 1 | 3 | C(7) | ⏳ (bloqueada por E-6) |
+| 8 | Comercial | A-8 | 3 | 0 | C(8) | ⏳ (bloqueada por E-7) |
 
-**Total: 9 arranques + 35 tareas + 9 cierres = 53 prompts + 2 acciones del usuario (privatizar repo, aprobar auditorías).**
+**Total: 9 arranques + 35 tareas + 9 cierres = 53 prompts + 2 acciones del usuario (privatizar repo ✅, aprobar auditorías).**
+
+---
+
+## 6. Claridad de ejecución — cómo correr la siguiente etapa (ETAPA 5)
+
+**Lee esto antes de abrir terminales.** La ETAPA 5 es la única fase con paralelismo total: 6 terminales,
+cada una con UN paquete distinto y cero solapamiento de archivos. Orden operativo:
+
+### Paso 0 — Preparación (terminal principal, 5 min)
+
+```bash
+cd C:\Users\juanp_8h8f07l\Documents\ninja-ai-framework
+git checkout main && git pull origin main
+git status --porcelain   # debe estar VACÍO; si no, DETENER
+git worktree list        # debe estar vacío; si hay worktrees viejos, git worktree remove <path>
+```
+
+### Paso 1 — Lanzar 6 terminales (cada una: pegar A-5, esperar "listo", pegar su T5.n)
+
+| Terminal | Worktree (lo crea el prompt) | Branch | Prompt | Paquete(s) | Dificultad |
+|----------|------------------------------|--------|--------|------------|------------|
+| 1 | `../ninja-t51` | `feat/wp-d3-fm` | **T5.1** | flow-matrix | 🟡 (lógica de executor) |
+| 2 | `../ninja-t52` | `feat/wp-d3-wb` | **T5.2** | workbench | 🟡 (lifecycle + migraciones) |
+| 3 | `../ninja-t53` | `feat/wp-d3-logloop` | **T5.3** | logging + learning-loop | 🟢 |
+| 4 | `../ninja-t54` | `feat/wp-d3-forgengram` | **T5.4** | forge-lab + integrations-engram | 🟢 |
+| 5 | `../ninja-t55` | `feat/wp-d3-gitlight` | **T5.5** | integrations-git + integrations-lightrag | 🟢 |
+| 6 | `../ninja-t56` | `feat/wp-d3-ui` | **T5.6** | ui-kit + office-grid + decisión app-shell | 🟢 (+ADR si disuelve) |
+
+Cada terminal corre `pnpm install` en su worktree (usa el store compartido, ~1 min). No necesitas abrir
+las 6 a la vez: 2–3 tandas también funciona. **Nunca dos terminales en el mismo worktree.**
+
+### Paso 2 — Merge en orden (terminal principal, tras terminar las 6)
+
+Merge uno a uno, explícito, verificando cada paso. **No uses loops de shell** — un merge a la vez con su verificación:
+
+```bash
+git merge feat/wp-d3-fm --no-ff -m "merge: wp-d3 flow-matrix suites (F3.1)"
+pnpm vitest run packages/flow-matrix   # verde antes de seguir
+git merge feat/wp-d3-wb --no-ff -m "merge: wp-d3 workbench suites (F3.2)"
+pnpm vitest run packages/workbench
+git merge feat/wp-d3-logloop --no-ff -m "merge: wp-d3 logging+learning-loop (F3.3a)"
+git merge feat/wp-d3-forgengram --no-ff -m "merge: wp-d3 forge-lab+engram (F3.3b)"
+git merge feat/wp-d3-gitlight --no-ff -m "merge: wp-d3 git+lightrag (F3.3c)"
+git merge feat/wp-d3-ui --no-ff -m "merge: wp-d3 ui-kit+office-grid (F3.3d)"
+pnpm typecheck && pnpm test && pnpm errors:check
+```
+
+**Si hay conflicto de merge:** DETENER, no resolver solo — pasar al auditor con el output.
+
+### Paso 3 — Cierre y auditoría
+
+1. En el repo principal (ya mergeado): pegar PROMPT C con `ETAPA A CERRAR: 5`.
+2. El rematador escribe `tools/verifications/cierre-etapa-5.md` + micro-fixes.
+3. Me pasas: veredicto del cierre + escalados + REPORTA de las 6 terminales (SHAs + resúmenes de cobertura).
+4. Yo audito (verifico coberturas reales, calidad de asserts, 0 paquetes sin tests) → ✅ habilita ETAPA 6.
+
+### Reglas duras de esta etapa
+
+- Cada terminal toca SOLO su paquete + su dossier. Archivos compartidos (`vitest.config.ts`, `tests/helpers/*` nuevos) los crea SOLO la terminal 1 (T5.1) si hacen falta; las demás reusan.
+- Un `pnpm install` por worktree es obligatorio antes del primer test.
+- Al terminar cada terminal: `git log -1 --format=%H` (SHA) → me lo pasas con el reporte.
+- Cualquier terminal que falle su aceptación 2 veces seguidas: DETENER esa terminal, reportar, las demás continúan.
 
 *Fin de EXECUTION_BATCHES v1.1. Cambios a prompts congelados = versión + entrada en control de cambios del PLAN_EJECUCION.*

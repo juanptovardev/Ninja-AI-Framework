@@ -28,14 +28,16 @@
 
 | Aspecto | Estado |
 |---------|--------|
-| Branch | `main` — 115 commits totales (93 en `fix/epic-b-foundations` mergeado) |
-| Working tree | 0 archivos sucios — completo desde F0 |
-| EPICs | A ✅ · B ✅ · C 50% (C1+C2 ✅, C3/C4 ⏳ F2) · D ⏳ (F3) · E ⏳ · F ⏳ |
-| Remoto GitHub | **PRIVADO** (verificado 2026-08-25) |
-| CI | Local: husky pre-commit (G1) + pre-push (G2) + pre-push typecheck/test/errors:check |
-| Tests | 767 passing | 0 skips (1 skipped resuelto en F1.6) |
-| Bugs P0 | **RESUELTOS**: CORS X-Ninja-Key · Approver identity (ambos en F0) |
-| Detalle completo | `docs/architecture/og/audit-2026-08-24.md` |
+| Branch | `main` — 129 commits totales (128 en F2 + cabecera) |
+| Working tree | 0 archivos sucios |
+| EPICs | A ✅ · B ✅ · **C ✅ 100% (CERRADO 2026-09-07)** · D ⏳ F3 (siguiente) · E ⏳ · F 🟡 (gates locales) |
+| Remoto GitHub | **PRIVADO** (verificado 2026-08-25) · **PENDIENTE PUSH: 13 commits F2** (`origin/main` en 470643e) |
+| CI | Local: husky pre-commit (G1) + pre-push (G2) — ambos verificados disparando en F2 (4 bloqueos G1 correctos) |
+| Tests | **821 passing | 0 skips** (67 archivos; +54 en F2) |
+| Bugs P0 | **RESUELTOS** (F0: CORS X-Ninja-Key · approver identity) |
+| Resiliencia | Health liveness/readiness + WS reconnect + shutdown ordenado + migraciones 7-8 up/down + rate limit + logs JSON (§7) |
+| Respaldo | `../ninja-backup-f2-complete.bundle` (1.1 MB, `git bundle verify` OK) |
+| Detalle completo | `docs/architecture/og/audit-2026-08-24.md` (+ veredicto F2 abajo en §5) |
 
 ---
 
@@ -105,10 +107,12 @@
 
 ---
 
-## 5. FASE 2 — Cierre EPIC C (Resiliencia) ✅ COMPLETA (2026-09-07, dossier `tools/verifications/f2.md`)
+## 5. FASE 2 — Cierre EPIC C (Resiliencia) ✅ AUDITADA COMPLETA (2026-09-07)
 > **Objetivo:** runtime resiliente: health granular, WS con reconexión, shutdown completo, persistencia de Pulse/Audit, rate limiting.
+> **Estado:** 13 commits (6678bde…5a11e79) · dossiers: `f2.md` + 6 WPs (`wp-c3-health`, `wp-c3-ws`, `wp-c4-shutdown`, `wp-c4-persistence`, `wp-c4-security`, `wp-f2-logs`) · ADR-0012 (rate-limit+helmet) · bundle `ninja-backup-f2-complete.bundle` verificado.
+> **Veredicto orquestador (2026-09-07):** re-ejecutados todos los gates en HEAD — typecheck 34/34 · **821/821 tests** · lint 0 errores · errors:check (19 códigos) · bundle verify OK · 0 archivos sucios. Todos los checks del dossier reproducidos: health wired en server.ts (liveness+readiness), rateLimit+helmet registrados, `lib/ws.ts` eliminado sin refs, migraciones con down path, 35 throws prod (= sin delta), 9 paquetes sin tests (dossier afirmaba 33 migrados a NinjaError en roster.ts:35 dominante), 0 dialogs, 0 skips, hooks activos. 3 observaciones no bloqueantes consignadas (revisión WS `connected` tras timeout, `auth.test` vs contexto, logger.test count 9 vs tabla). **FASE 2 CERRADA → FASE 3 AUTORIZADA.**
 > **Entrada:** F1 completo.
-> **Estimación:** P50 5 d · P80 8 d
+> **Estimación:** P50 5 d · P80 8 d · **Real: 4 d** (2026-09-03 → 2026-09-07)
 > **Todos los ítems emiten eventos vía `eventBus` (Ley 3) y llevan STRIDE-lite si tocan superficie sensible (§6.1 Manual).**
 
 | ID | Tarea | Detalle | Criterio de aceptación | Est. |
@@ -122,11 +126,11 @@
 | F2.7 | Logs JSON estructurados (Manual §7) | Extender `@ninja/logging`: salida JSON 1-evento/línea con `ts,level,logger,msg` + `correlationId` (Fastify genReqId), mantener modo pretty en TTY dev. Fastify `logger:false` → logger propio con access log mínimo. Actualizar `troubleshooting.md` al formato real | Test: log capturado parsea como JSON con campos obligatorios | 1 d |
 | F2.8 | Dossier F2 + STRIDE-lite + re-medición | `tools/verifications/f2.md` | Filed | 0.2 d |
 
-**Criterios de salida F2:** health listo · reconnect E2E verde · shutdown test verde · migraciones 7-8 up/down · rate limit activo · logs JSON · KPIs re-medidos.
+**Criterios de salida F2:** health listo ✅ · reconnect verde (unit determinista; E2E literal sustituido con justificación en dossier f2.md Desviaciones) ✅ · shutdown test verde ✅ · migraciones 7-8 up/down ✅ · rate limit activo (429 probado) ✅ · logs JSON ✅ · KPIs re-medidos ✅.
 
 ---
 
-## 6. FASE 3 — EPIC D (Calidad) — orden estricto R6: D3→D1→D2→D4→D5
+## 6. FASE 3 — EPIC D (Calidad) — orden estricto R6: D3→D1→D2→D4→D5 **[AUTORIZADA 2026-09-07]**
 > **Objetivo:** la deuda estructural medida (117 `as any`, 45 throws crudos, 11 paquetes sin tests) a cero, con thresholds sostenibles.
 > **Entrada:** F2 completo.
 > **Estimación:** P50 10 d · P80 15 d
@@ -196,12 +200,14 @@
 | B | B11 | 0008 | auth handshake 5s | `wp-b11.md` | ✅ |
 | B | B12–B14 | 0006 | 15+3+12+5 tests | `wp-b12–14.md` | ✅ |
 | B | B15 | 0007 | 8 tests schemas | `wp-b15.md` | ✅ |
-| C | C1 | 0009 (disco) | 6 tests handler | `wp-c1-closure.md` (disco) | ✅ commit F0.1 |
-| C | C2 | 0010 (disco) | circuit+retry tests | en progreso | 🔶 sin commit → F0.2 |
-| C | C3 | 0011 (a crear F2) | health/reconnect | — | ⏳ F2 |
-| C | C4 | idem | shutdown/persistencia | — | ⏳ F2 |
-| D | D1–D5 | 0013 (a crear F3.4 server-routes) | por ítem | — | ⏳ F3 |
+| C | C1 | 0009 | 6 tests handler | `wp-c1-closure.md` | ✅ commit F0.1 |
+| C | C2 | 0010 | circuit+retry tests | (F0.2) | ✅ commit F0.2 |
+| C | C3 | 0012* | 7 (health) + 12 (WS) tests | `wp-c3-health.md` + `wp-c3-ws.md` | ✅ 6678bde, 28b70f6 |
+| C | C4 | 0012* | 2 (shutdown) + 18 (persist.) + 4 (rate-limit) + 11 (logs) | `wp-c4-shutdown.md` + `wp-c4-persistence.md` + `wp-c4-security.md` + `wp-f2-logs.md` | ✅ c0b34a5, ced1608, 4dc6eeb, 47e78d6 |
+| D | D1–D5 | 0013 (a crear F3.4 server-routes) | por ítem | — | ⏳ F3 **[AUTORIZADA]** |
 | E | E1–E4 | 0011/0012 | E2E wizard | — | ⏳ F4 |
+
+*ADR-0012 (rate-limit+helmet) reutilizado para C3/C4; ADR-0011 quedó para E4.7 (companion decision, F4).
 | F | F1 | — | — | — | ⏳ F5 |
 | **Gates** | **F0.0-F0.12** | — | husky + ESLint flat + tests 767/0-skips | `f0.md` cerrado, `f1.md` cerrado ✅ | **✅ Fases 0-1 COMPLETAS** |
 
@@ -213,14 +219,14 @@
 
 | ID | Riesgo | P | I | Score | Trigger (señal) | Detección | Mitigación | Estado |
 |----|--------|---|---|-------|-----------------|-----------|------------|--------|
-| R1 | Pérdida de trabajo local (92 commits + WT sin respaldo) | 2 | 5 | **10** | fallo disco / borrado accidental | `git ls-remote origin` desactualizado | F0.1–F0.3 commits + F0.9 bundle ANTES de todo lo demás | 🔶→F0 |
+| R1 | Pérdida de trabajo local (92 commits + WT sin respaldo) | 2 | 5 | **10** | fallo disco / borrado accidental | `git ls-remote origin` desactualizado | F0.1–F0.3 commits + F0.9 bundle ANTES de todo lo demás | ✅ **MITIGADO** (bundle F2 verificado + origin privado; **PENDIENTE: push 13 commits F2**) |
 | R2 | Repo GitHub público con snapshot comercial | 5 | 4 | **20** | ya ocurrió (verificado) | `curl api.github.com/repos/...` | F0.10 privatización inmediata | ✅ **CERRADO** (F0.11: repo privado verificado) |
-| R3 | Defectos P0 en superficie de seguridad (CORS/approver) | 4 | 4 | **16** | bug #1/#2 auditoría | tests F0.5/F0.6 | Fixes con red→green + revisión adversarial §6.3 | 🔴→F0 |
-| R4 | Hooks husky rompen flujo de desarrollo (falsos positivos) | 3 | 2 | 6 | quejas en uso diario | — | tuning en F1, excepciones §15 con expiry | ⏳ |
-| R5 | Thresholds de cobertura rompen builds (R6 clásico) | 3 | 2 | 6 | `pnpm test` rojo tras F3.5 | gate | orden estricto D3→D2 | ⏳ |
-| R6 | Migración Pulse/Audit corrompe datos locales | 2 | 4 | 8 | migración fallida a mitad | backup previo Gate 4 | down path obligatorio + backup DB pre-migración | ⏳ |
-| R7 | Publish accidental de código propietario a npm | 1 | 5 | 5 | — | — | F0.8 `private:true` ×32 | ⏳ |
-| R8 | Dependencia con licencia copyleft entra al producto | 2 | 4 | 8 | `pnpm licenses list` | Gate 3 spot-check | Política §9.3 Manual | ⏳ |
+| R3 | Defectos P0 en superficie de seguridad (CORS/approver) | 4 | 4 | **16** | bug #1/#2 auditoría | tests F0.5/F0.6 | Fixes con red→green + revisión adversarial §6.3 | ✅ **CERRADO** (F0.5/F0.6 commitados y en main) |
+| R4 | Hooks husky rompen flujo de desarrollo (falsos positivos) | 3 | 2 | 6 | quejas en uso diario | — | tuning en F1, excepciones §15 con expiry | ✅ **MITIGADO en la práctica** (4 bloqueos G1 correctos en F2, sin falsos positivos) |
+| R5 | Thresholds de cobertura rompen builds (R6 clásico) | 3 | 2 | 6 | `pnpm test` rojo tras F3.5 | gate | orden estricto D3→D2 | ⏳ (vigente para F3) |
+| R6 | Migración Pulse/Audit corrompe datos locales | 2 | 4 | 8 | migración fallida a mitad | backup previo Gate 4 | down path obligatorio + backup DB pre-migración | ✅ **MITIGADO** (Gate 4 real en F2.5: backup + down + idempotencia; score residual 2×2=4) |
+| R7 | Publish accidental de código propietario a npm | 1 | 5 | 5 | — | — | F0.8 `private:true` ×32 | ✅ **MITIGADO** (32/32 verificado F1) |
+| R8 | Dependencia con licencia copyleft entra al producto | 2 | 4 | 8 | `pnpm licenses list` | Gate 3 spot-check | Política §9.3 Manual | ⏳ (F2: 2 deps MIT con ADR-0012 — OK) |
 | R9 | Scope creep en F5 (empaquetado complejo) | 3 | 3 | 9 | F5 excede P80 | estimación vs real | ADR-0012 decide la opción mínima; auto-update v1 = manual | ⏳ |
 
 **Thresholds Manual §12.2:** ≥12 requiere mitigación antes de salir la fase dueña. R2 y R3 bloquean la salida de F0; R1 se cierra con el bundle.
@@ -240,10 +246,10 @@ git grep -oE "alert\(|confirm\(" -- apps/forge-console | wc -l  # dialogs nativo
 git grep -c "\.skip(" -- "*.test.ts" 2>/dev/null      # skips                  → 1 hoy, meta 0 (F1)
 ```
 
-Estado por fase (se actualiza al cerrar cada fase — medido 2026-09-07 tras F2, output crudo en `tools/verifications/f2.md`):
+Estado por fase (se actualiza al cerrar cada fase — medido 2026-09-07 tras F2, orquestador re-verificó en HEAD 5a11e79):
 
-| KPI | Base (auditoría) | Tras F0 | Tras F1 | Tras F2 | Tras F3 | Meta v1.0 |
-|-----|------------------|---------|---------|---------|---------|-----------|
+| KPI | Base (auditoría) | Tras F0 | Tras F1 | **Tras F2** | Tras F3 | Meta v1.0 |
+|-----|------------------|---------|---------|-------------|---------|-----------|
 | Archivos sucios | ~30 | **0** ✅ | **0** ✅ | **0** ✅ | 0 | 0 |
 | `as any` | 117 | 117 | **117** | **114** (−3) | **0** | 0 |
 | Throws crudos packages | 45 | 45 | **45 (guard activo, overrides documentados)** | **35 prod (=; método ahora separa 11 de tests)** | **0** | 0 |
@@ -281,5 +287,6 @@ El tag `v1.0.0` (F5.6) exige cumplir TODOS:
 |---------|-------|--------|-------|
 | 1.0 | 2026-08-24 | Creación (base de auditoría) | opencode (GLM-5.3) |
 | 2.0 | 2026-08-24 | Reescritura profesional: fases con gates, IDs, P50/P80, trazabilidad, riesgos cuantificados, KPIs ejecutables; base documental separada (Quality Manual + auditoría og/) | opencode (GLM-5.3) |
+| 2.1 | 2026-09-07 | **FASE 2 AUDITADA COMPLETA** (13 commits, 821 tests, EPIC C 100%). Veredicto orquestador con 3 observaciones no bloqueantes consignadas. §1/§5/§6/§8/§9/§10 sincronizados. **FASE 3 AUTORIZADA.** | orquestador |
 
 *Regla: cada cambio a este plan es un commit `docs(plan): ...` con entrada en esta tabla. Las fases completadas se marcan ✅ con fecha y no se reabren — nueva fase o ADR si hay que deshacer.*
