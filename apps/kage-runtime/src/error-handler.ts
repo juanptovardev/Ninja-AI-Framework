@@ -8,7 +8,7 @@ const log = createLogger('kage-runtime:error-handler');
 
 export function registerErrorHandlers(
   server: FastifyInstance,
-  env: 'production' | 'development' | 'test',
+  env: 'production' | 'development' | 'test'
 ): void {
   server.setErrorHandler(async (err: FastifyError, req: FastifyRequest, reply: FastifyReply) => {
     if (err instanceof ZodError) {
@@ -29,6 +29,18 @@ export function registerErrorHandlers(
         error: 'Invalid request',
         code: 'VALIDATION_ERROR',
         issues: err.validation,
+      });
+    }
+
+    // Rate limiting (@fastify/rate-limit) — el plugin lanza el error y el handler
+    // global debe preservar su statusCode (429) y formato RATE_LIMITED (WP-C4c).
+    if (err.statusCode === 429) {
+      log.warn('Rate limit exceeded', { url: req.url, method: req.method });
+      return reply.status(429).send({
+        statusCode: 429,
+        error: 'Too Many Requests',
+        code: 'RATE_LIMITED',
+        message: err.message,
       });
     }
 

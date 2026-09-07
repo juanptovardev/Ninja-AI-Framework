@@ -156,6 +156,7 @@ EPIC A — Estabilización base
 - [x] **WP-C3b** — WS reconnect forge-console (F2.2): backoff exponencial 1s→30s + jitter ±20%, re-auth handshake en cada reconexión, indicador UI de estado, `lib/ws.ts` muerto eliminado · dossier `wp-c3-ws.md`
 - [x] **WP-C4a** — Shutdown completo ordenado (F2.4): shutdown-registry (failover → pulse → auditor flush → engram → sqlite-db última), timeout 10s, tolerante a fallos por paso, hack `as any` failoverManager eliminado · dossier `wp-c4-shutdown.md`
 - [x] **WP-C4b** — Persistencia Pulse/Audit (F2.5): migraciones 7/8 con down path (Gate 4) + `revertMigrations` en storage, repos `PulseMetricRepository`/`AuditLogRepository` en trace-ledger, wire por inyección en monitor/auditor, `db:migrate` con backup + modo `--down` · dossier `wp-c4-persistence.md`
+- [x] **WP-C4c** — Rate limiting + security headers (F2.6): `@fastify/rate-limit` (100/min por key global, 10/min shell) + `@fastify/helmet` (nosniff etc., CSP off API-only), 429 con formato RATE_LIMITED · ADR-0012 · dossier `wp-c4-security.md`
 
 ---
 
