@@ -24,6 +24,7 @@ import { registerErrorHandlers } from './error-handler.js';
 import { registerHealthRoutes } from './routes/health.js';
 import { registerShutdownStep, getShutdownSteps, clearShutdownSteps } from './shutdown-registry.js';
 import { closeDb } from '@ninja/storage';
+import { registerRequestLogging } from './request-logging.js';
 import { KageEngine, HttpController } from '@ninja/kage-engine';
 import { bootstrap as bootstrapArsenal } from '@ninja/arsenal-registry';
 import { requireActiveContext } from '@ninja/workbench';
@@ -116,7 +117,15 @@ export async function createServer(): Promise<FastifyInstance> {
   // Idempotencia en tests/arranques múltiples: el registro de shutdown es por-proceso.
   clearShutdownSteps();
 
-  const server = fastify({ logger: false }); // logging gestionado por @ninja/logging
+  // correlationId por request (Manual §7.2) — usado por request-logging y disponible
+  // para cualquier handler vía request.id.
+  const server = fastify({
+    logger: false, // logging gestionado por @ninja/logging (JSON §7.1) + request-logging
+    genReqId: () => crypto.randomUUID(),
+  });
+
+  // ── Request logging (WP-F2.7): access log mínimo con correlationId ─────────
+  registerRequestLogging(server, { skipPaths: ['/health'] });
 
   // ── Security headers (WP-C4c / F2.6, ADR-0012) ─────────────────────────────
   // CSP deshabilitada: el runtime sirve API/WS, no HTML propio (el dashboard es

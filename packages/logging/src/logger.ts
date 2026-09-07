@@ -44,15 +44,13 @@ const LEVEL_ORDER: Record<LogLevel, number> = {
 const RESET = '\x1b[0m';
 const COLORS: Record<LogLevel, string> = {
   debug: '\x1b[36m', // cyan
-  info: '\x1b[32m',  // green
-  warn: '\x1b[33m',  // yellow
+  info: '\x1b[32m', // green
+  warn: '\x1b[33m', // yellow
   error: '\x1b[31m', // red
 };
 
 const isTTY =
-  typeof process !== 'undefined' &&
-  process.stdout !== undefined &&
-  process.stdout.isTTY === true;
+  typeof process !== 'undefined' && process.stdout !== undefined && process.stdout.isTTY === true;
 
 function colorize(level: LogLevel, text: string): string {
   if (!isTTY) return text;
@@ -87,6 +85,79 @@ export function getGlobalLogLevel(): LogLevel {
 }
 
 // ---------------------------------------------------------------------------
+// Output format (WP-F2.7 — Manual §7.1: JSON 1-evento/línea)
+// ---------------------------------------------------------------------------
+
+export type LogFormatSetting = 'json' | 'pretty' | 'auto';
+
+/** Campos reservados del formato JSON — el contexto no puede sobrescribirlos. */
+const RESERVED_FIELDS = new Set(['ts', 'level', 'logger', 'msg']);
+
+function readEnvFormat(): LogFormatSetting {
+  const fromEnv = (
+    typeof process !== 'undefined' ? process.env['NINJA_LOG_FORMAT'] : undefined
+  )?.toLowerCase();
+  if (fromEnv === 'json' || fromEnv === 'pretty') return fromEnv;
+  return 'auto';
+}
+
+let _globalFormat: LogFormatSetting | null = null;
+
+/**
+ * Fija el formato global de salida ('json' | 'pretty' | 'auto'; null vuelve a auto).
+ * 'auto' (default): pretty si stdout es TTY (dev), json si no (12-factor).
+ */
+export function setGlobalLogFormat(format: LogFormatSetting | null): void {
+  _globalFormat = format;
+}
+
+/** Devuelve el ajuste de formato global configurado (null = auto). */
+export function getGlobalLogFormat(): LogFormatSetting | null {
+  return _globalFormat;
+}
+
+function resolveFormat(): 'json' | 'pretty' {
+  const configured = _globalFormat ?? readEnvFormat();
+  if (configured === 'json') return 'json';
+  if (configured === 'pretty') return 'pretty';
+  return isTTY ? 'pretty' : 'json';
+}
+
+/**
+ * Serializa una entrada de log a JSON de 1 línea (Manual §7.1):
+ * { ts, level, logger, msg, ...context, err?, args? }
+ * Los campos reservados (ts/level/logger/msg) siempre ganan sobre el contexto.
+ */
+function toJsonLine(level: LogLevel, name: string, message: string, args: unknown[]): string {
+  const entry: Record<string, unknown> = {};
+  const extras: unknown[] = [];
+
+  for (const arg of args) {
+    if (arg instanceof Error) {
+      entry['err'] = { name: arg.name, message: arg.message, stack: arg.stack };
+    } else if (arg !== null && typeof arg === 'object') {
+      for (const [key, value] of Object.entries(arg as Record<string, unknown>)) {
+        if (!RESERVED_FIELDS.has(key)) {
+          entry[key] = value;
+        }
+      }
+    } else {
+      extras.push(arg);
+    }
+  }
+  if (extras.length > 0) {
+    entry['args'] = extras;
+  }
+
+  entry['ts'] = new Date().toISOString();
+  entry['level'] = level;
+  entry['logger'] = name;
+  entry['msg'] = message;
+
+  return JSON.stringify(entry);
+}
+
+// ---------------------------------------------------------------------------
 // Logger implementation
 // ---------------------------------------------------------------------------
 
@@ -107,17 +178,22 @@ class NinjaLogger implements Logger {
   private _log(level: LogLevel, message: string, ...args: unknown[]): void {
     if (!this._isEnabled(level)) return;
 
+    if (resolveFormat() === 'json') {
+      // Manual §7.1: un evento JSON por línea, directo a stdout/stderr.
+      const line = toJsonLine(level, this.name, message, args);
+      const consoleFn =
+        level === 'error' ? console.error : level === 'warn' ? console.warn : console.log;
+      consoleFn(line);
+      return;
+    }
+
     const ts = new Date().toISOString();
     const lvlLabel = colorize(level, level.toUpperCase().padEnd(5));
     const nameLabel = `\x1b[90m[${this.name}]${RESET}`;
     const prefix = `${ts} ${lvlLabel} ${nameLabel}`;
 
     const consoleFn =
-      level === 'error'
-        ? console.error
-        : level === 'warn'
-        ? console.warn
-        : console.log;
+      level === 'error' ? console.error : level === 'warn' ? console.warn : console.log;
 
     if (args.length > 0) {
       consoleFn(`${prefix} ${message}`, ...args);
