@@ -1,5 +1,7 @@
 import fastify, { FastifyInstance, FastifyRequest } from 'fastify';
 import cors from '@fastify/cors';
+import helmet from '@fastify/helmet';
+import rateLimit from '@fastify/rate-limit';
 import websocketPlugin from '@fastify/websocket';
 import { createHash } from 'node:crypto';
 import type { RuntimeStatus } from '@ninja/contracts';
@@ -115,6 +117,31 @@ export async function createServer(): Promise<FastifyInstance> {
   clearShutdownSteps();
 
   const server = fastify({ logger: false }); // logging gestionado por @ninja/logging
+
+  // ── Security headers (WP-C4c / F2.6, ADR-0012) ─────────────────────────────
+  // CSP deshabilitada: el runtime sirve API/WS, no HTML propio (el dashboard es
+  // forge-console/Next.js, que gestiona sus cabeceras).
+  await server.register(helmet, { contentSecurityPolicy: false });
+
+  // ── Rate limiting (WP-C4c / F2.6, ADR-0012) ────────────────────────────────
+  // Global: 100 req/min por X-Ninja-Key (o IP en rutas públicas).
+  // /api/shell/execute: 10/min (route-level override) — ejecución de comandos.
+  await server.register(rateLimit, {
+    global: true,
+    max: 100,
+    timeWindow: '1 minute',
+    keyGenerator: (request: FastifyRequest) => {
+      const raw = request.headers['x-ninja-key'];
+      const key = Array.isArray(raw) ? raw[0] : raw;
+      return key ?? request.ip;
+    },
+    errorResponseBuilder: (_request, context) => ({
+      statusCode: 429,
+      error: 'Too Many Requests',
+      code: 'RATE_LIMITED',
+      message: `Rate limit of ${context.max} requests per ${context.after} exceeded.`,
+    }),
+  });
 
   // ── CORS ────────────────────────────────────────────────────────────────────
   await server.register(cors, {
@@ -782,25 +809,33 @@ export async function createServer(): Promise<FastifyInstance> {
   // ── Phase 8: External Integrations & Forge Lab ──────────────────────────
   log.info('Initializing Phase 8 routes: Integrations & Forge Lab');
 
-  // Integrations-Shell Routes
-  server.post('/api/shell/execute', async (request, reply) => {
-    const parsed = ShellExecuteSchema.safeParse(request.body);
-    if (!parsed.success) {
-      return reply.status(400).send({
-        error: 'Invalid request body',
-        code: 'VALIDATION_ERROR',
-        issues: parsed.error.issues,
-      });
+  // Integrations-Shell Routes (rate limit estricto: 10/min — WP-C4c / F2.6)
+  server.post(
+    '/api/shell/execute',
+    {
+      config: {
+        rateLimit: { max: 10, timeWindow: '1 minute' },
+      },
+    },
+    async (request, reply) => {
+      const parsed = ShellExecuteSchema.safeParse(request.body);
+      if (!parsed.success) {
+        return reply.status(400).send({
+          error: 'Invalid request body',
+          code: 'VALIDATION_ERROR',
+          issues: parsed.error.issues,
+        });
+      }
+      const { cmd, args, cwd } = parsed.data;
+      const shellCommand: ShellCommand = { cmd, args, cwd };
+      const validation = validateCommand(shellCommand);
+      if (!validation.allowed) {
+        return reply.status(403).send({ error: validation.reason });
+      }
+      const result = await executeCommand(shellCommand);
+      return reply.send(result);
     }
-    const { cmd, args, cwd } = parsed.data;
-    const shellCommand: ShellCommand = { cmd, args, cwd };
-    const validation = validateCommand(shellCommand);
-    if (!validation.allowed) {
-      return reply.status(403).send({ error: validation.reason });
-    }
-    const result = await executeCommand(shellCommand);
-    return reply.send(result);
-  });
+  );
 
   // Integrations-Git Routes
   server.get('/api/git/status', async (request, reply) => {
