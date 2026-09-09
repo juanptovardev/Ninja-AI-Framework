@@ -14,7 +14,7 @@
 // Types
 // ---------------------------------------------------------------------------
 
-export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
+export type LogLevel = 'debug' | 'info' | 'warn' | 'error' | 'silent';
 
 /** Interfaz pública de un logger. */
 export interface Logger {
@@ -35,6 +35,7 @@ const LEVEL_ORDER: Record<LogLevel, number> = {
   info: 1,
   warn: 2,
   error: 3,
+  silent: 4,
 };
 
 // ---------------------------------------------------------------------------
@@ -47,6 +48,7 @@ const COLORS: Record<LogLevel, string> = {
   info: '\x1b[32m', // green
   warn: '\x1b[33m', // yellow
   error: '\x1b[31m', // red
+  silent: '', // nivel de umbral: nunca se llama con él (no produce salida)
 };
 
 const isTTY =
