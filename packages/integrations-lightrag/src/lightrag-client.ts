@@ -1,14 +1,56 @@
 import { eventBus, createEvent } from '@ninja/events';
 import { createLogger } from '@ninja/logging';
 import { CircuitBreaker, CircuitOpenError } from '@ninja/common-utils';
-import type {
-  LightRAGDocument,
-  LightRAGQuery,
-  LightRAGResult,
-} from './schema.js';
+import { NinjaError } from '@ninja/contracts';
+import type { LightRAGDocument, LightRAGQuery, LightRAGResult } from './schema.js';
 
 const DEFAULT_BASE_URL = 'http://localhost:9621';
 const DEFAULT_TIMEOUT_MS = 10000; // 10s
+
+const HTTP_STATUS_CODES: Record<number, string> = {
+  400: 'LIGHTRAG_BAD_REQUEST',
+  401: 'LIGHTRAG_AUTH',
+  403: 'LIGHTRAG_AUTH',
+  404: 'LIGHTRAG_NOT_FOUND',
+  429: 'LIGHTRAG_RATE_LIMITED',
+  500: 'LIGHTRAG_SERVER',
+  502: 'LIGHTRAG_SERVER',
+  503: 'LIGHTRAG_SERVER',
+  504: 'LIGHTRAG_SERVER',
+};
+
+/**
+ * Mapea errores de HTTP/transporte a NinjaError tipado (dominio `vault` = capa COLD).
+ * - HTTP status → código LIGHTRAG_* según el status
+ * - AbortError (timeout) → LIGHTRAG_TIMEOUT
+ * - Error de red → LIGHTRAG_NETWORK_ERROR
+ * Nunca lanza errores crudos: todo lo que sale del cliente es NinjaError.
+ */
+function toLightRAGError(operation: string, error: unknown, timeoutMs: number): NinjaError {
+  if (error instanceof NinjaError) return error;
+
+  if (error instanceof Error && error.name === 'AbortError') {
+    return new NinjaError(
+      'LIGHTRAG_TIMEOUT',
+      `LightRAG ${operation} timed out after ${timeoutMs}ms`,
+      'vault',
+      {
+        retryable: true,
+        context: { operation, timeoutMs },
+      }
+    );
+  }
+
+  const message = error instanceof Error ? error.message : String(error);
+  const statusMatch = message.match(/HTTP (\d{3})/);
+  const status = statusMatch ? parseInt(statusMatch[1], 10) : undefined;
+  const code = (status !== undefined && HTTP_STATUS_CODES[status]) || 'LIGHTRAG_NETWORK_ERROR';
+
+  return new NinjaError(code, `LightRAG ${operation} failed: ${message}`, 'vault', {
+    retryable: code === 'LIGHTRAG_RATE_LIMITED' || code === 'LIGHTRAG_SERVER',
+    context: { operation, status },
+  });
+}
 
 export class LightRAGClient {
   private _baseUrl: string;
@@ -29,10 +71,12 @@ export class LightRAGClient {
       resetTimeoutMs: 30_000,
       successThreshold: 2,
       onStateChange: (from, to) => {
-        eventBus.emit(createEvent('lightrag.circuit.state_changed', 'integrations-lightrag', {
-          from,
-          to,
-        }));
+        eventBus.emit(
+          createEvent('lightrag.circuit.state_changed', 'integrations-lightrag', {
+            from,
+            to,
+          })
+        );
       },
     });
   }
@@ -83,7 +127,7 @@ export class LightRAGClient {
         this.logger.warn('LightRAG circuit breaker OPEN, skipping index');
         return;
       }
-      this._handleError('index', error);
+      throw this._handleError('index', error);
     }
   }
 
@@ -132,8 +176,7 @@ export class LightRAGClient {
         this.logger.warn('LightRAG circuit breaker OPEN, returning empty results');
         return [];
       }
-      this._handleError('query', error);
-      return [];
+      throw this._handleError('query', error);
     }
   }
 
@@ -224,18 +267,14 @@ export class LightRAGClient {
 
   /**
    * Maneja errores de requests.
-   * Marca el servicio como no disponible y emite evento.
+   * Marca el servicio como no disponible, emite evento y devuelve
+   * un NinjaError tipado listo para ser lanzado por el caller.
    */
-  private _handleError(operation: string, error: unknown): void {
+  private _handleError(operation: string, error: unknown): NinjaError {
     this._isAvailable = false;
 
-    let errorMessage = 'Unknown error';
-    if (error instanceof Error) {
-      errorMessage = error.message;
-      if (error.name === 'AbortError') {
-        errorMessage = `Timeout after ${this._timeoutMs}ms`;
-      }
-    }
+    const typed = toLightRAGError(operation, error, this._timeoutMs);
+    const errorMessage = typed.message;
 
     this.logger.warn(`LightRAG ${operation} failed`, { error: errorMessage });
 
@@ -245,6 +284,8 @@ export class LightRAGClient {
         error: errorMessage,
       })
     );
+
+    return typed;
   }
 }
 
