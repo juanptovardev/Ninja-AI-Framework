@@ -262,8 +262,9 @@ Rules:
 | File length | ≤ 400 lines | review checklist |
 | Route handlers inline in composition root | 0 (extract to `routes/`) | tracked debt F3.4 |
 
-Known standing exception: `apps/kage-runtime/src/server.ts` (879 lines) — scheduled for decomposition
-in F3.4; MUST NOT grow. New routes go to `apps/kage-runtime/src/routes/*.ts` from now on.
+Known standing exception: `apps/kage-runtime/src/server.ts` (**1022** non-blank lines, 38 `as any` as of
+HEAD `01e7ece` — not 879). Scheduled for decomposition in F3.4/T6.3–T6.4; MUST NOT grow. New routes go
+to `apps/kage-runtime/src/routes/*.ts` from now on. Count with `(Get-Content server.ts | Measure-Object -Line).Lines`.
 
 ### 4.5 Events and contracts
 
@@ -676,9 +677,10 @@ Recorded in the WP dossier AND the standing registry below.
 
 | # | Exception | Compensating control | Expiry |
 |---|-----------|---------------------|--------|
-| EXC-1 | `server.ts` exceeds file budget (879 lines) | routing decomposed progressively; new routes forbidden inline (§4.4) | F3.4 |
+| EXC-1 | `server.ts` exceeds file budget (**1022** non-blank lines, 38 `as any`) | routing decomposed in T6.3–T6.4; new routes forbidden inline (§4.4) | F3.4 / T6.4 |
 | SEC-1/SEC-2 | see §6.7 | see §6.7 | v1.5 |
-| EXC-2 | 1 quarantined test (`runtime-lifecycle` shutdown skip) | tracked, expiry F1.6 | F1.6 |
+| EXC-2 | ~~1 quarantined test (`runtime-lifecycle` shutdown skip)~~ | **CLOSED** — F1.6, 0 skips in repo | F1.6 ✅ |
+| EXC-3 | office-grid line coverage 33.82% (`use-office-state.ts` 0/137 stmts; React hook + WS + fetch) | `grid-logic.ts` 100% as pure mirror of the hook reducer; honest gap in `wp-d3-ui.md`. T6.2 MUST `coverage.exclude` this hook (comment `EXC-3`). **Forbidden:** jsdom / Testing Library / lowering the global 50% threshold to hide the gap. | Future WP with Manual §9.2 jsdom justification — not D4 |
 
 ### 15.3 Expiry
 

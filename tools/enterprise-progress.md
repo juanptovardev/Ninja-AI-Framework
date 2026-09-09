@@ -1,6 +1,6 @@
 # Plan Maestro Enterprise — Ninja AI Framework
-> **Rama activa**: `main` (144 commits) · **Última actualización**: 2026-09-09 (auditoría E-5)
-> **Operativo:** `PLAN_EJECUCION.md` v2.1 → FASE 3 AUTORIZADA · Prompts: `docs/engineering/EXECUTION_BATCHES.md`
+> **Rama activa**: `main` (145 commits) · **Última actualización**: 2026-09-09 (deuda de proceso pre-E-6)
+> **Operativo:** `PLAN_EJECUCION.md` v2.3 · Prompts: `docs/engineering/EXECUTION_BATCHES.md` v1.2 · siguiente: T6.1
 
 ---
 
@@ -166,7 +166,7 @@ EPIC A — Estabilización base
 
 - [ ] **WP-D1** — Implementar `@ninja/common-utils` (reemplaza placeholder) *(implementado de facto vía WP-C2: circuit-breaker + timeouts + tests en common-utils; dossier propio pendiente → F3.4)*
 - [ ] **WP-D2** — Quality gates CI (quitar `--passWithNoTests`, thresholds) *(passWithNoTests ya eliminado en F1; thresholds → F3.5)*
-- [x] **WP-D3** — Suites de test: **0 paquetes sin tests** (eran 9) · flow-matrix 96.12% · workbench 90% · resto ≥50% (mínimo forge-lab 57.83%; office-grid 33.82% con gap documentado) · app-shell KEEP · dossiers `wp-d3-*.md` + `cierre-etapa-5.md` (CERRADA-CON-RESERVAS)
+- [x] **WP-D3** — Suites de test: **0 paquetes sin tests** (eran 9) · flow-matrix 96.12% · workbench 90% · resto ≥50% (mínimo forge-lab 57.83%) · office-grid 33.82% = **EXC-3** (T6.2 excluye el hook; no jsdom) · app-shell KEEP · dossiers `wp-d3-*.md` + `cierre-etapa-5.md` (CERRADA-CON-RESERVAS)
 - [ ] **WP-D4** — Eliminar `any` + Error Boundaries + dead code + settings dedup *(siguiente: F3.6–F3.8)*
 - [ ] **WP-D5** — Flow Matrix: paralelismo + deadlock + retry + estado persistente *(siguiente: F3.9)*
 
@@ -258,7 +258,7 @@ EPIC G  ░░░░░░░░░░   0%
 | EPIC A (S0–S5) | 44–50h | ✅ CERRADO |
 | EPIC B (correctitud + seguridad P0) | 38–48h | ✅ CERRADO (B1-B15) |
 | EPIC C (resiliencia) | 18–22h | ✅ CERRADO (4 d reales, 2026-09-03→09-07) |
-| EPIC D (calidad + testing) | 30–36h | ⏭ AUTORIZADA (F3: D3→D1→D2→D4→D5 en ese orden) |
+| EPIC D (calidad + testing) | 30–36h | 🟡 D3 ✅ (E-5); siguiente D1=T6.1 (D3→D1→D2→D4→D5) |
 | EPIC E (frontend) | 28–34h | ⏳ |
 | EPIC F (devops) | 20–26h | ⏳ (CI adelantada revertida 2026-08-24) |
 | EPIC G (extensibilidad) | 24–30h | ⏳ |
@@ -276,7 +276,7 @@ EPIC G  ░░░░░░░░░░   0%
 | R3 | Shell allowlist bloquea legítimos | `SHELL_ALLOWLIST_EXTRA` | ✅ Mitigado (allowlist viva desde B12 + hardening follow-ups) |
 | R4 | Eliminar 85 `any` rompe rutas | commit por archivo | ⏳ |
 | R5 | WP-B6 cambia semántica de fallos | **✅ `NINJA_LLM_FAIL_MODE` flag (B3) + `strict` default (B6 cierre formal)** | ✅ Mitigado |
-| R6 | Coverage thresholds rompen CI | D3 antes de D2/F1 | ⏳ |
+| R6 | Coverage thresholds rompen CI | D3 antes de D2; **EXC-3:** T6.2 excluye `use-office-state.ts` (office-grid 33.82%, no jsdom) | ⏳ T6.2 |
 | A1 | Warning `MODULE_TYPELESS_PACKAGE_JSON` | **✅ migrado a .mjs** | ✅ |
 | A2 | CI script requería Node 24 | **✅ migrado a .mjs** | ✅ |
 

@@ -1,8 +1,9 @@
 # EXECUTION BATCHES — Ejecución por Etapas con Terminales Independientes
-> **Versión:** 1.1 · **Fecha:** 2026-08-24 · **Modelo objetivo:** GLM 5.2 (gratuito) u otro modelo de contexto corto
-> **Fuente estratégica:** `PLAN_EJECUCION.md` v2 · **Estándares:** `docs/engineering/QUALITY_MANUAL.md`
+> **Versión:** 1.2 · **Fecha:** 2026-09-09 · **Modelo objetivo:** modelo de contexto corto (Free-only kiosapi; smoke el canal antes de lanzar)
+> **Fuente estratégica:** `PLAN_EJECUCION.md` v2.3 · **Estándares:** `docs/engineering/QUALITY_MANUAL.md`
 > **Uso:** por cada ETAPA pega primero el prompt de ARRANQUE (A-n), luego las TAREAS (T-n.m) y al terminar
 > el PROMPT DE CIERRE (C). Solo después pide auditoría al cerebro ("audita etapa N"). No avances sin veredicto ✅.
+> **Errata E-6 (medir, no copiar):** `server.ts` baseline = **1022** líneas no vacías / **38** `as any` (no 879/37). `as any` global = **114**. Throws prod packages = **35**. Tests baseline = **1174**. office-grid 33.82% = EXC-3.
 
 ---
 
@@ -262,8 +263,9 @@ Confirma "listo" e indica tu paquete.
 Eres el OBRERO de la ETAPA 6 (CALIDAD CENTRAL) del Ninja AI Framework.
 Repo: C:\Users\juanp_8h8f07l\Documents\ninja-ai-framework · Rama: main · Etapa 5 ✅ · SECUENCIAL PURA.
 
-MISIÓN: llevar la deuda estructural a cero — 117 as any → 0, 45 throws crudos → 0, server.ts 879 líneas
-→ <400 como composition root limpio, thresholds de cobertura activos, Error Boundaries, settings unificados
+MISIÓN: llevar la deuda estructural a cero — 114 as any global → 0, 35 throws crudos prod → 0,
+server.ts 1022 líneas no vacías (NO 879) → <400 como composition root limpio, thresholds de cobertura
+activos (EXC-3: excluir use-office-state.ts; NO instalar jsdom), Error Boundaries, settings unificados
 y Flow Matrix con paralelismo real.
 
 CONTEXTO: es la etapa con más riesgo de regresión (refactors grandes). Por eso va SECUENCIAL y con
@@ -1034,6 +1036,12 @@ DOSSIER: wp-d1-common-utils.md.
 
 ### PROMPT T6.2 — thresholds cobertura 🟢
 
+> **ERRATA launcher (no está en el cuerpo congelado histórico):** office-grid está a **33.82%** por
+> `use-office-state.ts` (0/137, necesita jsdom = EXC-3). Al poner `lines: 50` global el gate **falla**
+> si no excluyes ese hook (y, si el número lo exige, hooks DOM de ui-kit) en `coverage.exclude` con
+> comentario `EXC-3`. PROHIBIDO instalar jsdom o bajar el umbral global. forge-lab 57.83% pasa el 50
+> por poco — no lo toques.
+
 ```
 vitest.config.ts: coverage.thresholds = { lines: 50, functions: 45, statements: 50 }
 + per-package overrides 70 lines para: contracts, kage-engine, agent-runtime, sentinel, model-gateway,
@@ -1043,6 +1051,10 @@ DOSSIER: wp-d2-thresholds.md.
 ```
 
 ### PROMPT T6.3 — server.ts rutas PARTE 1 🔴
+
+> **ERRATA launcher:** baseline medido `(Get-Content server.ts | Measure-Object -Line).Lines` = **1022**,
+> `as any` en el archivo = **38**. El cuerpo congelado no cambia: aceptación = reducir ~40%, suite
+> **idéntica**, e2e smoke health. Prefijo de commit = `refactor(`, no `test(`.
 
 ```
 Lee apps/kage-runtime/src/server.ts COMPLETO + Manual §4.4 (budgets) y §4.2 (apps=L4).
@@ -1057,6 +1069,9 @@ DOSSIER: wp-d4-routes-1.md con conteo antes/después.
 ```
 
 ### PROMPT T6.4 — server.ts PARTE 2 + as any=0 🔴
+
+> **ERRATA launcher:** meta sigue `server.ts <400` y `as any` global → 0. Partes de 1022 líneas, no 879.
+> Si un test cambia de resultado: REVERTIR la extracción, no parchear el test.
 
 ```
 Continuación: extrae la segunda mitad (pulse, learning, shell/git/fs, forgelab, session, settings,
@@ -1267,7 +1282,7 @@ pnpm install && pnpm test   # baseline verde: 1174/1174 antes de empezar
 | Orden | Prompt | Trabajo | Rama sugerida | Dificultad | Nota operativa |
 |-------|--------|---------|---------------|------------|----------------|
 | 1 | **T6.1** | common-utils real (retryWithBackoff, Result, debounce/throttle, deepFreeze, safeJsonParse + tests ≥80%) | `feat/wp-d1-common-utils` | 🟡 | Solo `packages/common-utils/**`. Mergea a main antes de seguir |
-| 2 | **T6.2** | Thresholds cobertura (global 50, críticos 70) | `feat/wp-d2-thresholds` | 🟢 | Edita `vitest.config.ts`; verifica que rompe a propósito en scratch |
+| 2 | **T6.2** | Thresholds cobertura (global 50, críticos 70) | `feat/wp-d2-thresholds` | 🟢 | Edita `vitest.config.ts`; **EXC-3:** excluir `use-office-state.ts` (office-grid 33.82%). Verifica que rompe a propósito en scratch |
 | 3 | **T6.3** | server.ts rutas PARTE 1 (engine/approvals/arsenal → `routes/`) | `feat/wp-d4-routes-1` | 🔴 | **Regla de oro:** suite idéntica antes/después de cada extracción. Si un test cambia, el refactor está mal |
 | 4 | **T6.4** | server.ts PARTE 2 + `as any` = 0 + throws = 0 | `feat/wp-d4-routes-2` | 🔴 | Tipado real con generics+Zod (prohibidos casts cosméticos). `errors:docs` si añades códigos |
 | 5 | **T6.5** | Error Boundaries + settings dedup | `feat/wp-d4-frontend` | 🟡 | Unifica settings; 0 crashes sin boundary |
@@ -1289,4 +1304,9 @@ Tras cada prompt: merge a `main` con `--no-ff` + verificación (`pnpm vitest run
 - Dead code encontrado en el camino: se LISTA en el dossier, no se borra (scope creep) — salvo que bloquee thresholds.
 - Cualquier tarea que falle su aceptación 2 veces: DETENER, reportar, no improvisar.
 
-*Fin de EXECUTION_BATCHES v1.1. Cambios a prompts congelados = versión + entrada en control de cambios del PLAN_EJECUCION.*
+*Fin de EXECUTION_BATCHES v1.2. Cuerpos T-n.m congelados no se reescriben; errata va en A-n / §6 / notas sobre el prompt. Cambios = versión + entrada en PLAN_EJECUCION §12.*
+
+| Versión | Fecha | Cambio |
+|---------|-------|--------|
+| 1.1 | 2026-08-24 | Prompts congelados iniciales (GLM 5.2). |
+| 1.2 | 2026-09-09 | Header + A-6 alineados a HEAD: server.ts 1022/38, as any global 114, throws 35, tests 1174. Errata T6.2 EXC-3 (office-grid). Errata T6.3/T6.4 baseline. §6 nota T6.2. Cuerpos T6.x intactos. |

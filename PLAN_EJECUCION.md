@@ -1,6 +1,6 @@
 # Plan de Ejecución v2 — Ninja AI Framework
-> **Versión:** 2.0 · **Fecha:** 2026-08-24 · **Sustituye:** v1 (2026-08-24, misma fecha — la v1 fue la base de auditoría)
-> **Contexto:** producto comercial privado, desarrollo cerrado, local-first Windows. Repo remoto GitHub a privatizar antes de cualquier push.
+> **Versión:** 2.3 · **Fecha:** 2026-09-09 · **Sustituye:** v2.2 (cierre E-5) · v2.0 (2026-08-24, base de auditoría)
+> **Contexto:** producto comercial privado, desarrollo cerrado, local-first Windows. Repo remoto GitHub **privado** y sincronizado.
 > **Jerarquía documental:** Directiva (`docs/architecture/coherencia-estructural.md`) → Quality Manual (`docs/engineering/QUALITY_MANUAL.md`) → **este plan** → `AGENTS.md`.
 > **Registro de auditoría (estado verificado origen):** `docs/architecture/og/audit-2026-08-24.md` — los datos de línea base de este plan provienen de ahí. No re-verificar lo ya verificado; confiar en la auditoría y re-medir solo con los comandos de §10.
 
@@ -28,10 +28,10 @@
 
 | Aspecto | Estado |
 |---------|--------|
-| Branch | `main` — 144 commits totales (E-5: +6 feature +6 merge +2 micro-fix +1 cierre) |
+| Branch | `main` — 145 commits totales (E-5: +6 feature +6 merge +2 micro-fix +1 cierre +1 sync docs) |
 | Working tree | 0 archivos sucios |
 | EPICs | A ✅ · B ✅ · **C ✅ 100%** · **D 🟡 parcial (D3 suites ✅ — ver §6)** · E ⏳ · F 🟡 (gates locales) |
-| Remoto GitHub | **PRIVADO** · sincronizado tras F2 (E-5 pendiente de push — ver §1 nota) |
+| Remoto GitHub | **PRIVADO** · `origin/main` sincronizado (ahead/behind 0\|0). F2 y E-5 ya pusheados. |
 | CI | Local: husky pre-commit (G1) + pre-push (G2) — G1 bloqueó correctamente 1 commit en E-5 (violación capas en test) |
 | Tests | **1174 passing | 0 skips | 0 fallos** (96 archivos; +353 en E-5) |
 | Paquetes sin tests | **0/32** (eran 9 tras F2 — todos cubiertos en E-5) |
@@ -78,13 +78,13 @@
 | F0.11 | **Push tras confirmación de privacidad** | `git push origin main --tags` + `git push origin fix/epic-b-foundations` | `git ls-remote origin` muestra main en el SHA del merge · `git status` → `up to date` | 0.1 d |
 | F0.12 | **Post-push**: actualizar descripción del repo (dice "v3.2" — incoherente → "Ninja AI Framework — private"), desactivar wiki | (GitHub web) | Descripción actualizada | — |
 
-**Criterios de salida (phase gate F0):**
-- [ ] `git status --porcelain | wc -l` → 0
-- [ ] `main` contiene los 92 commits + F0.x; tag `v0.9.0-audit` existe
-- [ ] Bundle de backup en unidad secundaria
-- [ ] KPIs re-medidos (§10) registrados en dossier F0 (`tools/verifications/f0.md`)
-- [x] Remote privado y sincronizado (F0.11: repo verificado privado)
-- [x] Riesgos R1, R2, R3 (§9) → status mitigado (R3 cerrado por F0.6 CORS/approver fix, R1 cerrado por F0.9 bundle + F2.1 push)
+**Criterios de salida (phase gate F0):** *(cerrados en auditoría F0; checkboxes sincronizados 2026-09-09 — eran deuda de proceso, no trabajo pendiente)*
+- [x] `git status --porcelain` → 0
+- [x] `main` contiene F0.x; tag `v0.9.0-audit` existe (commits actuales: `git rev-list --count HEAD`)
+- [x] Bundle de backup en unidad secundaria (`../ninja-backup-f2-complete.bundle` verificado)
+- [x] KPIs re-medidos (§10) registrados en dossier F0 (`tools/verifications/f0.md`)
+- [x] Remote privado y sincronizado (F0.11: repo verificado privado; F2+E-5 en origin)
+- [x] Riesgos R1, R2, R3 (§9) → status mitigado (R3 cerrado por F0.6 CORS/approver fix, R1 cerrado por F0.9 bundle + push a origin)
 
 ---
 
@@ -133,18 +133,18 @@
 
 ## 6. FASE 3 — EPIC D (Calidad) — orden estricto R6: D3→D1→D2→D4→D5 **[EN CURSO — D3 COMPLETADO 2026-09-09]**
 > **Objetivo:** la deuda estructural medida (117 `as any`, 45 throws crudos, 11 paquetes sin tests) a cero, con thresholds sostenibles.
-> **Estado D3:** ✅ ETAPA 5 cerrada (veredicto rematador: CERRADA-CON-RESERVAS, dossier `cierre-etapa-5.md`). 6 ramas mergeadas. Coberturas: flow-matrix 96.12%, workbench 90% (≥70 ✅); resto ≥50% (mínimo forge-lab 57.83%). office-grid 33.82% con gap honesto documentado (hook necesita jsdom — decisión futura). app-shell: KEEP documentado. Siguiente: F3.4 (D1 common-utils).
+> **Estado D3:** ✅ ETAPA 5 cerrada (veredicto rematador: CERRADA-CON-RESERVAS, dossier `cierre-etapa-5.md`). 6 ramas mergeadas. Coberturas: flow-matrix 96.12%, workbench 90% (≥70 ✅); resto ≥50% (mínimo forge-lab 57.83%). office-grid 33.82% = **EXC-3** (hook `use-office-state.ts` necesita jsdom; T6.2 debe excluirlo del threshold global, no instalar jsdom). app-shell: **KEEP** (F3.3 cerrado). Siguiente: F3.4 (D1 common-utils = T6.1).
 > **Entrada:** F2 completo.
 > **Estimación:** P50 10 d · P80 15 d
 
 | ID | Tarea | Detalle | Criterio de aceptación | Est. |
 |----|-------|---------|------------------------|------|
-| F3.1 | **D3a** — suites flow-matrix y workbench (críticos sin tests) | flow-matrix: sequential+parallel executor, retry, estados. workbench: workspace lifecycle, migraciones | 2 paquetes con ≥70% líneas · `pnpm vitest run packages/flow-matrix packages/workbench` verde | 2 d |
-| F3.2 | **D3b** — suites logging, learning-loop, forge-lab, integrations-engram/git/lightrag | cobertura de adaptadores con mocks HTTP/SQLite | 6 paquetes más con ≥50% líneas | 2.5 d |
-| F3.3 | **D3c** — suites ui-kit, office-grid; decidir destino de app-shell (5 líneas: disolver en ui-kit o eliminar del layout) | componentes render smoke tests | 0 paquetes sin tests: `for d in packages/*/; do [ -z "$(git ls-files "${d}src/**/*.test.ts")" ] && echo "$d"; done` → vacío | 1.5 d |
+| F3.1 | **D3a** ✅ — suites flow-matrix y workbench | 34+30 tests · 96.12% / 90% lines · `0cca70c` / `f4dd7ff` | 2 paquetes con ≥70% líneas · verde | 2 d |
+| F3.2 | **D3b** ✅ — suites logging, learning-loop, forge-lab, integrations-engram/git/lightrag | 61+37+101 tests · mínimo forge-lab 57.83% | 6 paquetes más con ≥50% líneas | 2.5 d |
+| F3.3 | **D3c** ✅ — suites ui-kit, office-grid; app-shell **KEEP** | 99 tests · office-grid 33.82% = EXC-3 · `9e9c115` | 0 paquetes sin tests (32/32; glob git `**` no sirve en PowerShell — derivar de `git ls-files`) | 1.5 d |
 | F3.4 | **D1** — common-utils real | Ya tiene circuit-breaker+timeouts. Añadir: `retryWithBackoff` (reusa lógica integrations-http), `Result<T,E>` type, `debounce`/`throttle`, `deepFreeze`, `safeJsonParse`. Con tests | Cobertura common-utils ≥80% · exportado todo por index.ts | 1 d |
 | F3.5 | **D2** — thresholds de cobertura | `vitest.config.ts`: global `lines: 50`, overrides por paquetes críticos `lines: 70` (después de D3 — por eso este orden) | `pnpm test` falla si baja del umbral (verificar con un test roto intencional en rama scratch) | 0.5 d |
-| F3.6 | **D4a** — modularizar server.ts | Extraer las 43 rutas a `apps/kage-runtime/src/routes/*.ts` (por dominio: engine, approvals, arsenal, git, fs, session, settings, health...). `server.ts` queda como composition root <400 líneas. Eliminar los 37 `as any` en el proceso (params tipados con Fastify generics + Zod) | `git grep -c "as any" -- apps/kage-runtime/src/server.ts` → 0 · `(Get-Content server.ts \| Measure-Object -Line).Lines` <400 · `pnpm build && pnpm test` verde | 2.5 d |
+| F3.6 | **D4a** — modularizar server.ts | Extraer rutas inline a `apps/kage-runtime/src/routes/*.ts` (por dominio: engine, approvals, arsenal, git, fs, session, settings, health...). **Baseline HEAD 01e7ece:** `(Get-Content server.ts \| Measure-Object -Line).Lines` = **1022** (no 879) · `as any` en el archivo = **38** (no 37). `server.ts` queda como composition root <400 líneas. Eliminar esos 38 `as any` (params tipados con Fastify generics + Zod). Suite idéntica antes/después de cada extracción. | `git grep -c "as any" -- apps/kage-runtime/src/server.ts` → 0 · líneas no vacías <400 · `pnpm build && pnpm test` verde (mismo recuento de tests) | 2.5 d |
 | F3.7 | **D4b** — eliminar resto de `as any` y throws crudos | executor.ts (12), mcp-runtime-server (3), client-adapters/generic (5), resto según baseline del dossier F1 (lista DEBT) · migrar throws crudos restantes a NinjaError con códigos | `git grep -o "as any" -- "*.ts" \| wc -l` → 0 · `git grep -o "throw new Error(" -- "packages/**/*.ts" \| wc -l` → 0 · `pnpm errors:check` verde tras nuevos códigos | 2 d |
 | F3.8 | **D4c** — Error Boundaries + settings dedup | forge-console: ErrorBoundary por vista con fallback UI + reporte al log. Settings duplicados (~80%, EV-23) unificados | 0 crashes sin boundary · 1 sola fuente de settings | 1 d |
 | F3.9 | **D5** — Flow Matrix paralelismo real | Ejecución paralela con Promise.allSettled + límite de concurrencia, detección deadlock por timeout, estado persistente entre reinicios, eliminar 7 console.warn (EV-25) | Test: 3 ramas paralelas se ejecutan concurrentes (timing) · deadlock → error tipado, no hang | 1.5 d |
@@ -224,7 +224,7 @@
 
 | ID | Riesgo | P | I | Score | Trigger (señal) | Detección | Mitigación | Estado |
 |----|--------|---|---|-------|-----------------|-----------|------------|--------|
-| R1 | Pérdida de trabajo local (92 commits + WT sin respaldo) | 2 | 5 | **10** | fallo disco / borrado accidental | `git ls-remote origin` desactualizado | F0.1–F0.3 commits + F0.9 bundle ANTES de todo lo demás | ✅ **MITIGADO** (bundle F2 verificado + origin privado; **PENDIENTE: push 13 commits F2**) |
+| R1 | Pérdida de trabajo local (commits + WT sin respaldo) | 2 | 5 | **10** | fallo disco / borrado accidental | `git ls-remote origin` desactualizado | F0.1–F0.3 commits + F0.9 bundle ANTES de todo lo demás | ✅ **MITIGADO** (bundle F2 verificado + origin privado = HEAD; F2 y E-5 ya en origin, 0\|0) |
 | R2 | Repo GitHub público con snapshot comercial | 5 | 4 | **20** | ya ocurrió (verificado) | `curl api.github.com/repos/...` | F0.10 privatización inmediata | ✅ **CERRADO** (F0.11: repo privado verificado) |
 | R3 | Defectos P0 en superficie de seguridad (CORS/approver) | 4 | 4 | **16** | bug #1/#2 auditoría | tests F0.5/F0.6 | Fixes con red→green + revisión adversarial §6.3 | ✅ **CERRADO** (F0.5/F0.6 commitados y en main) |
 | R4 | Hooks husky rompen flujo de desarrollo (falsos positivos) | 3 | 2 | 6 | quejas en uso diario | — | tuning en F1, excepciones §15 con expiry | ✅ **MITIGADO en la práctica** (4 bloqueos G1 correctos en F2, sin falsos positivos) |
@@ -294,5 +294,6 @@ El tag `v1.0.0` (F5.6) exige cumplir TODOS:
 | 2.0 | 2026-08-24 | Reescritura profesional: fases con gates, IDs, P50/P80, trazabilidad, riesgos cuantificados, KPIs ejecutables; base documental separada (Quality Manual + auditoría og/) | opencode (GLM-5.3) |
 | 2.1 | 2026-09-07 | **FASE 2 AUDITADA COMPLETA** (13 commits, 821 tests, EPIC C 100%). Veredicto orquestador con 3 observaciones no bloqueantes consignadas. §1/§5/§6/§8/§9/§10 sincronizados. **FASE 3 AUTORIZADA.** | orquestador |
 | 2.2 | 2026-09-09 | **ETAPA 5 CERRADA (D3 suites):** 6 ramas mergeadas (15 commits), 1174/1174 tests, 0 paquetes sin tests, veredicto rematador CERRADA-CON-RESERVAS. Outage kiosapi documentado (3/6 vía terminales, 3/6 vía orquestador+subagentes). §1/§6/§8/§10 sincronizados. Siguiente: F3.4 (D1). | orquestador |
+| 2.3 | 2026-09-09 | **Deuda de proceso cerrada pre-ETAPA 6:** §1 remoto ya sincronizado (no “E-5 pendiente de push”); phase gate F0 checkboxes `[x]`; R1 sin pendiente de push; F3.1–F3.3 marcados ✅; F3.6 baseline server.ts **1022 líneas / 38 as any** (no 879/37); office-grid = EXC-3; app-shell KEEP. Alineado con Manual §15 y EXECUTION_BATCHES v1.2. | orquestador |
 
 *Regla: cada cambio a este plan es un commit `docs(plan): ...` con entrada en esta tabla. Las fases completadas se marcan ✅ con fecha y no se reabren — nueva fase o ADR si hay que deshacer.*
