@@ -99,7 +99,7 @@ describe('connection maps', () => {
     expect(CONNECTION_LABELS.reconnecting).toBe('Reconnecting...');
     expect(CONNECTION_LABELS.disconnected).toBe('Disconnected');
   });
-  it('predicates', () => {
+  it('connection predicates match their own state and reject the other', () => {
     expect(isReconnecting('reconnecting')).toBe(true);
     expect(isReconnecting('connected')).toBe(false);
     expect(isDisconnected('disconnected')).toBe(true);
@@ -125,7 +125,7 @@ describe('time formatters', () => {
     expect(formatEventDate(undefined)).toBe('N/A');
     expect(formatEventDate(new Date('2026-01-05T10:00:00'))).toContain('Jan');
   });
-  it('isAwaitingApproval', () => {
+  it('isAwaitingApproval is true only for the awaiting_approval status', () => {
     expect(isAwaitingApproval({ status: 'awaiting_approval' })).toBe(true);
     expect(isAwaitingApproval({ status: 'working' })).toBe(false);
   });

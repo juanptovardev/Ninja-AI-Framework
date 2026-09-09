@@ -17,14 +17,7 @@ import {
   tokenGradientClass,
   tokenUsagePercentage,
 } from './format';
-import {
-  ninjaColors,
-  ninjaRadius,
-  ninjaShadows,
-  ninjaTheme,
-  ninjaTransitions,
-  ninjaZIndex,
-} from '../styles/theme';
+import { ninjaColors, ninjaRadius, ninjaShadows, ninjaTheme, ninjaZIndex } from '../styles/theme';
 import { ninjaTailwindColors, ninjaTailwindPreset } from '../styles/tailwind.config';
 
 describe('formatCompactNumber', () => {
