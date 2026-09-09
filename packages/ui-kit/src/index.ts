@@ -21,5 +21,8 @@ export * from './components/widgets/context-depth';
 export * from './hooks/useWebSocket';
 export * from './hooks/useInterval';
 
+// ─── Pure logic (testable without DOM) ───────────────────────
+export * from './utils/format';
+
 // ─── Pro Components ──────────────────────────────────────
 export * from './components/pro/index';

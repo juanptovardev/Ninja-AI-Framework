@@ -1,4 +1,5 @@
 import React from 'react';
+import { formatCompactNumber, tokenGradientClass, tokenUsagePercentage } from '../../utils/format';
 
 export interface TokenMeterProps {
   current: number;
@@ -13,19 +14,11 @@ export const TokenMeter: React.FC<TokenMeterProps> = ({
   label = 'Token Usage',
   className = '',
 }) => {
-  const percentage = max > 0 ? Math.min((current / max) * 100, 100) : 0;
-  
-  const getGradient = () => {
-    if (percentage < 60) return 'from-emerald-400 to-emerald-500';
-    if (percentage < 85) return 'from-amber-400 to-amber-500';
-    return 'from-rose-400 to-rose-500';
-  };
+  const percentage = tokenUsagePercentage(current, max);
 
-  const formatNumber = (n: number) => {
-    if (n >= 1000000) return `${(n / 1000000).toFixed(1)}M`;
-    if (n >= 1000) return `${(n / 1000).toFixed(1)}K`;
-    return String(n);
-  };
+  const getGradient = () => tokenGradientClass(percentage);
+
+  const formatNumber = (n: number) => formatCompactNumber(n);
 
   return (
     <div className={`flex flex-col p-4 bg-white/[0.02] backdrop-blur-xl border border-white/[0.08] rounded-xl font-sans ${className}`}>

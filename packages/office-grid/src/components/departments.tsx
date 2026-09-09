@@ -2,20 +2,7 @@
 
 import React from 'react';
 import type { Department, DepartmentId } from '../types';
-
-// Department accent colors mapping
-const DEPARTMENT_COLORS: Record<DepartmentId, string> = {
-  Planning: '#818cf8', // indigo
-  'Library & Knowledge': '#f59e0b', // amber
-  Data: '#22d3ee', // cyan
-  Backend: '#3b82f6', // blue
-  Integration: '#a78bfa', // purple
-  Design: '#ec4899', // pink
-  Test: '#10b981', // emerald
-  Quality: '#14b8a6', // teal
-  Security: '#ef4444', // red
-  'Recovery / Fix': '#f97316', // orange
-} as const;
+import { departmentAccent, isGuardianDesk } from '../grid-logic';
 
 // Department zone component
 export interface DepartmentZoneProps {
@@ -35,7 +22,7 @@ export const DepartmentZone: React.FC<DepartmentZoneProps> = ({
   children,
   className = '',
 }) => {
-  const accentColor = DEPARTMENT_COLORS[id] || '#64748b';
+  const accentColor = departmentAccent(id);
 
   return (
     <div
@@ -46,7 +33,7 @@ export const DepartmentZone: React.FC<DepartmentZoneProps> = ({
     >
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-sm font-semibold text-[#f1f5f9]">{name}</h3>
-        {id === 'Security' && (
+        {isGuardianDesk(id) && (
           <div className="text-lg" title="Guardian Control Desk">
             🛡️
           </div>

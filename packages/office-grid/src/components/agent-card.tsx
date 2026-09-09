@@ -5,6 +5,7 @@ import { Card } from '@ninja/ui-kit';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { AgentNode } from '../types';
 import { ActivityBadge, ActivityPulse, AgentAvatar } from './state-indicators';
+import { formatCardSessionTime, isAwaitingApproval } from '../grid-logic';
 
 interface AgentCardProps {
   agent: AgentNode;
@@ -15,14 +16,10 @@ interface AgentCardProps {
 const springConfig: any = { type: 'spring', bounce: 0, duration: 0.4 };
 
 const AgentCard: React.FC<AgentCardProps> = ({ agent, onClick, isSelected = false }) => {
-  // Format session time
-  const formatSessionTime = (seconds: number): string => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  };
+  // Format session time (single source: grid-logic.ts)
+  const formatSessionTime = formatCardSessionTime;
 
-  const isAwaiting = agent.status === 'awaiting_approval';
+  const isAwaiting = isAwaitingApproval(agent);
 
   return (
     <motion.div

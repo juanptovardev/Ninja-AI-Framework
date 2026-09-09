@@ -1,6 +1,7 @@
 import React from 'react';
 import { Spinner } from '../base/Spinner';
 import { EmptyState } from './EmptyState';
+import { getProTableCellText, getProTableRowKey } from '../../utils/format';
 
 export interface Column<T> {
   key: keyof T | string;
@@ -40,14 +41,8 @@ export const ProTable = <T extends Record<string, unknown>>({
     return <EmptyState title={emptyText} description={emptyDescription} />;
   }
 
-  const getRowKey = (item: T, index: number): string | number => {
-    if (rowKey) return rowKey(item, index);
-    if (typeof columns[0]?.key === 'string') {
-      const val = (item as Record<string, unknown>)[columns[0].key as string];
-      if (val !== undefined) return String(val);
-    }
-    return index;
-  };
+  const getRowKey = (item: T, index: number): string | number =>
+    getProTableRowKey(columns, item, index, rowKey);
 
   return (
     <div className="overflow-hidden rounded-lg border border-[var(--ninja-border-subtle)] bg-[var(--ninja-bg-secondary)]">
@@ -82,9 +77,7 @@ export const ProTable = <T extends Record<string, unknown>>({
                   >
                     {col.render
                       ? col.render(item)
-                      : typeof col.key === 'string'
-                        ? String((item as Record<string, unknown>)[col.key] ?? '')
-                        : ''}
+                      : getProTableCellText(item, col.key)}
                   </td>
                 ))}
               </tr>
