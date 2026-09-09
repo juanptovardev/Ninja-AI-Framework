@@ -1,5 +1,6 @@
 import React from 'react';
 import { TrendUp, TrendDown, ArrowRight } from '@phosphor-icons/react';
+import { formatDelta, formatMetricValue } from '../../utils/format';
 
 // ─── Types ───────────────────────────────────────────────────
 
@@ -58,12 +59,7 @@ const getTrendIcon = (trend: 'up' | 'down' | 'flat') => {
   }
 };
 
-const formatValue = (value: string | number): string => {
-  if (typeof value === 'number') {
-    return value.toLocaleString();
-  }
-  return value;
-};
+const formatValue = (value: string | number): string => formatMetricValue(value);
 
 // ─── Component ───────────────────────────────────────────────
 
@@ -109,8 +105,7 @@ export const Metric: React.FC<MetricProps> = ({
               deltaTrendColorMap[delta.trend],
             ].join(' ')}
           >
-            {delta.value > 0 ? '+' : ''}
-            {delta.value.toFixed(1)}%
+            {formatDelta(delta.value)}
             {getTrendIcon(delta.trend)}
           </span>
         </div>

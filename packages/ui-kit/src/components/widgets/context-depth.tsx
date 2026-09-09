@@ -1,4 +1,10 @@
 import React from 'react';
+import {
+  contextBarColor,
+  contextRatio,
+  contextStatusColor,
+  contextStatusText,
+} from '../../utils/format';
 
 export interface ContextDepthProps {
   currentTokens: number;
@@ -13,30 +19,15 @@ export const ContextDepth: React.FC<ContextDepthProps> = ({
   label = 'Context Depth',
   className = '',
 }) => {
-  const ratio = maxTokens > 0 ? Math.min(currentTokens / maxTokens, 1) : 0;
+  const ratio = contextRatio(currentTokens, maxTokens);
   const percentage = ratio * 100;
-  
+
   // As context fills up, the color gets "hotter"
-  const getColor = () => {
-    if (percentage < 50) return 'from-blue-400 to-indigo-500';
-    if (percentage < 80) return 'from-indigo-400 to-purple-500';
-    if (percentage < 95) return 'from-purple-400 to-pink-500';
-    return 'from-pink-500 to-rose-500 animate-pulse';
-  };
+  const getColor = () => contextBarColor(percentage);
 
-  const getStatusText = () => {
-    if (percentage < 50) return 'Optimal';
-    if (percentage < 80) return 'Healthy';
-    if (percentage < 95) return 'Saturated';
-    return 'Critical';
-  };
+  const getStatusText = () => contextStatusText(percentage);
 
-  const getStatusColor = () => {
-    if (percentage < 50) return 'text-blue-400';
-    if (percentage < 80) return 'text-purple-400';
-    if (percentage < 95) return 'text-pink-400';
-    return 'text-rose-400';
-  };
+  const getStatusColor = () => contextStatusColor(percentage);
 
   return (
     <div className={`flex flex-col p-4 bg-white/[0.02] backdrop-blur-xl border border-white/[0.08] rounded-xl font-sans ${className}`}>

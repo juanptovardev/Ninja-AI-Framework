@@ -4,24 +4,23 @@ import React, { useState, useMemo } from 'react';
 import { Card, Button } from '@ninja/ui-kit';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import type { OfficeConfig, AgentNode, Department, DepartmentId } from '../types';
+import {
+  CONNECTION_COLORS,
+  CONNECTION_LABELS,
+  agentsInDepartment,
+  formatEventDate,
+  formatLastSync,
+  formatSessionClock,
+  isAwaitingApproval,
+  isDisconnected,
+  isReconnecting,
+} from '../grid-logic';
 import { DepartmentGrid } from './departments';
 import AgentCard from './agent-card';
 import { ActivityPulse } from './state-indicators';
 import { useOfficeState } from '../hooks/use-office-state';
 
-// Connection status colors
-const CONNECTION_COLORS = {
-  connected: '#10b981',
-  reconnecting: '#f59e0b',
-  disconnected: '#ef4444',
-} as const;
-
-// Connection status labels
-const CONNECTION_LABELS = {
-  connected: 'Connected',
-  reconnecting: 'Reconnecting...',
-  disconnected: 'Disconnected',
-} as const;
+// Connection maps live in grid-logic.ts (single source; re-exported for tests).
 
 interface OfficeCanvasProps {
   config?: Partial<OfficeConfig>;
@@ -33,18 +32,8 @@ const ConnectionBar: React.FC<{
   lastSync: Date | null;
   onReconnect: () => void;
 }> = ({ connectionState, lastSync, onReconnect }) => {
-  const formatLastSync = (date: Date | null): string => {
-    if (!date) return '--:--:--';
-    return date.toLocaleTimeString('en-US', {
-      hour12: false,
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-    });
-  };
-
-  const isReconnecting = connectionState === 'reconnecting';
-  const isDisconnected = connectionState === 'disconnected';
+  const isReconnectingFlag = isReconnecting(connectionState);
+  const isDisconnectedFlag = isDisconnected(connectionState);
   const color = CONNECTION_COLORS[connectionState];
 
   return (
@@ -52,7 +41,7 @@ const ConnectionBar: React.FC<{
       <div className="flex items-center gap-3">
         <div className="flex items-center gap-2">
           <span
-            className={`inline-flex h-2.5 w-2.5 rounded-full ${isReconnecting ? 'animate-pulse' : ''}`}
+            className={`inline-flex h-2.5 w-2.5 rounded-full ${isReconnectingFlag ? 'animate-pulse' : ''}`}
             style={{ backgroundColor: color }}
           />
           <span className="text-sm font-medium text-[#f1f5f9]">
@@ -63,7 +52,7 @@ const ConnectionBar: React.FC<{
       </div>
 
       <div className="flex items-center gap-3">
-        {isDisconnected && (
+        {isDisconnectedFlag && (
           <Button size="sm" variant="primary" onClick={onReconnect}>
             Retry
           </Button>
@@ -80,26 +69,8 @@ const AgentDetailPanel: React.FC<{
 }> = ({ agent, onClose }) => {
   if (!agent) return null;
 
-  const formatDate = (date: Date | undefined): string => {
-    if (!date) return 'N/A';
-    return date.toLocaleString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
-
-  const formatSessionTime = (seconds: number | undefined): string => {
-    if (!seconds) return '00:00';
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    const hours = Math.floor(mins / 60);
-    if (hours > 0) {
-      return `${hours}:${(mins % 60).toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-    }
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
+  const formatDate = formatEventDate;
+  const formatSessionTime = formatSessionClock;
 
   return (
     <div className="fixed inset-y-0 right-0 w-full md:w-80 bg-[#1e293b] border-l border-[#334155] shadow-2xl z-50 transform transition-transform duration-300 ease-out translate-x-0">
@@ -262,9 +233,7 @@ export const OfficeCanvas: React.FC<OfficeCanvasProps> = ({ config }) => {
 
   // Render agent cards for a department
   const renderDepartmentAgents = (department: Department): React.ReactNode => {
-    const departmentAgents = department.agents
-      .map((agentId) => state.agents[agentId])
-      .filter((agent): agent is AgentNode => agent !== undefined);
+    const departmentAgents = agentsInDepartment(department, state.agents);
 
     return (
       <Droppable droppableId={department.id}>

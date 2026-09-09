@@ -1,4 +1,5 @@
 import React from 'react';
+import { barWidthPct, defaultValueFormatter, maxBarValue } from '../../utils/format';
 
 // ─── Types ───────────────────────────────────────────────────
 
@@ -29,9 +30,7 @@ const barColorMap: Record<BarListColor, string> = {
 
 // ─── Helpers ─────────────────────────────────────────────────
 
-const defaultValueFormatter = (value: number): string => {
-  return value.toLocaleString();
-};
+// defaultValueFormatter re-exported from utils (single source of truth)
 
 // ─── Component ───────────────────────────────────────────────
 
@@ -54,13 +53,13 @@ export const BarList: React.FC<BarListProps> = ({
     );
   }
 
-  const maxValue = Math.max(...data.map((item) => item.value), 0);
+  const maxValue = maxBarValue(data.map((item) => item.value));
 
   return (
     <div className={containerClasses}>
       <div className="flex flex-col gap-4">
         {data.map((item, index) => {
-          const barWidth = maxValue > 0 ? (item.value / maxValue) * 100 : 0;
+          const barWidth = barWidthPct(item.value, maxValue);
 
           return (
             <div key={index} className="flex items-center group">

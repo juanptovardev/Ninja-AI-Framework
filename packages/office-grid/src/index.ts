@@ -6,3 +6,4 @@ export { ActivityBadge, ActivityPulse, AgentAvatar } from './components/state-in
 export { DepartmentZone, DepartmentGrid } from './components/departments';
 export { useOfficeState } from './hooks/use-office-state';
 export { officeEventSchema, agentNodeSchema } from './schema';
+export * from './grid-logic';
