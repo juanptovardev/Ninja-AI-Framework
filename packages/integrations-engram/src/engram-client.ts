@@ -41,8 +41,7 @@ class EngramRepository extends BaseRepository<MemoryEntry> {
         compressed INTEGER DEFAULT 0,
         tokenCount INTEGER NOT NULL,
         timestamp TEXT NOT NULL,
-        tags TEXT,
-        FOREIGN KEY (sessionId) REFERENCES sessions(id)
+        tags TEXT
       );
       CREATE INDEX IF NOT EXISTS idx_memories_session ON memories(sessionId);
       CREATE INDEX IF NOT EXISTS idx_memories_timestamp ON memories(timestamp);
@@ -239,7 +238,11 @@ export class EngramClient {
   /**
    * Registra una observación en la base de datos de Engram.
    */
-  async recordObservation(tag: string, content: string, sessionId: string = 'default-session'): Promise<void> {
+  async recordObservation(
+    tag: string,
+    content: string,
+    sessionId: string = 'default-session'
+  ): Promise<void> {
     await this.store({
       sessionId,
       agentId: 'kage-runtime',
