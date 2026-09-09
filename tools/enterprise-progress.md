@@ -1,5 +1,5 @@
 # Plan Maestro Enterprise — Ninja AI Framework
-> **Rama activa**: `main` (129 commits) · **Última actualización**: 2026-09-07 (auditoría F2)
+> **Rama activa**: `main` (144 commits) · **Última actualización**: 2026-09-09 (auditoría E-5)
 > **Operativo:** `PLAN_EJECUCION.md` v2.1 → FASE 3 AUTORIZADA · Prompts: `docs/engineering/EXECUTION_BATCHES.md`
 
 ---
@@ -162,13 +162,13 @@ EPIC A — Estabilización base
 
 ---
 
-### 🔵 EPIC D — Calidad de código & Testing (`~30-36h`)
+### 🟡 EPIC D — Calidad de código & Testing (`~30-36h`) — D3 COMPLETADO 2026-09-09
 
-- [ ] **WP-D1** — Implementar `@ninja/common-utils` (reemplaza placeholder) *(implementado de facto vía WP-C2: circuit-breaker + timeouts + tests en common-utils; dossier propio pendiente)*
-- [ ] **WP-D2** — Quality gates CI (quitar `--passWithNoTests`, thresholds)
-- [ ] **WP-D3** — Suites de test para 16 packages sin tests *(antes de D2)*
-- [ ] **WP-D4** — Eliminar `any` + Error Boundaries + dead code + settings dedup
-- [ ] **WP-D5** — Flow Matrix: paralelismo + deadlock + retry + estado persistente
+- [ ] **WP-D1** — Implementar `@ninja/common-utils` (reemplaza placeholder) *(implementado de facto vía WP-C2: circuit-breaker + timeouts + tests en common-utils; dossier propio pendiente → F3.4)*
+- [ ] **WP-D2** — Quality gates CI (quitar `--passWithNoTests`, thresholds) *(passWithNoTests ya eliminado en F1; thresholds → F3.5)*
+- [x] **WP-D3** — Suites de test: **0 paquetes sin tests** (eran 9) · flow-matrix 96.12% · workbench 90% · resto ≥50% (mínimo forge-lab 57.83%; office-grid 33.82% con gap documentado) · app-shell KEEP · dossiers `wp-d3-*.md` + `cierre-etapa-5.md` (CERRADA-CON-RESERVAS)
+- [ ] **WP-D4** — Eliminar `any` + Error Boundaries + dead code + settings dedup *(siguiente: F3.6–F3.8)*
+- [ ] **WP-D5** — Flow Matrix: paralelismo + deadlock + retry + estado persistente *(siguiente: F3.9)*
 
 ---
 
@@ -222,11 +222,11 @@ EPIC A — Estabilización base
 | Endpoints sin auth | todos | 0 (excepto `/health`) | ✅ 0 (B11; excepciones `/health` + `/api/status`) |
 | `any`/`as any` en runtime core | 85 | 0 | 🟡 114 globales (deuda F3.4, contados con `git grep`) |
 | `throw new Error(` total en packages | 74 | 0 | 🟡 35 prod (= sin delta tras F2; 11 son fixtures de tests) |
-| Packages sin tests | 16/32 | 0 | 🟡 9/32 (−2 en F2: pulse-center, sentinel; resto → F3) |
+| Packages sin tests | 16/32 | 0 | ✅ 0/32 (E-5: flow-matrix 96%, workbench 90%, resto ≥50%) |
 | Cobertura global | sin medir | ≥50% gating | ⏳ sin medir (→ F3.5) |
 | CI pipelines | 0 | 1 (matriz 2 OS × 2 Node) | 🟢 Gates locales G1+G2 (husky F1; matriz remota no aplica — desarrollo cerrado) |
-| Commits semánticos | 1 | ≥20 | ✅ 128 en `main` (F0-F2) |
-| Tests suite | 292 | verde y creciente | ✅ 821 passing + 0 skips (67 archivos) |
+| Commits semánticos | 1 | ≥20 | ✅ 144 en `main` (F0–F2 + E-5) |
+| Tests suite | 292 | verde y creciente | ✅ 1174 passing + 0 skips (96 archivos) |
 | LLM failures como fake success | sí | 0 | ✅ (strict mode + B6 closure) |
 | Stability Score fijo en 100 | sí | refleja latencia real | ✅ (B7 — 6 tests) |
 | `alert()/confirm()` en UI | 17 | 0 | ✅ 0 (reemplazados por toasts/modals en S3) |
@@ -243,7 +243,7 @@ EPIC A — Estabilización base
 EPIC A  ██████████ 100%  (S0–S5 ✅ — EPIC A CERRADO)
 EPIC B  ██████████ 100%  (B1-B15 ✅ — EPIC B CERRADO)
 EPIC C  ██████████ 100%  (C1–C4 ✅ — FASE 2 CERRADA 2026-09-07, dossier f2.md)
-EPIC D  ░░░░░░░░░░   0%  (⏭ SIGUIENTE — F3 AUTORIZADA: D3→D1→D2→D4→D5)
+EPIC D  ██████░░░░   40%  (D3 ✅ completo; D1/D2/D4/D5 → F3.4+)
 EPIC E  ░░░░░░░░░░   0%
 EPIC F  🟢 gates locales (F1: husky G1/G2 operativos)
 EPIC G  ░░░░░░░░░░   0%

@@ -28,12 +28,13 @@
 
 | Aspecto | Estado |
 |---------|--------|
-| Branch | `main` — 129 commits totales (128 en F2 + cabecera) |
+| Branch | `main` — 144 commits totales (E-5: +6 feature +6 merge +2 micro-fix +1 cierre) |
 | Working tree | 0 archivos sucios |
-| EPICs | A ✅ · B ✅ · **C ✅ 100% (CERRADO 2026-09-07)** · D ⏳ F3 (siguiente) · E ⏳ · F 🟡 (gates locales) |
-| Remoto GitHub | **PRIVADO** (verificado 2026-08-25) · **PENDIENTE PUSH: 13 commits F2** (`origin/main` en 470643e) |
-| CI | Local: husky pre-commit (G1) + pre-push (G2) — ambos verificados disparando en F2 (4 bloqueos G1 correctos) |
-| Tests | **821 passing | 0 skips** (67 archivos; +54 en F2) |
+| EPICs | A ✅ · B ✅ · **C ✅ 100%** · **D 🟡 parcial (D3 suites ✅ — ver §6)** · E ⏳ · F 🟡 (gates locales) |
+| Remoto GitHub | **PRIVADO** · sincronizado tras F2 (E-5 pendiente de push — ver §1 nota) |
+| CI | Local: husky pre-commit (G1) + pre-push (G2) — G1 bloqueó correctamente 1 commit en E-5 (violación capas en test) |
+| Tests | **1174 passing | 0 skips | 0 fallos** (96 archivos; +353 en E-5) |
+| Paquetes sin tests | **0/32** (eran 9 tras F2 — todos cubiertos en E-5) |
 | Bugs P0 | **RESUELTOS** (F0: CORS X-Ninja-Key · approver identity) |
 | Resiliencia | Health liveness/readiness + WS reconnect + shutdown ordenado + migraciones 7-8 up/down + rate limit + logs JSON (§7) |
 | Respaldo | `../ninja-backup-f2-complete.bundle` (1.1 MB, `git bundle verify` OK) |
@@ -130,8 +131,9 @@
 
 ---
 
-## 6. FASE 3 — EPIC D (Calidad) — orden estricto R6: D3→D1→D2→D4→D5 **[AUTORIZADA 2026-09-07]**
+## 6. FASE 3 — EPIC D (Calidad) — orden estricto R6: D3→D1→D2→D4→D5 **[EN CURSO — D3 COMPLETADO 2026-09-09]**
 > **Objetivo:** la deuda estructural medida (117 `as any`, 45 throws crudos, 11 paquetes sin tests) a cero, con thresholds sostenibles.
+> **Estado D3:** ✅ ETAPA 5 cerrada (veredicto rematador: CERRADA-CON-RESERVAS, dossier `cierre-etapa-5.md`). 6 ramas mergeadas. Coberturas: flow-matrix 96.12%, workbench 90% (≥70 ✅); resto ≥50% (mínimo forge-lab 57.83%). office-grid 33.82% con gap honesto documentado (hook necesita jsdom — decisión futura). app-shell: KEEP documentado. Siguiente: F3.4 (D1 common-utils).
 > **Entrada:** F2 completo.
 > **Estimación:** P50 10 d · P80 15 d
 
@@ -204,7 +206,10 @@
 | C | C2 | 0010 | circuit+retry tests | (F0.2) | ✅ commit F0.2 |
 | C | C3 | 0012* | 7 (health) + 12 (WS) tests | `wp-c3-health.md` + `wp-c3-ws.md` | ✅ 6678bde, 28b70f6 |
 | C | C4 | 0012* | 2 (shutdown) + 18 (persist.) + 4 (rate-limit) + 11 (logs) | `wp-c4-shutdown.md` + `wp-c4-persistence.md` + `wp-c4-security.md` + `wp-f2-logs.md` | ✅ c0b34a5, ced1608, 4dc6eeb, 47e78d6 |
-| D | D1–D5 | 0013 (a crear F3.4 server-routes) | por ítem | — | ⏳ F3 **[AUTORIZADA]** |
+| D | D3a (F3.1) | — | 34 (flow-matrix 96.12%) + 30 (workbench 90%) | `wp-d3-flow-matrix.md` + `wp-d3-workbench.md` | ✅ 0cca70c, f4dd7ff |
+| D | D3b (F3.2) | — | 61 (logging 98.4%/learning 98.3%) + 37 (forge-lab 57.8%/engram 77.9%) + 101 (git+lightrag) | `wp-d3-log-learning.md` + `wp-d3-forge-engram.md` + `wp-d3-git-lightrag.md` | ✅ ef8d07d, c5f7707, 3b53f2d |
+| D | D3c (F3.3) | — | 99 (ui-kit 55.8% + office-grid 33.8% gap + app-shell KEEP) | `wp-d3-ui.md` + `cierre-etapa-5.md` (CERRADA-CON-RESERVAS) | ✅ 9e9c115 |
+| D | D1/D2/D4/D5 | 0013 (a crear F3.4 server-routes) | por ítem | — | ⏳ F3.4+ (siguiente) |
 | E | E1–E4 | 0011/0012 | E2E wizard | — | ⏳ F4 |
 
 *ADR-0012 (rate-limit+helmet) reutilizado para C3/C4; ADR-0011 quedó para E4.7 (companion decision, F4).
@@ -246,18 +251,18 @@ git grep -oE "alert\(|confirm\(" -- apps/forge-console | wc -l  # dialogs nativo
 git grep -c "\.skip(" -- "*.test.ts" 2>/dev/null      # skips                  → 1 hoy, meta 0 (F1)
 ```
 
-Estado por fase (se actualiza al cerrar cada fase — medido 2026-09-07 tras F2, orquestador re-verificó en HEAD 5a11e79):
+Estado por fase (se actualiza al cerrar cada fase — medido 2026-09-09 tras E-5, verificado por orquestador en HEAD):
 
-| KPI | Base (auditoría) | Tras F0 | Tras F1 | **Tras F2** | Tras F3 | Meta v1.0 |
-|-----|------------------|---------|---------|-------------|---------|-----------|
-| Archivos sucios | ~30 | **0** ✅ | **0** ✅ | **0** ✅ | 0 | 0 |
-| `as any` | 117 | 117 | **117** | **114** (−3) | **0** | 0 |
-| Throws crudos packages | 45 | 45 | **45 (guard activo, overrides documentados)** | **35 prod (=; método ahora separa 11 de tests)** | **0** | 0 |
-| Paquetes sin tests | 11 | 11 | **11** | **9** (−2: pulse-center, sentinel) | **0** | 0 |
-| Dialogs nativos | ~15 | ~15 | ~15 | **0** ✅ | **0** | 0 |
-| Tests saltados | 1 | 1 | **2→0** | **0** ✅ | 0 | 0 |
-| Tests totales | ~748 | **767** | **767** ✅ | **821** | +estimado 200–300 | ≥1000 |
-| Commits | 94 | **115** | **115** | **128** | — | — |
+| KPI | Base (auditoría) | Tras F0 | Tras F1 | Tras F2 | **Tras E-5** | Meta v1.0 |
+|-----|------------------|---------|---------|---------|--------------|-----------|
+| Archivos sucios | ~30 | **0** ✅ | **0** ✅ | **0** ✅ | **0** ✅ | 0 |
+| `as any` | 117 | 117 | **117** | **114** | **114** (=) | **0** (F3.6/F3.7) |
+| Throws crudos packages | 45 | 45 | **45** | **35 prod** | **35** (=) | **0** (F3.7) |
+| Paquetes sin tests | 11 | 11 | **11** | **9** | **0** ✅ | 0 |
+| Dialogs nativos | ~15 | ~15 | ~15 | **0** ✅ | **0** ✅ | 0 |
+| Tests saltados | 1 | 1 | **0** ✅ | **0** ✅ | **0** ✅ | 0 |
+| Tests totales | ~748 | **767** | **767** | **821** | **1174** (+353) | ≥1000 ✅ |
+| Commits | 94 | **115** | **115** | **128** | **144** | — |
 
 **Nota F1 → F3 (hora para orquestador):**
 - La deuda `as any`/`throws` NO baja tras F1 — NO es falla del obrero. El D=Design del plan: F1 solo BLINDA (guardias ESLint a "error" + overrides preventan estos, listados en DEBT(F3) de f1.md). F3 el/acelera (F3.4/F3.7). El dossier f1.md tiene la DEBT exacta.
@@ -288,5 +293,6 @@ El tag `v1.0.0` (F5.6) exige cumplir TODOS:
 | 1.0 | 2026-08-24 | Creación (base de auditoría) | opencode (GLM-5.3) |
 | 2.0 | 2026-08-24 | Reescritura profesional: fases con gates, IDs, P50/P80, trazabilidad, riesgos cuantificados, KPIs ejecutables; base documental separada (Quality Manual + auditoría og/) | opencode (GLM-5.3) |
 | 2.1 | 2026-09-07 | **FASE 2 AUDITADA COMPLETA** (13 commits, 821 tests, EPIC C 100%). Veredicto orquestador con 3 observaciones no bloqueantes consignadas. §1/§5/§6/§8/§9/§10 sincronizados. **FASE 3 AUTORIZADA.** | orquestador |
+| 2.2 | 2026-09-09 | **ETAPA 5 CERRADA (D3 suites):** 6 ramas mergeadas (15 commits), 1174/1174 tests, 0 paquetes sin tests, veredicto rematador CERRADA-CON-RESERVAS. Outage kiosapi documentado (3/6 vía terminales, 3/6 vía orquestador+subagentes). §1/§6/§8/§10 sincronizados. Siguiente: F3.4 (D1). | orquestador |
 
 *Regla: cada cambio a este plan es un commit `docs(plan): ...` con entrada en esta tabla. Las fases completadas se marcan ✅ con fecha y no se reabren — nueva fase o ADR si hay que deshacer.*

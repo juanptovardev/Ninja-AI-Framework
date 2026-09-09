@@ -1237,8 +1237,8 @@ decide si las reservas son bloqueantes.
 | 2 | Integración | A-2 | 2 + usuario | 0 | C(2) | ✅ CERRADA (auditoría E-2) |
 | 3 | Gates | A-3 | 3 | 0 | C(3) | ✅ CERRADA (auditoría de orquestador F1) |
 | 4 | Resiliencia | A-4 | 3∥ + 1 | 3 | C(4) | ✅ CERRADA (veredicto orquestador 2026-09-07) |
-| 5 | Suites tests | A-5 | 6 | **6** | C(5) | ⏭ **SIGUIENTE — ver guía abajo** |
-| 6 | Calidad central | A-6 | 6 | 0 | C(6) | ⏳ (bloqueada por E-5) |
+| 5 | Suites tests | A-5 | 6 | **6** | C(5) | ✅ CERRADA 2026-09-09 (1174 tests, 0 pkgs sin tests, CERRADA-CON-RESERVAS) |
+| 6 | Calidad central | A-6 | 6 | 0 | C(6) | ⏭ **SIGUIENTE — ver guía abajo** |
 | 7 | Producto | A-7 | 3∥ + 1 | 3 | C(7) | ⏳ (bloqueada por E-6) |
 | 8 | Comercial | A-8 | 3 | 0 | C(8) | ⏳ (bloqueada por E-7) |
 
@@ -1246,10 +1246,11 @@ decide si las reservas son bloqueantes.
 
 ---
 
-## 6. Claridad de ejecución — cómo correr la siguiente etapa (ETAPA 5)
+## 6. Claridad de ejecución — cómo correr la siguiente etapa (ETAPA 6)
 
-**Lee esto antes de abrir terminales.** La ETAPA 5 es la única fase con paralelismo total: 6 terminales,
-cada una con UN paquete distinto y cero solapamiento de archivos. Orden operativo:
+**Lee esto antes de abrir terminales.** La ETAPA 6 es SECUENCIAL PURA en UNA sola terminal (los 6 prompts
+tocan archivos que se solapan: server.ts, configs globales). Una sesión fresca por prompt: pega A-6 una
+vez al inicio para contextualizar, luego T6.1 → T6.2 → … → T6.6 cada uno en sesión nueva, y al final C(6).
 
 ### Paso 0 — Preparación (terminal principal, 5 min)
 
@@ -1257,53 +1258,35 @@ cada una con UN paquete distinto y cero solapamiento de archivos. Orden operativ
 cd C:\Users\juanp_8h8f07l\Documents\ninja-ai-framework
 git checkout main && git pull origin main
 git status --porcelain   # debe estar VACÍO; si no, DETENER
-git worktree list        # debe estar vacío; si hay worktrees viejos, git worktree remove <path>
+git worktree list        # debe mostrar SOLO el repo principal (los 6 de E-5 ya se eliminaron)
+pnpm install && pnpm test   # baseline verde: 1174/1174 antes de empezar
 ```
 
-### Paso 1 — Lanzar 6 terminales (cada una: pegar A-5, esperar "listo", pegar su T5.n)
+### Paso 1 — Secuencia de prompts (una sesión fresca por prompt)
 
-| Terminal | Worktree (lo crea el prompt) | Branch | Prompt | Paquete(s) | Dificultad |
-|----------|------------------------------|--------|--------|------------|------------|
-| 1 | `../ninja-t51` | `feat/wp-d3-fm` | **T5.1** | flow-matrix | 🟡 (lógica de executor) |
-| 2 | `../ninja-t52` | `feat/wp-d3-wb` | **T5.2** | workbench | 🟡 (lifecycle + migraciones) |
-| 3 | `../ninja-t53` | `feat/wp-d3-logloop` | **T5.3** | logging + learning-loop | 🟢 |
-| 4 | `../ninja-t54` | `feat/wp-d3-forgengram` | **T5.4** | forge-lab + integrations-engram | 🟢 |
-| 5 | `../ninja-t55` | `feat/wp-d3-gitlight` | **T5.5** | integrations-git + integrations-lightrag | 🟢 |
-| 6 | `../ninja-t56` | `feat/wp-d3-ui` | **T5.6** | ui-kit + office-grid + decisión app-shell | 🟢 (+ADR si disuelve) |
+| Orden | Prompt | Trabajo | Rama sugerida | Dificultad | Nota operativa |
+|-------|--------|---------|---------------|------------|----------------|
+| 1 | **T6.1** | common-utils real (retryWithBackoff, Result, debounce/throttle, deepFreeze, safeJsonParse + tests ≥80%) | `feat/wp-d1-common-utils` | 🟡 | Solo `packages/common-utils/**`. Mergea a main antes de seguir |
+| 2 | **T6.2** | Thresholds cobertura (global 50, críticos 70) | `feat/wp-d2-thresholds` | 🟢 | Edita `vitest.config.ts`; verifica que rompe a propósito en scratch |
+| 3 | **T6.3** | server.ts rutas PARTE 1 (engine/approvals/arsenal → `routes/`) | `feat/wp-d4-routes-1` | 🔴 | **Regla de oro:** suite idéntica antes/después de cada extracción. Si un test cambia, el refactor está mal |
+| 4 | **T6.4** | server.ts PARTE 2 + `as any` = 0 + throws = 0 | `feat/wp-d4-routes-2` | 🔴 | Tipado real con generics+Zod (prohibidos casts cosméticos). `errors:docs` si añades códigos |
+| 5 | **T6.5** | Error Boundaries + settings dedup | `feat/wp-d4-frontend` | 🟡 | Unifica settings; 0 crashes sin boundary |
+| 6 | **T6.6** | Flow Matrix D5 (paralelismo + deadlock + persistencia) | `feat/wp-d5-flow` | 🔴 | Timing real en tests de concurrencia; deadlock → error tipado |
 
-Cada terminal corre `pnpm install` en su worktree (usa el store compartido, ~1 min). No necesitas abrir
-las 6 a la vez: 2–3 tandas también funciona. **Nunca dos terminales en el mismo worktree.**
+Tras cada prompt: merge a `main` con `--no-ff` + verificación (`pnpm vitest run <paquete>` o suite completa si tocó server.ts) antes del siguiente. **T6.3 y T6.4 tocan server.ts: entre ellos corre `pnpm test:e2e` (smoke health) además de unit.**
 
-### Paso 2 — Merge en orden (terminal principal, tras terminar las 6)
+### Paso 2 — Cierre y auditoría
 
-Merge uno a uno, explícito, verificando cada paso. **No uses loops de shell** — un merge a la vez con su verificación:
-
-```bash
-git merge feat/wp-d3-fm --no-ff -m "merge: wp-d3 flow-matrix suites (F3.1)"
-pnpm vitest run packages/flow-matrix   # verde antes de seguir
-git merge feat/wp-d3-wb --no-ff -m "merge: wp-d3 workbench suites (F3.2)"
-pnpm vitest run packages/workbench
-git merge feat/wp-d3-logloop --no-ff -m "merge: wp-d3 logging+learning-loop (F3.3a)"
-git merge feat/wp-d3-forgengram --no-ff -m "merge: wp-d3 forge-lab+engram (F3.3b)"
-git merge feat/wp-d3-gitlight --no-ff -m "merge: wp-d3 git+lightrag (F3.3c)"
-git merge feat/wp-d3-ui --no-ff -m "merge: wp-d3 ui-kit+office-grid (F3.3d)"
-pnpm typecheck && pnpm test && pnpm errors:check
-```
-
-**Si hay conflicto de merge:** DETENER, no resolver solo — pasar al auditor con el output.
-
-### Paso 3 — Cierre y auditoría
-
-1. En el repo principal (ya mergeado): pegar PROMPT C con `ETAPA A CERRAR: 5`.
-2. El rematador escribe `tools/verifications/cierre-etapa-5.md` + micro-fixes.
-3. Me pasas: veredicto del cierre + escalados + REPORTA de las 6 terminales (SHAs + resúmenes de cobertura).
-4. Yo audito (verifico coberturas reales, calidad de asserts, 0 paquetes sin tests) → ✅ habilita ETAPA 6.
+1. En `main` mergeado: pegar PROMPT C con `ETAPA A CERRAR: 6`.
+2. El rematador escribe `tools/verifications/cierre-etapa-6.md` + micro-fixes. Foco especial E-6 del prompt C: `as any` = 0 global, server.ts < 400 líneas, thresholds que rompen al violarse.
+3. Me pasas: veredicto del cierre + escalados + REPORTA de cada prompt (SHAs + evidencias).
+4. Yo audito (KPIs §10 del plan en meta, anti-inflación, EXC-1 cerrada) → ✅ habilita ETAPA 7.
 
 ### Reglas duras de esta etapa
 
-- Cada terminal toca SOLO su paquete + su dossier. Archivos compartidos (`vitest.config.ts`, `tests/helpers/*` nuevos) los crea SOLO la terminal 1 (T5.1) si hacen falta; las demás reusan.
-- Un `pnpm install` por worktree es obligatorio antes del primer test.
-- Al terminar cada terminal: `git log -1 --format=%H` (SHA) → me lo pasas con el reporte.
-- Cualquier terminal que falle su aceptación 2 veces seguidas: DETENER esa terminal, reportar, las demás continúan.
+- **Un prompt = una sesión fresca = una rama corta.** Mergea antes del siguiente prompt; nunca acumules dos tareas sin commitear.
+- T6.3/T6.4: si `pnpm test` da un solo fallo tras extraer rutas, REVIERTE la extracción (`git checkout --`), no "arregles" el test.
+- Dead code encontrado en el camino: se LISTA en el dossier, no se borra (scope creep) — salvo que bloquee thresholds.
+- Cualquier tarea que falle su aceptación 2 veces: DETENER, reportar, no improvisar.
 
 *Fin de EXECUTION_BATCHES v1.1. Cambios a prompts congelados = versión + entrada en control de cambios del PLAN_EJECUCION.*
