@@ -3,7 +3,6 @@ import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
 import rateLimit from '@fastify/rate-limit';
 import websocketPlugin from '@fastify/websocket';
-import { createHash } from 'node:crypto';
 import type { RuntimeStatus } from '@ninja/contracts';
 import { createLogger } from '@ninja/logging';
 import { eventBus } from '@ninja/events';
@@ -11,17 +10,14 @@ import { parseEnv } from './env-schema.js';
 import { sanitizeError } from './sanitize-error.js';
 import { getOrCreateRuntimeKey } from './auth-key.js';
 import { AuthError } from '@ninja/contracts';
-import {
-  ShellExecuteSchema,
-  EngineSubmitSchema,
-  VaultWriteSchema,
-  GitCommitSchema,
-  RosterAssignSchema,
-} from './route-schemas.js';
+import { ShellExecuteSchema, GitCommitSchema, RosterAssignSchema } from './route-schemas.js';
 import { RUNTIME_NAME, RUNTIME_VERSION } from './constants.js';
 import { registerBusRoutes } from './bus-router.js';
 import { registerErrorHandlers } from './error-handler.js';
 import { registerHealthRoutes } from './routes/health.js';
+import { registerEngineRoutes } from './routes/engine.routes.js';
+import { registerApprovalsRoutes } from './routes/approvals.routes.js';
+import { registerArsenalRoutes } from './routes/arsenal.routes.js';
 import { registerShutdownStep, getShutdownSteps, clearShutdownSteps } from './shutdown-registry.js';
 import { closeDb } from '@ninja/storage';
 import { registerRequestLogging } from './request-logging.js';
@@ -50,7 +46,6 @@ import { registerMcpRuntimeRoutes } from './mcp-runtime-server.js';
 import { registerRosterVerifyRoute } from './routes/roster-verify.js';
 import { FailoverManager } from './failover.js';
 import { PolicyEngine, ApprovalManager, Auditor, Guardian } from '@ninja/sentinel';
-import type { ApproverIdentity } from '@ninja/sentinel';
 import path from 'path';
 
 // Phase 5: Intelligence & Memory
@@ -96,19 +91,6 @@ const ALLOWED_ORIGINS = [
   'http://localhost:3141',
   'http://127.0.0.1:3141',
 ];
-
-/**
- * Identidad real del approver derivada de la key autenticada (Ley 6 — doble
- * aprobación trazable). Antes se hardcodeaba `api-user/admin`, lo que hacía
- * imposible saber quién aprobó y permitía que cualquier key aprobara como
- * "admin" anónimo.
- */
-function deriveApprover(request: FastifyRequest): ApproverIdentity {
-  const raw = request.headers['x-ninja-key'];
-  const key = Array.isArray(raw) ? (raw[0] ?? '') : (raw ?? '');
-  const fingerprint = createHash('sha256').update(key).digest('hex').slice(0, 12);
-  return { id: `operator-${fingerprint}`, role: 'operator' };
-}
 
 export async function createServer(): Promise<FastifyInstance> {
   // Re-parse env to get typed values — already validated by loadEnv() at boot (ADR-0004)
@@ -558,81 +540,12 @@ export async function createServer(): Promise<FastifyInstance> {
     });
   });
 
-  server.post('/api/engine/interview', async (request, reply) => {
-    const id = crypto.randomUUID();
-    if (typeof (engine as any).startInterview === 'function') {
-      await (engine as any).startInterview(id);
-    }
-    return reply.send({ id, status: 'started' });
-  });
-
-  server.post('/api/engine/interview/:id/answers', async (request, reply) => {
-    const id = (request.params as any).id;
-    const answers = request.body;
-    if (typeof (engine as any).submitAnswers === 'function') {
-      await (engine as any).submitAnswers(id, answers);
-    }
-    return reply.send({ success: true });
-  });
-
-  server.post('/engine/submit', async (request, reply) => {
-    const parsed = EngineSubmitSchema.safeParse(request.body);
-    if (!parsed.success) {
-      return reply.status(400).send({
-        error: 'Invalid request body',
-        code: 'VALIDATION_ERROR',
-        issues: parsed.error.issues,
-      });
-    }
-    const result = await httpController.handleSubmit({ body: parsed.data as any });
-    if (env.NINJA_SESSION_TOKEN_BUDGET && result.body && (result.body as any).sessionId) {
-      modelBudgetManager.setSessionBudget(
-        (result.body as any).sessionId,
-        env.NINJA_SESSION_TOKEN_BUDGET
-      );
-    }
-    return reply.status(result.status).send(result.body);
-  });
-
-  server.get('/engine/run/:id', async (request, reply) => {
-    const result = await httpController.handleGetRunStatus({
-      params: { id: (request.params as any).id },
-    });
-    return reply.status(result.status).send(result.body);
-  });
-
-  server.post('/engine/run/:id/approve', async (request, reply) => {
-    const result = await httpController.handleApprove({
-      params: { id: (request.params as any).id },
-      body: request.body as any,
-    });
-    return reply.status(result.status).send(result.body);
-  });
-
-  server.post('/engine/run/:id/pause', async (request, reply) => {
-    const result = await httpController.handlePause({
-      params: { id: (request.params as any).id },
-    });
-    return reply.status(result.status).send(result.body);
-  });
-
-  server.post('/engine/run/:id/resume', async (request, reply) => {
-    const result = await httpController.handleResume({
-      params: { id: (request.params as any).id },
-    });
-    return reply.status(result.status).send(result.body);
-  });
-
-  server.post('/engine/run/:id/cancel', async (request, reply) => {
-    const result = await httpController.handleCancel({
-      params: { id: (request.params as any).id },
-    });
-    return reply.status(result.status).send(result.body);
-  });
-
-  server.get('/engine/runs', async (request, reply) => {
-    const result = await httpController.handleListActiveRuns({});
-    return reply.status(result.status).send(result.body);
+  // ── Engine Routes (WP-D4 1/2): interview / submit / run lifecycle ───────────
+  registerEngineRoutes(server, {
+    engine,
+    httpController,
+    modelBudgetManager,
+    sessionTokenBudget: env.NINJA_SESSION_TOKEN_BUDGET,
   });
 
   // ── Pulse Center & Sentinel Routes ──────────────────────────────────────────────
@@ -647,80 +560,19 @@ export async function createServer(): Promise<FastifyInstance> {
     }
   });
 
-  server.get('/api/approvals', async (_request, reply) => {
-    const list = approvalManager.listPendingApprovals();
-    return reply.send(list);
+  // ── Approvals, Audit & Commits Routes (WP-D4 1/2) ─────────────────────────
+  registerApprovalsRoutes(server, {
+    approvalManager,
+    auditor,
+    agentCommitRepo,
   });
 
-  server.post('/api/approvals/:id/approve', async (request, reply) => {
-    const id = (request.params as any).id;
-    const body = (request.body as { notes?: string }) || {};
-    const approver = deriveApprover(request);
-    await approvalManager.approveRequest(id as any, approver, body.notes);
-    return reply.send({ success: true });
+  // ── Arsenal, Artifacts & Vault-Write Routes (WP-D4 1/2) ───────────────────
+  registerArsenalRoutes(server, {
+    arsenalRegistry,
+    artifactRepo,
+    vaultCoordinator,
   });
-
-  server.post('/api/approvals/:id/reject', async (request, reply) => {
-    const id = (request.params as any).id;
-    const body = request.body as { reason: string };
-    if (!body?.reason) return reply.status(400).send({ error: 'reason is required' });
-    const approver = deriveApprover(request);
-    await approvalManager.rejectRequest(id as any, approver, body.reason);
-    return reply.send({ success: true });
-  });
-
-  server.get('/api/audit', async (_request, reply) => {
-    const logs = auditor.getAuditLog();
-    return reply.send(logs);
-  });
-
-  // ── Agent Commits Routes (RF-16) ──────────────────────────────────────────
-  server.get('/api/commits', async (request, reply) => {
-    const { runId, limit } = request.query as { runId?: string; limit?: string };
-    const lim = limit ? parseInt(limit) : 100;
-    if (runId) {
-      return reply.send(agentCommitRepo.findByRunId(runId));
-    }
-    return reply.send(agentCommitRepo.findAll(lim));
-  });
-
-  // ── Arsenal Registry Route (S3.4) ─────────────────────────────────────────
-  server.get('/api/arsenal', async (_request, reply) => {
-    return reply.send({
-      tools: arsenalRegistry.listTools(),
-      skills: arsenalRegistry.listSkills(),
-    });
-  });
-
-  // ── Artifacts Routes ───────────────────────────────────────────────────────
-  server.get('/api/artifacts', async (request, reply) => {
-    const { runId, type, isAnchor } = request.query as any;
-    let list = artifactRepo.findAll();
-
-    if (runId) {
-      list = list.filter((a: any) => a.runId === runId);
-    }
-    if (type) {
-      list = list.filter((a: any) => a.type === type);
-    }
-    if (isAnchor === 'true') {
-      // WP-B8: los anchors se persisten con type 'anchor' (la tabla artifacts no tiene columna isAnchor)
-      list = list.filter((a: any) => a.type === 'anchor');
-    }
-
-    return reply.send(list);
-  });
-
-  server.get('/api/artifacts/:id', async (request, reply) => {
-    const id = (request.params as any).id;
-    const artifact = artifactRepo.findById(id);
-    if (!artifact) {
-      return reply.status(404).send({ error: 'Artifact not found' });
-    }
-    return reply.send(artifact);
-  });
-
-  // ── Engine Routes ───────────────────────────────────────────────────────── (No changes inside)
 
   // ── Phase 5: Vault & Intelligence Routes ──────────────────────────────────
   interface VaultContextQuery {
@@ -745,20 +597,6 @@ export async function createServer(): Promise<FastifyInstance> {
       tokenBudget: budget ? parseInt(budget) : 2000,
     });
     return reply.send(results);
-  });
-
-  server.post('/api/vault/write', async (request, reply) => {
-    const parsed = VaultWriteSchema.safeParse(request.body);
-    if (!parsed.success) {
-      return reply.status(400).send({
-        error: 'Invalid request body',
-        code: 'VALIDATION_ERROR',
-        issues: parsed.error.issues,
-      });
-    }
-    const { agentId, sessionId, content, layer } = parsed.data;
-    await vaultCoordinator.write(agentId ?? 'guest', sessionId, content, layer as any);
-    return reply.send({ success: true });
   });
 
   server.get('/api/model-gateway/status', async (_request, reply) => {
