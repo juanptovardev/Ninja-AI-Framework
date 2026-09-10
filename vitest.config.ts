@@ -33,6 +33,7 @@ const baseAliases = {
   '@ninja/roster': path.resolve(__dirname, 'packages/roster/src'),
   '@ninja/client-adapters': path.resolve(__dirname, 'packages/client-adapters/src'),
   '@ninja/delegation-router': path.resolve(__dirname, 'packages/delegation-router/src'),
+  '@ninja/installer': path.resolve(__dirname, 'packages/installer/src'),
 };
 
 export default defineConfig({
@@ -69,7 +70,22 @@ export default defineConfig({
         'packages/*/src/**/*.test.ts',
         'packages/*/src/**/types.ts',
         'packages/*/src/index.ts',
+        // EXC-3: hook DOM/WS no testable sin jsdom (decisión cerrada)
+        'packages/office-grid/src/hooks/use-office-state.ts',
       ],
+      thresholds: {
+        lines: 50,
+        functions: 45,
+        statements: 50,
+        'packages/contracts/src/**/*.ts': { lines: 70 },
+        'packages/kage-engine/src/**/*.ts': { lines: 70 },
+        'packages/agent-runtime/src/**/*.ts': { lines: 70 },
+        'packages/sentinel/src/**/*.ts': { lines: 70 },
+        'packages/model-gateway/src/**/*.ts': { lines: 70 },
+        'packages/vault/src/**/*.ts': { lines: 70 },
+        'packages/flow-matrix/src/**/*.ts': { lines: 70 },
+        'packages/workbench/src/**/*.ts': { lines: 70 },
+      },
     },
   },
 });
