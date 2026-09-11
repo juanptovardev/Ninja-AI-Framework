@@ -1,76 +1,327 @@
 'use client';
 
-import React from 'react';
+/**
+ * forge-console — app/setup/page.tsx
+ * Wizard de onboarding de 4 pasos (WP-E3 / T7.1):
+ * 1. Env check (GET /api/doctor) · 2. Test Connection (placeholder T7.4,
+ * deshabilitado) · 3. Workspace (POST /api/session/init) · 4. Tour mínimo.
+ * Estados loading/success/error por paso con retry. Sin ShellLayout
+ * (ClientLayout excluye /setup). Tokens: variables --ninja-* + utilidades
+ * glass-card/skeleton/font-mono-data de globals.css (CONSISTENCIA_VISUAL §3).
+ */
+import React, { useEffect } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { Badge, Button, Card, PageHeader } from '@ninja/ui-kit';
+import { WIZARD_STEPS, useOnboarding } from '../../lib/onboarding-store';
+import type { StepId, StepStatus } from '../../lib/onboarding-store';
 
-export default function SetupPage() {
-  const handleReload = () => {
-    window.location.href = '/';
-  };
+// ─── Piezas compartidas ──────────────────────────────────────
+
+function StepBadge({ status, enabled }: { status: StepStatus; enabled: boolean }) {
+  if (!enabled) {
+    return <Badge variant="accent">T7.4</Badge>;
+  }
+  if (status === 'success') {
+    return <Badge variant="success">Completado</Badge>;
+  }
+  if (status === 'error') {
+    return <Badge variant="danger">Error</Badge>;
+  }
+  if (status === 'loading') {
+    return <Badge variant="info" pulse>En curso</Badge>;
+  }
+  return <Badge>Pendiente</Badge>;
+}
+
+function LoadingSkeletons({ rows = 3 }: { rows?: number }) {
+  return (
+    <div className="space-y-3" aria-busy="true" aria-label="Cargando">
+      {Array.from({ length: rows }, (_, i) => (
+        <div key={i} className="skeleton h-12 w-full" />
+      ))}
+    </div>
+  );
+}
+
+function ErrorPanel({ message, onRetry }: { message: string | null; onRetry: () => void }) {
+  return (
+    <div className="space-y-4">
+      <div className="glass-card border border-[var(--ninja-danger)]/40 p-4">
+        <p className="text-sm text-[var(--ninja-text-primary)]">
+          {message ?? 'Algo salió mal al contactar con el runtime.'}
+        </p>
+      </div>
+      <Button variant="secondary" onClick={onRetry}>
+        Reintentar
+      </Button>
+    </div>
+  );
+}
+
+// ─── Paso 1: Env check ───────────────────────────────────────
+
+function EnvCheckStep() {
+  const steps = useOnboarding((s) => s.steps);
+  const doctorResult = useOnboarding((s) => s.doctorResult);
+  const runEnvCheck = useOnboarding((s) => s.runEnvCheck);
+  const state = steps['env-check'];
+
+  useEffect(() => {
+    if (state.status === 'idle') {
+      void runEnvCheck();
+    }
+  }, [state.status, runEnvCheck]);
+
+  if (state.status === 'idle' || state.status === 'loading') {
+    return <LoadingSkeletons rows={4} />;
+  }
+
+  if (state.status === 'error') {
+    return (
+      <div className="space-y-4">
+        <ErrorPanel message={state.error} onRetry={() => void runEnvCheck()} />
+        <p className="text-xs text-[var(--ninja-text-muted)] font-mono-data">
+          El runtime escucha en el puerto 3141. Levántalo con `pnpm ninja` y reintenta.
+        </p>
+      </div>
+    );
+  }
+
+  if (!doctorResult) {
+    return <LoadingSkeletons rows={4} />;
+  }
 
   return (
-    <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center p-6 relative overflow-hidden font-sans">
-      {/* Background glow effects */}
-      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-emerald-500/10 rounded-full blur-[128px] pointer-events-none" />
-      <div className="absolute bottom-1/4 left-1/3 w-72 h-72 bg-zinc-800/20 rounded-full blur-[96px] pointer-events-none" />
-
-      {/* Main card wrapper */}
-      <div className="max-w-md w-full bg-zinc-900/60 border border-zinc-800/80 rounded-2xl p-8 backdrop-blur-xl relative z-10 shadow-2xl space-y-8 animate-fade-in">
-        
-        {/* Logo and header */}
-        <div className="text-center space-y-3">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-zinc-800/50 border border-zinc-700/30 text-3xl shadow-inner animate-pulse">
-            🥷
-          </div>
-          <h1 className="text-2xl font-semibold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-zinc-100 to-zinc-400">
-            Ninja AI Framework
-          </h1>
-          <p className="text-sm text-zinc-400">
-            Unified Command Center
-          </p>
-        </div>
-
-        {/* Status indicator */}
-        <div className="bg-red-950/20 border border-red-900/30 rounded-xl p-4 flex items-start space-x-3 text-red-200">
-          <div className="w-2 h-2 rounded-full bg-red-500 mt-1.5 animate-ping" />
-          <div className="space-y-1">
-            <h4 className="text-sm font-medium">Motor Fuera de Línea</h4>
-            <p className="text-xs text-zinc-400 leading-relaxed">
-              No se pudo detectar el Kage Runtime en el puerto <span className="font-mono text-zinc-300">3141</span>.
-            </p>
-          </div>
-        </div>
-
-        {/* Setup steps */}
-        <div className="space-y-4">
-          <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">
-            ¿Cómo iniciar el sistema?
-          </h3>
-          <p className="text-xs text-zinc-400">
-            Abre una terminal en la raíz del proyecto y ejecuta el entorno de desarrollo con soporte de concurrencia:
-          </p>
-          <div className="relative group">
-            <pre className="bg-zinc-950/90 border border-zinc-800/80 rounded-xl p-4 text-xs font-mono text-emerald-400 overflow-x-auto shadow-inner select-all">
-              pnpm dev --concurrency 50
-            </pre>
-            <div className="absolute right-3 top-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200 text-[10px] text-zinc-500 pointer-events-none">
-              Doble clic para copiar
-            </div>
-          </div>
-        </div>
-
-        {/* Action button */}
-        <button
-          onClick={handleReload}
-          className="w-full py-3 px-4 bg-zinc-100 hover:bg-zinc-200 text-zinc-950 font-medium rounded-xl text-sm transition-all duration-200 shadow-lg hover:shadow-zinc-200/10 active:scale-[0.98]"
-        >
-          Reintentar conexión
-        </button>
-
-        {/* Footnote */}
-        <p className="text-center text-[10px] text-zinc-600">
-          Ninja AI Framework • Dev Senior UX v1.1
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center gap-3">
+        <Badge variant={doctorResult.failed === 0 ? 'success' : 'warning'}>
+          {doctorResult.passed}/{doctorResult.total} agentes verificados
+        </Badge>
+        {doctorResult.failed > 0 ? (
+          <Badge variant="danger">{doctorResult.failed} con archivos faltantes</Badge>
+        ) : null}
+      </div>
+      {doctorResult.reports.length === 0 ? (
+        <p className="text-sm text-[var(--ninja-text-secondary)]">
+          No se detectaron clientes de agente (Cursor, VS Code, Claude…) en este equipo.
+          Puedes continuar; la instalación de agentes se gestiona desde Arsenal.
         </p>
+      ) : (
+        <ul className="space-y-2">
+          {doctorResult.reports.map((report) => (
+            <li
+              key={report.agentId}
+              className="flex items-center justify-between gap-4 rounded-lg border border-[var(--ninja-border-subtle)] bg-[var(--ninja-bg-secondary)] px-4 py-3"
+            >
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-[var(--ninja-text-primary)] capitalize">
+                  {report.agentId}
+                </p>
+                <p className="text-xs text-[var(--ninja-text-muted)] font-mono-data truncate">
+                  {report.missing.length > 0
+                    ? `faltan: ${report.missing.join(', ')}`
+                    : `${report.present.length} archivos presentes`}
+                  {report.warnings.length > 0 ? ` · ${report.warnings.length} avisos` : ''}
+                </p>
+              </div>
+              <Badge variant={report.passed ? 'success' : 'danger'}>
+                {report.passed ? 'OK' : 'Incompleto'}
+              </Badge>
+            </li>
+          ))}
+        </ul>
+      )}
+      <Button variant="ghost" size="sm" onClick={() => void runEnvCheck()}>
+        Volver a verificar
+      </Button>
+    </div>
+  );
+}
 
+// ─── Paso 2: Test connection (placeholder fuera de alcance) ──
+
+function TestConnectionStep() {
+  return (
+    <div className="space-y-4">
+      <Badge variant="accent">Próximamente</Badge>
+      <p className="text-sm text-[var(--ninja-text-secondary)]">
+        La prueba de conexión con el proveedor de modelos llegará en la etapa de proveedores
+        (T7.4). Puedes continuar el asistente sin completarla: el runtime ya valida el acceso
+        al LLM en tiempo de ejecución.
+      </p>
+      <Button variant="secondary" disabled>
+        Probar conexión
+      </Button>
+    </div>
+  );
+}
+
+// ─── Paso 3: Creación de workspace / sesión ──────────────────
+
+function WorkspaceStep() {
+  const steps = useOnboarding((s) => s.steps);
+  const sessionResult = useOnboarding((s) => s.sessionResult);
+  const createWorkspace = useOnboarding((s) => s.createWorkspace);
+  const state = steps['create-workspace'];
+
+  if (state.status === 'loading') {
+    return <LoadingSkeletons rows={2} />;
+  }
+
+  if (state.status === 'error') {
+    return <ErrorPanel message={state.error} onRetry={() => void createWorkspace()} />;
+  }
+
+  if (state.status === 'success' && sessionResult) {
+    return (
+      <div className="space-y-4">
+        <Badge variant="success">Sesión inicializada</Badge>
+        <div className="rounded-lg border border-[var(--ninja-border-subtle)] bg-[var(--ninja-bg-primary)] p-4">
+          <p className="text-xs text-[var(--ninja-text-muted)] uppercase tracking-wider">
+            Session ID
+          </p>
+          <p className="text-sm text-[var(--ninja-text-primary)] font-mono-data break-all">
+            {sessionResult.sessionId}
+          </p>
+        </div>
+        <p className="text-sm text-[var(--ninja-text-secondary)]">
+          El workspace activo queda listo para recibir misiones desde Mission Control.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <p className="text-sm text-[var(--ninja-text-secondary)]">
+        Crea la primera sesión de trabajo sobre el workspace activo del runtime. Es el paso que
+        deja el motor operativo para orquestar agentes.
+      </p>
+      <Button onClick={() => void createWorkspace()}>Inicializar workspace y sesión</Button>
+    </div>
+  );
+}
+
+// ─── Paso 4: Tour mínimo ─────────────────────────────────────
+
+const TOUR_LINKS: { href: string; title: string; description: string }[] = [
+  {
+    href: '/mission-control',
+    title: 'Mission Control',
+    description: 'Estado operativo del motor, métricas y tareas recientes.',
+  },
+  {
+    href: '/office',
+    title: 'Office',
+    description: 'La oficina digital: agentes trabajando en tiempo real.',
+  },
+  {
+    href: '/arsenal',
+    title: 'Arsenal',
+    description: 'Herramientas y skills disponibles para los agentes.',
+  },
+  {
+    href: '/settings',
+    title: 'Settings',
+    description: 'Proveedores de modelos y configuración del workspace.',
+  },
+];
+
+function TourStep() {
+  const router = useRouter();
+  return (
+    <div className="space-y-6">
+      <p className="text-sm text-[var(--ninja-text-secondary)]">
+        Todo listo. Estas son las cuatro vistas clave del Forge Console:
+      </p>
+      <div className="grid gap-4 sm:grid-cols-2">
+        {TOUR_LINKS.map((item) => (
+          <Link key={item.href} href={item.href} className="block">
+            <Card hoverable title={item.title} padding="sm">
+              <p className="text-xs text-[var(--ninja-text-muted)]">{item.description}</p>
+              <p className="text-xs text-[var(--ninja-accent)] font-mono-data mt-2">{item.href}</p>
+            </Card>
+          </Link>
+        ))}
+      </div>
+      <Button onClick={() => router.push('/mission-control')}>Finalizar configuración</Button>
+    </div>
+  );
+}
+
+function StepContent({ stepId }: { stepId: StepId }) {
+  if (stepId === 'env-check') return <EnvCheckStep />;
+  if (stepId === 'test-connection') return <TestConnectionStep />;
+  if (stepId === 'create-workspace') return <WorkspaceStep />;
+  return <TourStep />;
+}
+
+// ─── Página ──────────────────────────────────────────────────
+
+export default function SetupPage() {
+  const currentStep = useOnboarding((s) => s.currentStep);
+  const steps = useOnboarding((s) => s.steps);
+  const goToStep = useOnboarding((s) => s.goToStep);
+  const nextStep = useOnboarding((s) => s.nextStep);
+  const prevStep = useOnboarding((s) => s.prevStep);
+
+  const activeStep = WIZARD_STEPS[currentStep];
+  if (!activeStep) {
+    return null;
+  }
+  const isLast = currentStep === WIZARD_STEPS.length - 1;
+
+  return (
+    <div className="min-h-screen bg-[var(--ninja-bg-primary)] text-[var(--ninja-text-primary)]">
+      <div className="mx-auto max-w-3xl px-6 py-12">
+        <PageHeader
+          title="Configuración inicial"
+          subtitle="Asistente de 4 pasos para dejar el Ninja AI Framework operativo en tu equipo."
+          breadcrumbs={[{ label: 'Inicio', href: '/' }, { label: 'Setup' }]}
+        />
+
+        <ol className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-4" aria-label="Pasos del asistente">
+          {WIZARD_STEPS.map((step, index) => (
+            <li key={step.id}>
+              <button
+                type="button"
+                onClick={() => goToStep(index)}
+                aria-current={index === currentStep ? 'step' : undefined}
+                className={`w-full rounded-lg border px-3 py-3 text-left ${
+                  index === currentStep
+                    ? 'border-[var(--ninja-accent)] bg-[var(--ninja-surface)]'
+                    : 'border-[var(--ninja-border-subtle)] hover:border-[var(--ninja-border-strong)]'
+                }`}
+              >
+                <span className="block text-xs text-[var(--ninja-text-muted)] font-mono-data">
+                  Paso {index + 1}
+                </span>
+                <span className="block text-sm font-medium text-[var(--ninja-text-primary)] mt-0.5">
+                  {step.label}
+                </span>
+                <span className="mt-2 block">
+                  <StepBadge status={steps[step.id].status} enabled={step.enabled} />
+                </span>
+              </button>
+            </li>
+          ))}
+        </ol>
+
+        <Card title={`${currentStep + 1}. ${activeStep.label}`} subtitle={activeStep.description}>
+          <StepContent stepId={activeStep.id} />
+        </Card>
+
+        <div className="mt-6 flex items-center justify-between">
+          <Button variant="ghost" onClick={prevStep} disabled={currentStep === 0}>
+            Atrás
+          </Button>
+          {isLast ? null : (
+            <Button variant={activeStep.enabled ? 'primary' : 'secondary'} onClick={nextStep}>
+              {activeStep.enabled ? 'Continuar' : 'Continuar (sin probar)'}
+            </Button>
+          )}
+        </div>
       </div>
     </div>
   );
