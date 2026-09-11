@@ -61,6 +61,11 @@ export const ErrorCodes = {
   FLOW_STATE_LOST: 'FLOW_STATE_LOST' as ErrorCode,
   /** Workflow step graph contains a circular dependency */
   FLOW_CIRCULAR_DEPENDENCY: 'FLOW_CIRCULAR_DEPENDENCY' as ErrorCode,
+  // Flow Matrix (WP-D5)
+  /** A parallel wave did not settle within deadlockTimeoutMs (circular wait at runtime) */
+  FLOW_DEADLOCK_TIMEOUT: 'FLOW_DEADLOCK_TIMEOUT' as ErrorCode,
+  /** WorkflowExecutor received invalid concurrency/deadlock options */
+  FLOW_INVALID_OPTIONS: 'FLOW_INVALID_OPTIONS' as ErrorCode,
 
   // Installer (WP-D4 2/2)
   /** Backup manifest path does not exist on disk */

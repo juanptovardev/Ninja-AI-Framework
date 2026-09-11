@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { WorkflowExecutor } from './executor';
+import { ErrorCodes, FlowError, isNinjaError } from '@ninja/contracts';
+import { WorkflowExecutor, type WorkflowExecutorOptions } from './executor';
 import { MockEventBus } from '../../../tests/helpers/mock-event-bus';
 import type { StepHandler } from './step-runner';
 import type {
@@ -53,13 +54,59 @@ function makeContext(overrides: Partial<WorkflowContext> = {}): WorkflowContext 
 function createRunRepository(): RunRepository {
   return {
     updateStatus: vi.fn<(id: string, status: string) => Promise<unknown>>().mockResolvedValue({}),
+    findById: vi.fn<() => unknown>().mockReturnValue(null),
   } as unknown as RunRepository;
 }
 
 function createArtifactRepository(): ArtifactRepository {
   return {
     create: vi.fn<(options: unknown) => Promise<unknown>>().mockResolvedValue({}),
+    findByRunId: vi.fn<() => unknown>().mockReturnValue([]),
   } as unknown as ArtifactRepository;
+}
+
+function deferred<T>(): { promise: Promise<T>; resolve: (value: T) => void } {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((res) => {
+    resolve = res;
+  });
+  return { promise, resolve };
+}
+
+interface PersistentStoreRepositories {
+  runRepository: RunRepository;
+  artifactRepository: ArtifactRepository;
+  runs: Array<{ id: string; status: string }>;
+  artifacts: Array<{ runId: string; type: string; name: string; content: string }>;
+}
+
+/** Mocks con backing store compartido: simula el boundary SQLite de Trace Ledger. */
+function createPersistentStoreRepositories(): PersistentStoreRepositories {
+  const runs: Array<{ id: string; status: string }> = [];
+  const artifacts: Array<{ runId: string; type: string; name: string; content: string }> = [];
+
+  const runRepository = {
+    updateStatus: vi.fn((id: string, status: string) => {
+      const existing = runs.find((run) => run.id === id);
+      if (existing !== undefined) {
+        existing.status = status;
+      } else {
+        runs.push({ id, status });
+      }
+      return { id };
+    }),
+    findById: vi.fn((id: string) => runs.find((run) => run.id === id) ?? null),
+  } as unknown as RunRepository;
+
+  const artifactRepository = {
+    create: vi.fn((options: { runId: string; type: string; name: string; content: string }) => {
+      artifacts.push(options);
+      return { id: 'artifact-1' };
+    }),
+    findByRunId: vi.fn((runId: string) => artifacts.filter((artifact) => artifact.runId === runId)),
+  } as unknown as ArtifactRepository;
+
+  return { runRepository, artifactRepository, runs, artifacts };
 }
 
 describe('WorkflowExecutor', () => {
@@ -73,12 +120,110 @@ describe('WorkflowExecutor', () => {
     artifactRepository = createArtifactRepository();
   });
 
-  function createExecutor(): WorkflowExecutor {
-    return new WorkflowExecutor(bus as unknown as EventBus, runRepository, artifactRepository);
+  function createExecutor(options?: WorkflowExecutorOptions): WorkflowExecutor {
+    return new WorkflowExecutor(
+      bus as unknown as EventBus,
+      runRepository,
+      artifactRepository,
+      options
+    );
   }
 
-  describe('sequential execution', () => {
-    it('runs steps strictly in declaration order for an independent chain', async () => {
+  describe('parallel execution', () => {
+    it('runs independent branches concurrently (event ordering + timestamp overlap)', async () => {
+      const executor = createExecutor({ deadlockTimeoutMs: 5000, concurrencyLimit: 4 });
+      const orderEvents: Array<{ type: string }> = [];
+      bus.onAny((event) => {
+        if (event.type === 'workflow.step.started' || event.type === 'workflow.step.completed') {
+          orderEvents.push(event);
+        }
+      });
+      const handler: StepHandler = {
+        executeStep: vi.fn(
+          async (step: WorkflowStep): Promise<StepResult> => ({
+            stepId: step.id,
+            status: 'running',
+            output: { done: step.id },
+          })
+        ),
+      };
+
+      const result = await executor.execute(
+        makeDefinition([makeStep({ id: 'b1' }), makeStep({ id: 'b2' }), makeStep({ id: 'b3' })]),
+        makeContext(),
+        handler
+      );
+
+      expect(result.status).toBe('completed');
+      expect(Object.keys(result.stepResults).sort()).toEqual(['b1', 'b2', 'b3']);
+
+      // Real-parallelism evidence: every branch starts before the first one completes.
+      const types = orderEvents.map((event) => event.type);
+      const lastStarted = types.lastIndexOf('workflow.step.started');
+      const firstCompleted = types.indexOf('workflow.step.completed');
+      expect(lastStarted).toBeGreaterThanOrEqual(2); // three started events exist
+      expect(firstCompleted).toBeGreaterThan(lastStarted);
+
+      // Closed-interval overlap of real timestamps for every pair of branches.
+      const startedAt = (id: string): number => Date.parse(result.stepResults[id]?.startedAt ?? '');
+      const completedAt = (id: string): number =>
+        Date.parse(result.stepResults[id]?.completedAt ?? '');
+      for (const pair of [
+        ['b1', 'b2'],
+        ['b2', 'b3'],
+        ['b1', 'b3'],
+      ] as const) {
+        const [a, b] = pair;
+        const overlaps = startedAt(a) <= completedAt(b) && startedAt(b) <= completedAt(a);
+        expect(overlaps).toBe(true);
+      }
+    });
+
+    it('never exceeds the configured concurrency limit', async () => {
+      const executor = createExecutor({ concurrencyLimit: 2, deadlockTimeoutMs: 5000 });
+      let active = 0;
+      let maxActive = 0;
+      const startedNow: string[] = [];
+      const gate = deferred<void>();
+      const handler: StepHandler = {
+        executeStep: vi.fn(async (step: WorkflowStep): Promise<StepResult> => {
+          startedNow.push(step.id);
+          await gate.promise;
+          active += 1;
+          maxActive = Math.max(maxActive, active);
+          await Promise.resolve();
+          active -= 1;
+          return { stepId: step.id, status: 'running', output: {} };
+        }),
+      };
+
+      const execution = executor.execute(
+        makeDefinition([
+          makeStep({ id: 's1' }),
+          makeStep({ id: 's2' }),
+          makeStep({ id: 's3' }),
+          makeStep({ id: 's4' }),
+        ]),
+        makeContext(),
+        handler
+      );
+
+      await vi.waitFor(() => {
+        if (startedNow.length !== 2) {
+          throw new Error(`expected exactly 2 started with gate held, got ${startedNow.length}`);
+        }
+      });
+      expect(startedNow).toHaveLength(2);
+
+      gate.resolve();
+      const result = await execution;
+
+      expect(result.status).toBe('completed');
+      expect(startedNow).toHaveLength(4);
+      expect(maxActive).toBe(2);
+    });
+
+    it('runs independent steps sparingly in strict declaration order when forced by dependency', async () => {
       const executor = createExecutor();
       const calls: string[] = [];
       const handler: StepHandler = {
@@ -89,7 +234,11 @@ describe('WorkflowExecutor', () => {
       };
 
       await executor.execute(
-        makeDefinition([makeStep({ id: 'a' }), makeStep({ id: 'b' }), makeStep({ id: 'c' })]),
+        makeDefinition([
+          makeStep({ id: 'a' }),
+          makeStep({ id: 'b', dependsOn: ['a'] }),
+          makeStep({ id: 'c', dependsOn: ['b'] }),
+        ]),
         makeContext(),
         handler
       );
@@ -214,13 +363,15 @@ describe('WorkflowExecutor', () => {
         }),
       };
 
-      await executor.execute(
+      const result = await executor.execute(
         makeDefinition([makeStep({ id: 'bad' }), makeStep({ id: 'after' })]),
         makeContext(),
         handler
       );
 
-      expect(executed).toEqual(['bad', 'after']);
+      expect(executed).toEqual(expect.arrayContaining(['bad', 'after']));
+      expect(result.stepResults['bad'].status).toBe('failed');
+      expect(result.stepResults['after'].status).toBe('completed');
     });
 
     it('persists each step result as an artifact containing the serialized StepResult', async () => {
@@ -391,14 +542,6 @@ describe('WorkflowExecutor', () => {
   });
 
   describe('pause / resume / cancel', () => {
-    function deferred<T>(): { promise: Promise<T>; resolve: (value: T) => void } {
-      let resolve!: (value: T) => void;
-      const promise = new Promise<T>((res) => {
-        resolve = res;
-      });
-      return { promise, resolve };
-    }
-
     /** Inicia execute() y espera de forma determinista a que el estado sea running con el step bloqueado. */
     async function startBlockedExecution(executor: WorkflowExecutor): Promise<{
       gate: { resolve: (value: StepResult) => void };
@@ -473,7 +616,7 @@ describe('WorkflowExecutor', () => {
         }),
       };
       const execution = executor.execute(
-        makeDefinition([makeStep({ id: 'a' }), makeStep({ id: 'b' })]),
+        makeDefinition([makeStep({ id: 'a' }), makeStep({ id: 'b', dependsOn: ['a'] })]),
         makeContext(),
         handler
       );
@@ -522,6 +665,152 @@ describe('WorkflowExecutor', () => {
     it('getState returns null for an unknown run id', () => {
       const executor = createExecutor();
       expect(executor.getState('unknown')).toBeNull();
+    });
+  });
+
+  describe('deadlock detection', () => {
+    it('fails with typed FLOW_DEADLOCK_TIMEOUT in bounded time when a wave never settles', async () => {
+      const executor = createExecutor({ deadlockTimeoutMs: 60, concurrencyLimit: 2 });
+      const gateA = deferred<StepResult>();
+      const gateB = deferred<StepResult>();
+      const handler: StepHandler = {
+        executeStep: vi.fn(async (step: WorkflowStep): Promise<StepResult> => {
+          if (step.id === 'd1') {
+            await gateB.promise;
+          } else {
+            await gateA.promise;
+          }
+          return { stepId: step.id, status: 'running', output: {} };
+        }),
+      };
+      const onFailed = vi.fn();
+      bus.on('workflow.failed', onFailed);
+
+      const startedAt = Date.now();
+      let caught: unknown;
+      try {
+        await executor.execute(
+          makeDefinition([makeStep({ id: 'd1' }), makeStep({ id: 'd2' })]),
+          makeContext(),
+          handler
+        );
+      } catch (error) {
+        caught = error;
+      }
+      const elapsed = Date.now() - startedAt;
+
+      expect(isNinjaError(caught)).toBe(true);
+      if (isNinjaError(caught)) {
+        expect(caught.code).toBe(ErrorCodes.FLOW_DEADLOCK_TIMEOUT);
+        expect(caught.retryable).toBe(true);
+      }
+      expect(elapsed).toBeLessThan(2000);
+      expect(executor.getState('run-1')?.status).toBe('failed');
+      expect(onFailed).toHaveBeenCalledTimes(1);
+      expect(String(onFailed.mock.calls[0][0].payload.data?.error)).toContain('deadlock');
+    });
+
+    it('detects a runtime deadlock even when the same branch set has no static cycle', async () => {
+      const executor = createExecutor({ deadlockTimeoutMs: 60 });
+      const never = new Promise<StepResult>(() => undefined);
+      const handler: StepHandler = {
+        executeStep: vi.fn(async (): Promise<StepResult> => never),
+      };
+
+      let caught: unknown;
+      try {
+        await executor.execute(
+          makeDefinition([makeStep({ id: 'z1' }), makeStep({ id: 'z2' }), makeStep({ id: 'z3' })]),
+          makeContext(),
+          handler
+        );
+      } catch (error) {
+        caught = error;
+      }
+
+      expect(isNinjaError(caught)).toBe(true);
+      if (isNinjaError(caught)) {
+        expect(caught).toBeInstanceOf(FlowError);
+        expect(caught.code).toBe(ErrorCodes.FLOW_DEADLOCK_TIMEOUT);
+      }
+    });
+  });
+
+  describe('persistence across restart', () => {
+    it('rebuilds persisted state from Trace Ledger after a simulated restart', async () => {
+      const store = createPersistentStoreRepositories();
+      const firstExecutor = new WorkflowExecutor(
+        bus as unknown as EventBus,
+        store.runRepository,
+        store.artifactRepository
+      );
+      const handler: StepHandler = {
+        executeStep: vi.fn(
+          async (step: WorkflowStep): Promise<StepResult> => ({
+            stepId: step.id,
+            status: 'running',
+            output: { produced: step.id },
+          })
+        ),
+      };
+
+      await firstExecutor.execute(
+        makeDefinition([
+          makeStep({ id: 'x', name: 'X Branch' }),
+          makeStep({ id: 'y', name: 'Y Branch' }),
+        ]),
+        makeContext({ runId: 'run-persist' }),
+        handler
+      );
+
+      const restartedExecutor = new WorkflowExecutor(
+        new MockEventBus() as unknown as EventBus,
+        store.runRepository,
+        store.artifactRepository
+      );
+
+      expect(restartedExecutor.getState('run-persist')).toBeNull();
+
+      const snapshot = await restartedExecutor.getRunSnapshot('run-persist');
+
+      expect(snapshot).not.toBeNull();
+      expect(snapshot?.status).toBe('completed');
+      expect(Object.keys(snapshot?.stepResults ?? {}).sort()).toEqual(['x', 'y']);
+      expect(snapshot?.stepResults['x'].status).toBe('completed');
+      expect(snapshot?.stepResults['x'].output).toEqual({ produced: 'x' });
+    });
+
+    it('returns null from getRunSnapshot for a run that was never persisted', async () => {
+      const executor = createExecutor();
+      expect(await executor.getRunSnapshot('never-persisted')).toBeNull();
+    });
+  });
+
+  describe('executor options', () => {
+    it('rejects a non-positive concurrencyLimit with FLOW_INVALID_OPTIONS', () => {
+      let caught: unknown;
+      try {
+        createExecutor({ concurrencyLimit: 0 });
+      } catch (error) {
+        caught = error;
+      }
+      expect(isNinjaError(caught)).toBe(true);
+      if (isNinjaError(caught)) {
+        expect(caught.code).toBe(ErrorCodes.FLOW_INVALID_OPTIONS);
+      }
+    });
+
+    it('rejects a non-positive deadlockTimeoutMs with FLOW_INVALID_OPTIONS', () => {
+      let caught: unknown;
+      try {
+        createExecutor({ deadlockTimeoutMs: -1 });
+      } catch (error) {
+        caught = error;
+      }
+      expect(isNinjaError(caught)).toBe(true);
+      if (isNinjaError(caught)) {
+        expect(caught.code).toBe(ErrorCodes.FLOW_INVALID_OPTIONS);
+      }
     });
   });
 });

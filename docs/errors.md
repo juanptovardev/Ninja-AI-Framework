@@ -48,6 +48,8 @@ export const ErrorCodes = {
 | `ARSENAL_SKILL_EXISTS` | `runtime` | 500 | ❌ | A skill with the given ID is already registered |
 | `FLOW_STATE_LOST` | `flow` | 500 | ❌ | Workflow running state disappeared mid-execution |
 | `FLOW_CIRCULAR_DEPENDENCY` | `flow` | 500 | ❌ | Workflow step graph contains a circular dependency |
+| `FLOW_DEADLOCK_TIMEOUT` | `flow` | 504 | ✅ | A parallel wave did not settle within deadlockTimeoutMs (circular wait at runtime) |
+| `FLOW_INVALID_OPTIONS` | `flow` | 400 | ❌ | WorkflowExecutor received invalid concurrency/deadlock options |
 | `INSTALLER_BACKUP_NOT_FOUND` | `runtime` | 404 | ❌ | Backup manifest path does not exist on disk |
 | `FS_METADATA_FAILED` | `fs` | 500 | ❌ | stat/metadata read failed for a path |
 | `FS_SCAN_FAILED` | `fs` | 500 | ❌ | Directory scan failed |
