@@ -21,6 +21,16 @@ interface SSEConnection {
   reply: FastifyReply;
 }
 
+interface JsonRpcRequest {
+  jsonrpc: string;
+  id?: string | number | null;
+  method?: string;
+  params?: {
+    name?: string;
+    arguments?: Record<string, unknown>;
+  };
+}
+
 export function registerMcpRuntimeRoutes(
   server: FastifyInstance,
   deps: {
@@ -35,11 +45,11 @@ export function registerMcpRuntimeRoutes(
 
   // Track task statuses dynamically
   eventBus.on('delegation.completed', (event) => {
-    const payload = event.payload as any;
+    const payload = event.payload as { taskId: string; output?: string };
     taskStatusMap.set(payload.taskId, { status: 'completed', output: payload.output });
   });
   eventBus.on('delegation.failed', (event) => {
-    const payload = event.payload as any;
+    const payload = event.payload as { taskId: string; error?: string };
     taskStatusMap.set(payload.taskId, { status: 'failed', output: payload.error });
   });
 
@@ -50,14 +60,15 @@ export function registerMcpRuntimeRoutes(
 
     // WP-B13: eco del origin solo si está en la allowlist; fallback seguro a console local
     const origin = request.headers.origin;
-    const allowOrigin = origin && ALLOWED_ORIGINS.includes(origin) ? origin : 'http://localhost:3001';
+    const allowOrigin =
+      origin && ALLOWED_ORIGINS.includes(origin) ? origin : 'http://localhost:3001';
 
     reply.raw.writeHead(200, {
       'Content-Type': 'text/event-stream',
       'Cache-Control': 'no-cache, no-transform',
-      'Connection': 'keep-alive',
+      Connection: 'keep-alive',
       'Access-Control-Allow-Origin': allowOrigin,
-      'Vary': 'Origin',
+      Vary: 'Origin',
     });
 
     const conn: SSEConnection = { id: connectionId, reply };
@@ -67,7 +78,7 @@ export function registerMcpRuntimeRoutes(
     const host = request.headers.host || 'localhost:3141';
     const protocol = request.headers['x-forwarded-proto'] || 'http';
     const messageUrl = `${protocol}://${host}/mcp/v1/messages?connectionId=${connectionId}`;
-    
+
     reply.raw.write(`event: endpoint\ndata: ${messageUrl}\n\n`);
 
     request.raw.on('close', () => {
@@ -77,30 +88,33 @@ export function registerMcpRuntimeRoutes(
   });
 
   // 2. Message Post Endpoint
-  server.post('/mcp/v1/messages', async (request: FastifyRequest<{ Querystring: { connectionId: string } }>, reply) => {
-    const { connectionId } = request.query;
-    if (!connectionId) {
-      return reply.status(400).send({ error: 'connectionId query parameter is required' });
+  server.post(
+    '/mcp/v1/messages',
+    async (request: FastifyRequest<{ Querystring: { connectionId: string } }>, reply) => {
+      const { connectionId } = request.query;
+      if (!connectionId) {
+        return reply.status(400).send({ error: 'connectionId query parameter is required' });
+      }
+
+      const conn = sseConnections.get(connectionId);
+      if (!conn) {
+        return reply.status(404).send({ error: 'SSE connection not found or expired' });
+      }
+
+      const body = request.body as JsonRpcRequest | undefined;
+      if (!body || body.jsonrpc !== '2.0') {
+        return reply.status(400).send({ error: 'Invalid JSON-RPC 2.0 payload' });
+      }
+
+      // Process the JSON RPC request in the background and reply via the client's SSE stream
+      handleJsonRpcRequest(body, conn, deps, taskStatusMap).catch((err) => {
+        log.error('Error handling JSON RPC request:', err);
+        sendJsonRpcError(conn, body.id, -32603, err.message || 'Internal error');
+      });
+
+      return reply.status(202).send(); // Accepted
     }
-
-    const conn = sseConnections.get(connectionId);
-    if (!conn) {
-      return reply.status(404).send({ error: 'SSE connection not found or expired' });
-    }
-
-    const body = request.body as any;
-    if (!body || body.jsonrpc !== '2.0') {
-      return reply.status(400).send({ error: 'Invalid JSON-RPC 2.0 payload' });
-    }
-
-    // Process the JSON RPC request in the background and reply via the client's SSE stream
-    handleJsonRpcRequest(body, conn, deps, taskStatusMap).catch((err) => {
-      log.error('Error handling JSON RPC request:', err);
-      sendJsonRpcError(conn, body.id, -32603, err.message || 'Internal error');
-    });
-
-    return reply.status(202).send(); // Accepted
-  });
+  );
 }
 
 function sendJsonRpcResponse(conn: SSEConnection, id: any, result: any) {
@@ -152,7 +166,12 @@ async function handleJsonRpcRequest(
         return sendJsonRpcError(conn, id, -32602, 'Missing tool name parameter');
       }
       try {
-        const result = await executeRuntimeTool(params.name, params.arguments || {}, deps, taskStatusMap);
+        const result = await executeRuntimeTool(
+          params.name,
+          params.arguments || {},
+          deps,
+          taskStatusMap
+        );
         return sendJsonRpcResponse(conn, id, result);
       } catch (err: any) {
         return sendJsonRpcResponse(conn, id, {
@@ -175,7 +194,8 @@ function getRuntimeToolsList() {
   return [
     {
       name: 'ninja_load_profile',
-      description: 'Loads the Ninja Profile containing active context, active skills, orchestration direct blue print, and workers roster.',
+      description:
+        'Loads the Ninja Profile containing active context, active skills, orchestration direct blue print, and workers roster.',
       inputSchema: {
         type: 'object',
         properties: {
@@ -186,7 +206,8 @@ function getRuntimeToolsList() {
     },
     {
       name: 'ninja_delegate_task',
-      description: 'Delegates a natural language prompt task to a worker or sentinel client via Ninja router.',
+      description:
+        'Delegates a natural language prompt task to a worker or sentinel client via Ninja router.',
       inputSchema: {
         type: 'object',
         properties: {
@@ -240,7 +261,8 @@ function getRuntimeToolsList() {
     },
     {
       name: 'ninja_get_roster',
-      description: 'Gets current active clients roster status and active configurations (without credentials).',
+      description:
+        'Gets current active clients roster status and active configurations (without credentials).',
       inputSchema: { type: 'object' },
     },
     {
@@ -327,26 +349,31 @@ async function executeRuntimeTool(
       }
 
       // Read skills list from Arsenal Registry
-      const skills = typeof deps.engine.registry?.getSkills === 'function' 
-        ? deps.engine.registry.getSkills() 
-        : [];
+      const skills =
+        typeof deps.engine.registry?.getSkills === 'function'
+          ? deps.engine.registry.getSkills()
+          : [];
 
       return {
         content: [
           {
             type: 'text',
-            text: JSON.stringify({
-              status: 'success',
-              profile: {
-                role: client.assignedRole,
-                orchestrator: roster.roles.orchestrator,
-                sentinel: roster.roles.sentinel,
-                workers: roster.roles.workers,
-                alwaysOnFallback: roster.roles.alwaysOnFallback,
-                orchestrationConfig: roster.orchestration,
-                availableSkills: skills,
+            text: JSON.stringify(
+              {
+                status: 'success',
+                profile: {
+                  role: client.assignedRole,
+                  orchestrator: roster.roles.orchestrator,
+                  sentinel: roster.roles.sentinel,
+                  workers: roster.roles.workers,
+                  alwaysOnFallback: roster.roles.alwaysOnFallback,
+                  orchestrationConfig: roster.orchestration,
+                  availableSkills: skills,
+                },
               },
-            }, null, 2),
+              null,
+              2
+            ),
           },
         ],
       };
@@ -496,7 +523,9 @@ async function executeRuntimeTool(
 
     case 'ninja_log_tokens': {
       // Track LLM usage
-      log.info(`LLM Usage Log: Task ${args.taskId} used input=${args.inputTokens} output=${args.outputTokens} model=${args.modelName || 'default'}`);
+      log.info(
+        `LLM Usage Log: Task ${args.taskId} used input=${args.inputTokens} output=${args.outputTokens} model=${args.modelName || 'default'}`
+      );
       return {
         content: [
           {
@@ -508,9 +537,10 @@ async function executeRuntimeTool(
     }
 
     case 'ninja_get_skills': {
-      const skills = typeof deps.engine.registry?.getSkills === 'function' 
-        ? deps.engine.registry.getSkills() 
-        : [];
+      const skills =
+        typeof deps.engine.registry?.getSkills === 'function'
+          ? deps.engine.registry.getSkills()
+          : [];
       return {
         content: [
           {
@@ -522,9 +552,8 @@ async function executeRuntimeTool(
     }
 
     case 'ninja_get_workflows': {
-      const workflows = typeof deps.engine.listWorkflows === 'function'
-        ? await deps.engine.listWorkflows()
-        : [];
+      const workflows =
+        typeof deps.engine.listWorkflows === 'function' ? await deps.engine.listWorkflows() : [];
       return {
         content: [
           {
@@ -539,9 +568,12 @@ async function executeRuntimeTool(
       // Audit code logic using Sentinel
       let approved = true;
       let notes = 'Bypassed audit by default policy';
-      
+
       if (deps.engine.sentinel?.policyEngine) {
-        const policyResult = deps.engine.sentinel.policyEngine.evaluate(args.actionType, args.content);
+        const policyResult = deps.engine.sentinel.policyEngine.evaluate(
+          args.actionType,
+          args.content
+        );
         approved = policyResult.approved;
         notes = policyResult.reason || 'Audited by sentinel policies';
       }

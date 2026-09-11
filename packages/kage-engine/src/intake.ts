@@ -1,4 +1,10 @@
-import type { EngineRequest, EnginePlan, EnginePlanStep, InterviewQuestion, InterviewAnswer } from './schema';
+import type {
+  EngineRequest,
+  EnginePlan,
+  EnginePlanStep,
+  InterviewQuestion,
+  InterviewAnswer,
+} from './schema';
 import type { WorkflowDefinition } from '@ninja/flow-matrix';
 import type { AgentRole } from '@ninja/agent-runtime';
 import type { Logger } from '@ninja/logging';
@@ -83,7 +89,7 @@ Responde SOLO una palabra, sin explicaciones ni puntuación:
       const content = response.choices[0]?.message?.content?.trim().toLowerCase();
 
       const validModes = ['build', 'template', 'repair', 'workspace'] as const;
-      if (content && validModes.includes(content as any)) {
+      if (content && validModes.includes(content as (typeof validModes)[number])) {
         this.eventBus.emit({
           id: crypto.randomUUID(),
           type: 'intake.mode.llm.success',
@@ -359,7 +365,7 @@ Reglas:
         throw new EngineError(
           ErrorCodes.ENGINE_INVALID_INTAKE,
           `Step ${step.id} has no assigned agent role`,
-          { httpStatus: 400, context: { stepId: step.id } },
+          { httpStatus: 400, context: { stepId: step.id } }
         );
       }
     }
@@ -410,7 +416,7 @@ Reglas:
         throw new EngineError(
           ErrorCodes.ENGINE_PLAN_FAILED,
           `Circular dependency detected involving step ${step.id}`,
-          { httpStatus: 400, context: { stepId: step.id } },
+          { httpStatus: 400, context: { stepId: step.id } }
         );
       }
     }
@@ -428,7 +434,7 @@ Reglas:
           throw new EngineError(
             ErrorCodes.ENGINE_INVALID_INTAKE,
             `Step ${step.id} depends on non-existent step ${dep}`,
-            { httpStatus: 400, context: { stepId: step.id, missingDep: dep } },
+            { httpStatus: 400, context: { stepId: step.id, missingDep: dep } }
           );
         }
       }
@@ -458,7 +464,10 @@ Responde ÚNICAMENTE con un JSON válido usando este schema:
       model: process.env.LLM_PREMIUM_MODEL || 'gpt-4o',
       messages: [
         { role: 'system', content: systemPrompt },
-        { role: 'user', content: `Prompt: ${prompt}\n\nContexto (Vault): ${vaultContext || 'N/A'}` },
+        {
+          role: 'user',
+          content: `Prompt: ${prompt}\n\nContexto (Vault): ${vaultContext || 'N/A'}`,
+        },
       ],
       temperature: 0.5,
       max_tokens: 2000,
@@ -467,26 +476,62 @@ Responde ÚNICAMENTE con un JSON válido usando este schema:
     try {
       const response = await this.llmClient.complete(request);
       const content = response.choices[0]?.message?.content ?? '[]';
-      
+
       const jsonStrMatch = content.match(/\[[\s\S]*\]/);
       const jsonStr = jsonStrMatch ? jsonStrMatch[0] : '[]';
       const questions: InterviewQuestion[] = JSON.parse(jsonStr);
-      
+
       if (questions.length < 7) {
         this.logger.warn(`El LLM generó menos de 7 preguntas (${questions.length}).`);
       }
-      
+
       return questions;
     } catch (error) {
       this.logger.error(`Error generando entrevista: ${(error as Error).message}`);
       return [
-        { id: 'q1', text: '¿Es una aplicación Enterprise interna o una Landing page/SaaS público?', type: 'choice', options: ['Enterprise', 'Landing', 'SaaS', 'Otro'], required: true },
-        { id: 'q2', text: '¿Cuáles son los roles de usuario principales?', type: 'open', required: true },
-        { id: 'q3', text: '¿Qué integraciones externas son necesarias?', type: 'open', required: true },
-        { id: 'q4', text: '¿Existen restricciones de tiempo o presupuesto?', type: 'open', required: false },
-        { id: 'q5', text: '¿Cuáles son los requisitos de rendimiento o escalabilidad?', type: 'open', required: false },
-        { id: 'q6', text: '¿Cómo se manejará la autenticación y autorización?', type: 'open', required: true },
-        { id: 'q7', text: '¿Hay alguna preferencia de stack tecnológico adicional a la base?', type: 'open', required: false },
+        {
+          id: 'q1',
+          text: '¿Es una aplicación Enterprise interna o una Landing page/SaaS público?',
+          type: 'choice',
+          options: ['Enterprise', 'Landing', 'SaaS', 'Otro'],
+          required: true,
+        },
+        {
+          id: 'q2',
+          text: '¿Cuáles son los roles de usuario principales?',
+          type: 'open',
+          required: true,
+        },
+        {
+          id: 'q3',
+          text: '¿Qué integraciones externas son necesarias?',
+          type: 'open',
+          required: true,
+        },
+        {
+          id: 'q4',
+          text: '¿Existen restricciones de tiempo o presupuesto?',
+          type: 'open',
+          required: false,
+        },
+        {
+          id: 'q5',
+          text: '¿Cuáles son los requisitos de rendimiento o escalabilidad?',
+          type: 'open',
+          required: false,
+        },
+        {
+          id: 'q6',
+          text: '¿Cómo se manejará la autenticación y autorización?',
+          type: 'open',
+          required: true,
+        },
+        {
+          id: 'q7',
+          text: '¿Hay alguna preferencia de stack tecnológico adicional a la base?',
+          type: 'open',
+          required: false,
+        },
       ];
     }
   }
@@ -494,11 +539,18 @@ Responde ÚNICAMENTE con un JSON válido usando este schema:
   /**
    * Genera automáticamente un PRD estructurado basado en las respuestas
    */
-  async autoGeneratePRD(questions: InterviewQuestion[], answers: InterviewAnswer[], prompt: string, vaultContext?: string): Promise<string> {
-    const qnaText = questions.map(q => {
-      const a = answers.find(ans => ans.questionId === q.id);
-      return `Q: ${q.text}\nA: ${a?.answer || 'No respondido'}`;
-    }).join('\n\n');
+  async autoGeneratePRD(
+    questions: InterviewQuestion[],
+    answers: InterviewAnswer[],
+    prompt: string,
+    vaultContext?: string
+  ): Promise<string> {
+    const qnaText = questions
+      .map((q) => {
+        const a = answers.find((ans) => ans.questionId === q.id);
+        return `Q: ${q.text}\nA: ${a?.answer || 'No respondido'}`;
+      })
+      .join('\n\n');
 
     const systemPrompt = `Eres un Orquestador Enterprise creando un Product Requirements Document (PRD) profesional.
 Basado en el prompt inicial, el contexto del Vault, y las respuestas a la entrevista, genera un PRD estructurado en Markdown.
@@ -513,7 +565,10 @@ Debe incluir:
       model: process.env.LLM_PREMIUM_MODEL || 'gpt-4o',
       messages: [
         { role: 'system', content: systemPrompt },
-        { role: 'user', content: `Prompt Inicial: ${prompt}\n\nContexto (Vault): ${vaultContext || 'N/A'}\n\nEntrevista:\n${qnaText}` },
+        {
+          role: 'user',
+          content: `Prompt Inicial: ${prompt}\n\nContexto (Vault): ${vaultContext || 'N/A'}\n\nEntrevista:\n${qnaText}`,
+        },
       ],
       temperature: 0.3,
       max_tokens: 3000,

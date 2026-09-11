@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { ModelSelector, KeyRotator } from './selector.js';
 import { ModelCatalog } from './catalog.js';
 import { MockEventBus } from '../../../tests/helpers/mock-event-bus.js';
-import type { ModelEntry } from './schema.js';
+import type { ModelEntry, ModelCapability } from './schema.js';
 
 class MockModelCatalog {
   private models: ModelEntry[] = [];
@@ -11,8 +11,8 @@ class MockModelCatalog {
     this.models = models;
   }
 
-  getByCapability(capability: string): ModelEntry[] {
-    return this.models.filter((m) => m.capabilities.includes(capability as any));
+  getByCapability(capability: ModelCapability): ModelEntry[] {
+    return this.models.filter((m) => m.capabilities.includes(capability));
   }
 
   getById(id: string): ModelEntry | undefined {
@@ -30,7 +30,9 @@ class MockModelCatalog {
   }
 
   filterByAvailableKeys(): ModelEntry[] {
-    return this.models.filter((m) => m.provider === 'ollama' || this.getApiKeys(m.provider).length > 0);
+    return this.models.filter(
+      (m) => m.provider === 'ollama' || this.getApiKeys(m.provider).length > 0
+    );
   }
 }
 
@@ -84,7 +86,7 @@ describe('ModelSelector', () => {
   beforeEach(() => {
     mockCatalog = new MockModelCatalog();
     mockEventBus = new MockEventBus();
-    selector = new ModelSelector(mockCatalog as any, mockEventBus as any);
+    selector = new ModelSelector(mockCatalog, mockEventBus);
   });
 
   describe('select', () => {
@@ -175,19 +177,19 @@ describe('ModelSelector', () => {
     });
 
     it('KeyRotator devuelve keys en round-robin', () => {
-      const rotator = new KeyRotator(mockCatalog as any);
+      const rotator = new KeyRotator(mockCatalog);
       expect(rotator.getNextKey('openai')).toBe('key1');
       expect(rotator.getNextKey('openai')).toBe('key2');
       expect(rotator.getNextKey('openai')).toBe('key1');
     });
 
     it('KeyRotator maneja providers sin keys', () => {
-      const rotator = new KeyRotator(mockCatalog as any);
+      const rotator = new KeyRotator(mockCatalog);
       expect(rotator.getNextKey('meta')).toBeUndefined();
     });
 
     it('KeyRotator ignora provider ollama', () => {
-      const rotator = new KeyRotator(mockCatalog as any);
+      const rotator = new KeyRotator(mockCatalog);
       expect(rotator.getNextKey('ollama')).toBeUndefined();
     });
 

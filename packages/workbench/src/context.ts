@@ -1,4 +1,5 @@
 import type { WorkspaceContext } from './schema.js';
+import { NinjaError, ErrorCodes } from '@ninja/contracts';
 
 // Active context module variable
 let activeContext: WorkspaceContext | null = null;
@@ -36,7 +37,11 @@ export function clearActiveContext(): void {
  */
 export function requireActiveContext(): WorkspaceContext {
   if (!activeContext) {
-    throw new Error('No active workspace context. Please open a workspace first.');
+    throw new NinjaError(
+      ErrorCodes.WORKBENCH_NO_ACTIVE_CONTEXT,
+      'No active workspace context. Please open a workspace first.',
+      'runtime'
+    );
   }
   return activeContext;
 }

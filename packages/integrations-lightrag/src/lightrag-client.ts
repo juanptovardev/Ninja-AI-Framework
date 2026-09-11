@@ -147,7 +147,11 @@ export class LightRAGClient {
     clearTimeout(timeoutId);
 
     if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      throw toLightRAGError(
+        'index',
+        new Error(`HTTP ${response.status}: ${response.statusText}`),
+        this._timeoutMs
+      );
     }
 
     eventBus.emit(
@@ -196,7 +200,11 @@ export class LightRAGClient {
     clearTimeout(timeoutId);
 
     if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      throw toLightRAGError(
+        'query',
+        new Error(`HTTP ${response.status}: ${response.statusText}`),
+        this._timeoutMs
+      );
     }
 
     const results: LightRAGResult[] = await response.json();

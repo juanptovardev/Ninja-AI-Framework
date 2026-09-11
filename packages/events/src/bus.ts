@@ -16,11 +16,7 @@
  * - history: historial de últimos 1000 eventos (trimming automático)
  */
 
-import type {
-  EventHandler,
-  EventSubscription,
-  NinjaEvent,
-} from '@ninja/contracts';
+import type { EventHandler, EventSubscription, NinjaEvent } from '@ninja/contracts';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -95,9 +91,7 @@ export class EventBus {
     // Auto-batch mode (opcional, default false)
     if (this._autoBatchEnabled) {
       const now = performance.now();
-      this._emitTimestamps = this._emitTimestamps.filter(
-        (ts) => now - ts < BATCH_THRESHOLD_MS
-      );
+      this._emitTimestamps = this._emitTimestamps.filter((ts) => now - ts < BATCH_THRESHOLD_MS);
       this._emitTimestamps.push(now);
 
       // Detectar burst
@@ -190,12 +184,11 @@ export class EventBus {
 
     this._subscriptions.set(type, [...existingSubs, entry]);
 
-    const bus = this;
     return {
       id,
       eventType: type,
-      unsubscribe() {
-        bus.off(id);
+      unsubscribe: () => {
+        this.off(id);
       },
     };
   }
@@ -325,6 +318,17 @@ export class EventBus {
     }
   }
 }
+
+// ---------------------------------------------------------------------------
+// Tipo estructural del bus
+// ---------------------------------------------------------------------------
+
+/**
+ * Tipo estructural del EventBus para inyección en constructores y mocks.
+ * Los consumidores usan este tipo en lugar de `EventBus` para permitir
+ * mocks simples (la clase real tiene muchos miembros privados).
+ */
+export type EventBusLike = Pick<EventBus, 'emit' | 'on' | 'onAny' | 'off'>;
 
 // ---------------------------------------------------------------------------
 // Singleton de proceso

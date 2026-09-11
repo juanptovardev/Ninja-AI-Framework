@@ -13,6 +13,7 @@ import type {
 } from './types.js';
 import type { NinjaPersona } from '@ninja/installer';
 import type { ClientId } from '@ninja/roster';
+import { NinjaError, ErrorCodes } from '@ninja/contracts';
 
 /**
  * BaseTransportAdapter — provides default implementations of the identity,
@@ -29,7 +30,11 @@ import type { ClientId } from '@ninja/roster';
 export abstract class BaseTransportAdapter implements IClientAdapter {
   // ── 1. Identity (must be overridden by concrete adapters) ──────────────────
   agentId(): ClientId {
-    throw new Error('agentId() must be overridden by concrete adapter');
+    throw new NinjaError(
+      ErrorCodes.ADAPTER_METHOD_NOT_IMPLEMENTED,
+      'agentId() must be overridden by concrete adapter',
+      'runtime'
+    );
   }
 
   displayName(): string {
@@ -97,7 +102,9 @@ export abstract class BaseTransportAdapter implements IClientAdapter {
       passed: true,
       present: [],
       missing: [],
-      warnings: ['Verification not implemented for this transport adapter. Use AgentInstaller.verify() instead.'],
+      warnings: [
+        'Verification not implemented for this transport adapter. Use AgentInstaller.verify() instead.',
+      ],
     };
   }
 }

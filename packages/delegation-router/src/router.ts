@@ -3,6 +3,7 @@ import { eventBus as defaultEventBus, createEvent } from '@ninja/events';
 import { RosterManager } from '@ninja/roster';
 import { getClientAdapter, getAgentAdapter } from '@ninja/client-adapters';
 import { ClientId, ClientRole } from '@ninja/roster';
+import { RosterError, ErrorCodes } from '@ninja/contracts';
 
 const log = createLogger('delegation-router');
 
@@ -31,11 +32,7 @@ export class DelegationRouter {
   private vaultCoordinator: any; // Passed dynamically to prevent circular imports
   private eventBus: any;
 
-  constructor(deps: {
-    rosterManager: RosterManager;
-    vaultCoordinator?: any;
-    eventBus?: any;
-  }) {
+  constructor(deps: { rosterManager: RosterManager; vaultCoordinator?: any; eventBus?: any }) {
     this.rosterManager = deps.rosterManager;
     this.vaultCoordinator = deps.vaultCoordinator;
     this.eventBus = deps.eventBus || defaultEventBus;
@@ -66,14 +63,22 @@ export class DelegationRouter {
       const clientConfig = roster.clients[req.toClient];
 
       if (!clientConfig) {
-        throw new Error(`Target client '${req.toClient}' is not registered in the roster.`);
+        throw new RosterError(
+          ErrorCodes.ROSTER_AGENT_NOT_FOUND,
+          `Target client '${req.toClient}' is not registered in the roster.`
+        );
       }
 
       // 1. Enrich prompt with Vault Context if available
       let finalPrompt = req.prompt;
       if (this.vaultCoordinator && req.sessionId) {
         try {
-          finalPrompt = await this.enrichPromptWithVault(req.prompt, req.skills || [], req.sessionId, req.fromClient);
+          finalPrompt = await this.enrichPromptWithVault(
+            req.prompt,
+            req.skills || [],
+            req.sessionId,
+            req.fromClient
+          );
         } catch (vaultErr) {
           log.warn('Failed to enrich prompt from Vault. Proceeding with raw prompt.', vaultErr);
         }
@@ -110,7 +115,10 @@ export class DelegationRouter {
       // Add connection specific properties
       if (connectionType === 'mcp-http') {
         options.connectionType = 'http';
-        options.url = (clientConfig.connectionMethod as any).url;
+        const method = clientConfig.connectionMethod;
+        if (method.type === 'mcp-http') {
+          options.url = method.url;
+        }
       } else if (connectionType === 'mcp-stdio') {
         options.connectionType = 'stdio';
       }
@@ -143,7 +151,7 @@ export class DelegationRouter {
     } catch (err: any) {
       const durationMs = Date.now() - startTime;
       const errorMsg = err instanceof Error ? err.message : String(err);
-      
+
       log.error(`Delegation failed for task ${req.taskId}: ${errorMsg}`);
 
       // Emit error event
@@ -170,9 +178,14 @@ export class DelegationRouter {
   /**
    * Context enrichment helper. Queries the Vault and formats context to append to the prompt.
    */
-  private async enrichPromptWithVault(prompt: string, skills: string[], sessionId: string, fromClient: string): Promise<string> {
+  private async enrichPromptWithVault(
+    prompt: string,
+    skills: string[],
+    sessionId: string,
+    fromClient: string
+  ): Promise<string> {
     log.debug(`Enriching prompt from Vault for session ${sessionId}...`);
-    
+
     const vaultResults = await this.vaultCoordinator.query({
       agentId: fromClient,
       sessionId,
@@ -181,7 +194,7 @@ export class DelegationRouter {
       tokenBudget: 2500,
     });
 
-    let contextBlocks: string[] = [];
+    const contextBlocks: string[] = [];
 
     // Format skills context if any
     if (skills.length > 0) {

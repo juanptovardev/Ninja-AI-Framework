@@ -39,7 +39,7 @@ export interface NinjaPersona {
   /** Brief description of the persona's purpose */
   description: string;
   /** Tone of voice the agent should adopt */
-  tone: 'professional' | 'casual' | 'technical' | 'friendly';
+  tone: 'professional' | 'casual' | 'technical' | 'friendly' | 'terse';
   /** Areas of expertise the agent should exhibit */
   expertise: string[];
   /** Behavioral constraints the agent must follow */

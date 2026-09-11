@@ -58,10 +58,7 @@ export class MockLLMClient {
       }
     }
 
-    const userTokens = request.messages.reduce(
-      (acc, m) => acc + m.content.length,
-      0
-    );
+    const userTokens = request.messages.reduce((acc, m) => acc + m.content.length, 0);
 
     const usage: TokenUsage = {
       prompt_tokens: Math.max(userTokens, 10),
@@ -136,6 +133,10 @@ export class MockLLMClient {
     message: string;
   }): void {
     this.nextError = error;
+  }
+
+  setDefaultResponse(content: string): void {
+    this.defaultResponse = content;
   }
 
   clear(): void {

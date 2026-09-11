@@ -1,7 +1,7 @@
 import type { EventBus, EventSubscription, NinjaEvent } from '@ninja/events';
 import type { Logger } from '@ninja/logging';
 import type { ID, Timestamp } from '@ninja/contracts';
-import type { AuditEntry } from './schema.js';
+import type { AuditEntry, SentinelBlockedPayload } from './schema.js';
 
 /**
  * Hook de persistencia del audit log (WP-C4b / F2.5).
@@ -36,7 +36,7 @@ export class Auditor {
     // Escuchar eventos de Sentinel
     this.subscriptions.push(
       this.eventBus.on('sentinel.action.blocked', (event: NinjaEvent) => {
-        const payload = event.payload as any;
+        const payload = event.payload as SentinelBlockedPayload;
         this.log({
           id: crypto.randomUUID() as ID,
           timestamp: new Date().toISOString() as Timestamp,
@@ -53,7 +53,14 @@ export class Auditor {
 
     this.subscriptions.push(
       this.eventBus.on('sentinel.approval.received', (event: NinjaEvent) => {
-        const payload = event.payload as any;
+        const payload = event.payload as {
+          agentId?: ID;
+          runId?: ID;
+          actionType?: string;
+          approved?: boolean;
+          notes?: string;
+          approvalId?: ID;
+        };
         this.log({
           id: crypto.randomUUID() as ID,
           timestamp: new Date().toISOString() as Timestamp,

@@ -1,3 +1,4 @@
+import { NinjaError, ErrorCodes } from '@ninja/contracts';
 import type { NinjaEvent, ID } from '@ninja/contracts';
 import type { Logger } from '@ninja/logging';
 import { createLogger } from '@ninja/logging';
@@ -45,7 +46,11 @@ export class ArsenalRegistry {
     definition: ToolDefinition<TInput, TOutput>
   ): void {
     if (this.tools.has(definition.id)) {
-      throw new Error(`Tool con ID ${definition.id} ya existe`);
+      throw new NinjaError(
+        ErrorCodes.ARSENAL_TOOL_EXISTS,
+        `Tool con ID ${definition.id} ya existe`,
+        'runtime'
+      );
     }
 
     this.tools.set(definition.id, definition as ToolDefinition<unknown, unknown>);
@@ -70,7 +75,11 @@ export class ArsenalRegistry {
    */
   registerSkill(definition: SkillDefinition): void {
     if (this.skills.has(definition.id)) {
-      throw new Error(`Skill con ID ${definition.id} ya existe`);
+      throw new NinjaError(
+        ErrorCodes.ARSENAL_SKILL_EXISTS,
+        `Skill con ID ${definition.id} ya existe`,
+        'runtime'
+      );
     }
 
     this.skills.set(definition.id, definition);

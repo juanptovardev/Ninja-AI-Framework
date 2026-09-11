@@ -4,7 +4,7 @@
  * Escucha eventos de agentes y emite alertas de salud.
  */
 
-import type { EventBus, NinjaEvent, EventSubscription } from '@ninja/events';
+import type { EventBusLike, NinjaEvent, EventSubscription } from '@ninja/events';
 import type { ID } from '@ninja/contracts';
 import {
   type LatencyMeasurement,
@@ -72,7 +72,7 @@ export class PulseMonitor {
   private readonly persistMetric: PulseMonitorConfig['persistMetric'];
 
   constructor(
-    private readonly eventBus: EventBus,
+    private readonly eventBus: EventBusLike,
     config: PulseMonitorConfig = {}
   ) {
     this.stabilityThreshold = config.stabilityThreshold ?? 60;

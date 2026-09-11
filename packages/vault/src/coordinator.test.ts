@@ -96,23 +96,25 @@ describe('VaultCoordinator', () => {
     mockHotMemoryProvider = new MockHotMemoryProvider();
 
     coordinator = new VaultCoordinator({
-      engram: mockEngramClient as any,
-      lightrag: mockLightRAGClient as any,
-      traceLedger: { artifactRepository: mockArtifactRepository as any },
+      engram: mockEngramClient,
+      lightrag: mockLightRAGClient,
+      traceLedger: { artifactRepository: mockArtifactRepository },
       hotMemoryProvider: mockHotMemoryProvider,
-      eventBus: mockEventBus as any,
+      eventBus: mockEventBus,
     });
   });
 
   describe('query', () => {
     it('devuelve contexto dentro del budget', async () => {
       const longContent = 'a'.repeat(400);
-      const entries: VaultEntry[] = Array(5).fill(null).map((_, i) => ({
-        content: `${longContent} entry-${i}`,
-        layer: 'HOT' as const,
-        relevance: 0.9 - i * 0.1,
-        timestamp: new Date().toISOString(),
-      }));
+      const entries: VaultEntry[] = Array(5)
+        .fill(null)
+        .map((_, i) => ({
+          content: `${longContent} entry-${i}`,
+          layer: 'HOT' as const,
+          relevance: 0.9 - i * 0.1,
+          timestamp: new Date().toISOString(),
+        }));
 
       mockHotMemoryProvider.setEntries(entries);
 

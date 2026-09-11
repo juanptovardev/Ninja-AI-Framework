@@ -52,10 +52,12 @@ const mockFs = vi.mocked(fs);
 const mockExecSync = vi.mocked(execSync);
 
 // Helper: reset and configure fs mock state
-function setupFsMock(options: {
-  exists?: Record<string, boolean>;
-  contents?: Record<string, string>;
-} = {}) {
+function setupFsMock(
+  options: {
+    exists?: Record<string, boolean>;
+    contents?: Record<string, string>;
+  } = {}
+) {
   mockFs.existsSync = vi.fn((p: fs.PathLike) => {
     const key = String(p);
     // Normalize slashes for comparison
@@ -90,16 +92,76 @@ function setupFsMock(options: {
 // ── Adapter instantiation matrix ────────────────────────────────────────────
 
 const allAdapters = [
-  { name: 'ClaudeAdapter', create: () => new ClaudeAdapter(), agentId: 'claude-code', delegation: 'full', binary: 'claude' },
-  { name: 'CodexAdapter', create: () => new CodexAdapter(), agentId: 'codex', delegation: 'solo', binary: 'codex' },
-  { name: 'CursorAdapter', create: () => new CursorAdapter(), agentId: 'cursor', delegation: 'full', binary: 'cursor' },
-  { name: 'OpenCodeAdapter', create: () => new OpenCodeAdapter(), agentId: 'opencode', delegation: 'full', binary: 'opencode' },
-  { name: 'WindsurfAdapter', create: () => new WindsurfAdapter(), agentId: 'windsurf', delegation: 'solo', binary: 'windsurf' },
-  { name: 'GeminiCliAdapter', create: () => new GeminiCliAdapter(), agentId: 'gemini-cli', delegation: 'full', binary: 'gemini' },
-  { name: 'KimiAdapter', create: () => new KimiAdapter(), agentId: 'kimi-code', delegation: 'full', binary: 'kimi' },
-  { name: 'KiroAdapter', create: () => new KiroAdapter(), agentId: 'kiro-ide', delegation: 'full', binary: 'kiro' },
-  { name: 'QwenAdapter', create: () => new QwenAdapter(), agentId: 'qwen-code', delegation: 'full', binary: 'qwen' },
-  { name: 'GenericAgentAdapter (Trae)', create: () => new GenericAgentAdapter(PRESET_AGENTS.trae), agentId: 'trae', delegation: 'solo', binary: 'trae' },
+  {
+    name: 'ClaudeAdapter',
+    create: () => new ClaudeAdapter(),
+    agentId: 'claude-code',
+    delegation: 'full',
+    binary: 'claude',
+  },
+  {
+    name: 'CodexAdapter',
+    create: () => new CodexAdapter(),
+    agentId: 'codex',
+    delegation: 'solo',
+    binary: 'codex',
+  },
+  {
+    name: 'CursorAdapter',
+    create: () => new CursorAdapter(),
+    agentId: 'cursor',
+    delegation: 'full',
+    binary: 'cursor',
+  },
+  {
+    name: 'OpenCodeAdapter',
+    create: () => new OpenCodeAdapter(),
+    agentId: 'opencode',
+    delegation: 'full',
+    binary: 'opencode',
+  },
+  {
+    name: 'WindsurfAdapter',
+    create: () => new WindsurfAdapter(),
+    agentId: 'windsurf',
+    delegation: 'solo',
+    binary: 'windsurf',
+  },
+  {
+    name: 'GeminiCliAdapter',
+    create: () => new GeminiCliAdapter(),
+    agentId: 'gemini-cli',
+    delegation: 'full',
+    binary: 'gemini',
+  },
+  {
+    name: 'KimiAdapter',
+    create: () => new KimiAdapter(),
+    agentId: 'kimi-code',
+    delegation: 'full',
+    binary: 'kimi',
+  },
+  {
+    name: 'KiroAdapter',
+    create: () => new KiroAdapter(),
+    agentId: 'kiro-ide',
+    delegation: 'full',
+    binary: 'kiro',
+  },
+  {
+    name: 'QwenAdapter',
+    create: () => new QwenAdapter(),
+    agentId: 'qwen-code',
+    delegation: 'full',
+    binary: 'qwen',
+  },
+  {
+    name: 'GenericAgentAdapter (Trae)',
+    create: () => new GenericAgentAdapter(PRESET_AGENTS.trae),
+    agentId: 'trae',
+    delegation: 'solo',
+    binary: 'trae',
+  },
 ];
 
 // ── Fixture data ─────────────────────────────────────────────────────────────
@@ -135,7 +197,7 @@ describe('Binary Detection', () => {
   it.each(allAdapters)(
     '$name — returns DetectionResult with installed:true when binary found in PATH',
     async ({ create, binary }) => {
-      mockExecSync.mockReturnValue(`/usr/bin/${binary}\n` as any);
+      mockExecSync.mockReturnValue(`/usr/bin/${binary}\n`);
 
       const adapter = create();
       const result = await adapter.detect(FAKE_HOME);
@@ -153,7 +215,9 @@ describe('Binary Detection', () => {
   it.each(allAdapters)(
     '$name — returns installed:false when binary not in PATH',
     async ({ create }) => {
-      mockExecSync.mockImplementation(() => { throw new Error('not found'); });
+      mockExecSync.mockImplementation(() => {
+        throw new Error('not found');
+      });
 
       const adapter = create();
       const result = await adapter.detect(FAKE_HOME);
@@ -166,7 +230,9 @@ describe('Binary Detection', () => {
   it.each(allAdapters)(
     '$name — detect() does NOT throw when agent is not installed',
     async ({ create }) => {
-      mockExecSync.mockImplementation(() => { throw new Error('not found'); });
+      mockExecSync.mockImplementation(() => {
+        throw new Error('not found');
+      });
       mockFs.existsSync = vi.fn(() => false);
 
       const adapter = create();
@@ -177,7 +243,7 @@ describe('Binary Detection', () => {
   it.each(allAdapters)(
     '$name — configFound:true when configDir exists on disk',
     async ({ create }) => {
-      mockExecSync.mockReturnValue('/usr/bin/agent\n' as any);
+      mockExecSync.mockReturnValue('/usr/bin/agent\n');
       const adapter = create();
       const configDir = adapter.globalConfigDir(FAKE_HOME);
       mockFs.existsSync = vi.fn((p) => String(p) === configDir);
@@ -274,34 +340,28 @@ describe('Config Dir Resolution', () => {
     expect(adapter.globalConfigDir(FAKE_HOME)).toBe(path.join(FAKE_HOME, '.trae'));
   });
 
-  it.each(allAdapters)(
-    '$name — paths use provided homeDir parameter',
-    ({ create, agentId }) => {
-      const adapter = create();
-      const customHome = path.join('C:', 'custom', 'home', 'dir');
+  it.each(allAdapters)('$name — paths use provided homeDir parameter', ({ create, agentId }) => {
+    const adapter = create();
+    const customHome = path.join('C:', 'custom', 'home', 'dir');
 
-      const oldAppData = process.env.APPDATA;
+    const oldAppData = process.env.APPDATA;
+    if (agentId === 'opencode') {
+      delete process.env.APPDATA;
+    }
+    try {
+      const configDir = adapter.globalConfigDir(customHome);
+      expect(configDir).toContain(customHome);
+    } finally {
       if (agentId === 'opencode') {
-        delete process.env.APPDATA;
-      }
-      try {
-        const configDir = adapter.globalConfigDir(customHome);
-        expect(configDir).toContain(customHome);
-      } finally {
-        if (agentId === 'opencode') {
-          process.env.APPDATA = oldAppData;
-        }
+        process.env.APPDATA = oldAppData;
       }
     }
-  );
+  });
 
-  it.each(allAdapters)(
-    '$name — globalConfigDir never returns empty string',
-    ({ create }) => {
-      const adapter = create();
-      expect(adapter.globalConfigDir(FAKE_HOME)).toBeTruthy();
-    }
-  );
+  it.each(allAdapters)('$name — globalConfigDir never returns empty string', ({ create }) => {
+    const adapter = create();
+    expect(adapter.globalConfigDir(FAKE_HOME)).toBeTruthy();
+  });
 });
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -368,7 +428,7 @@ describe('System Prompt Injection', () => {
   it('ClaudeAdapter — injectSystemPrompt merges block when CLAUDE.md already exists with markers', async () => {
     const existingContent = `# Existing User Content\n\n${MARKER_START}\nOLD NINJA CONTENT\n${MARKER_END}\n`;
     mockFs.existsSync = vi.fn(() => true);
-    mockFs.readFileSync = vi.fn(() => existingContent) as any;
+    mockFs.readFileSync = vi.fn(() => existingContent) as unknown as typeof mockFs.readFileSync;
 
     const adapter = new ClaudeAdapter();
     const configDir = path.join(FAKE_HOME, '.claude');
@@ -493,18 +553,18 @@ describe('Skills Injection', () => {
     const writeCalls = vi.mocked(mockFs.writeFileSync).mock.calls;
 
     const allPaths = [
-      ...renameCalls.map(c => String(c[1])),
-      ...writeCalls.map(c => String(c[0])),
+      ...renameCalls.map((c) => String(c[1])),
+      ...writeCalls.map((c) => String(c[0])),
     ];
 
-    expect(allPaths.some(p => p.includes('sdd-orchestrator'))).toBe(true);
-    expect(allPaths.some(p => p.includes('engram-protocol'))).toBe(true);
+    expect(allPaths.some((p) => p.includes('sdd-orchestrator'))).toBe(true);
+    expect(allPaths.some((p) => p.includes('engram-protocol'))).toBe(true);
   });
 
   it('ClaudeAdapter — injectSkills skips unchanged files (content hash match)', async () => {
     const skillContent = '# SDD Orchestrator';
     mockFs.existsSync = vi.fn(() => true);
-    mockFs.readFileSync = vi.fn(() => skillContent) as any;
+    mockFs.readFileSync = vi.fn(() => skillContent) as unknown as typeof mockFs.readFileSync;
 
     const adapter = new ClaudeAdapter();
     const unchangedSkill: NinjaSkill[] = [
@@ -526,7 +586,7 @@ describe('Skills Injection', () => {
   });
 
   it('GenericAgentAdapter — injectSkills skips when skillsSubdir is null', async () => {
-    const customConfig = { ...PRESET_AGENTS.trae, skillsSubdir: null as any };
+    const customConfig = { ...PRESET_AGENTS.trae, skillsSubdir: null };
     const adapter = new GenericAgentAdapter(customConfig);
     await adapter.injectSkills(path.join(FAKE_HOME, '.trae'), mockSkills);
 
@@ -549,9 +609,9 @@ describe('SDD Agent Injection', () => {
     await adapter.injectSDD(path.join(FAKE_HOME, '.cursor'), mockSddAgents);
 
     expect(mockFs.writeFileSync).toHaveBeenCalled();
-    const paths = vi.mocked(mockFs.writeFileSync).mock.calls.map(c => String(c[0]));
-    expect(paths.some(p => p.includes('sdd-explore.md'))).toBe(true);
-    expect(paths.some(p => p.includes('sdd-apply.md'))).toBe(true);
+    const paths = vi.mocked(mockFs.writeFileSync).mock.calls.map((c) => String(c[0]));
+    expect(paths.some((p) => p.includes('sdd-explore.md'))).toBe(true);
+    expect(paths.some((p) => p.includes('sdd-apply.md'))).toBe(true);
   });
 
   it('OpenCodeAdapter — injectSDD writes agent files in agents/', async () => {
@@ -559,8 +619,8 @@ describe('SDD Agent Injection', () => {
     await adapter.injectSDD(path.join(FAKE_HOME, 'opencode'), mockSddAgents);
 
     expect(mockFs.writeFileSync).toHaveBeenCalled();
-    const paths = vi.mocked(mockFs.writeFileSync).mock.calls.map(c => String(c[0]));
-    expect(paths.some(p => p.includes('sdd-explore.md'))).toBe(true);
+    const paths = vi.mocked(mockFs.writeFileSync).mock.calls.map((c) => String(c[0]));
+    expect(paths.some((p) => p.includes('sdd-explore.md'))).toBe(true);
   });
 
   it('GeminiCliAdapter — injectSDD writes wrapped agent files in agents/', async () => {
@@ -680,7 +740,9 @@ describe('Verification', () => {
       const normMcp = mcpPath.replace(/\\/g, '/');
       return s === normClaudeMd || s === normCommands || s === normMcp;
     });
-    mockFs.readFileSync = vi.fn(() => `${MARKER_START}\nSome content\n${MARKER_END}\n`) as any;
+    mockFs.readFileSync = vi.fn(
+      () => `${MARKER_START}\nSome content\n${MARKER_END}\n`
+    ) as unknown as typeof mockFs.readFileSync;
 
     const adapter = new ClaudeAdapter();
     const report = await adapter.verify(configDir);
@@ -697,11 +759,15 @@ describe('Verification', () => {
 
     mockFs.existsSync = vi.fn((p) => {
       const s = String(p).replace(/\\/g, '/');
-      return s === configPath.replace(/\\/g, '/') ||
-             s === skillsDir.replace(/\\/g, '/') ||
-             s === agentsDir.replace(/\\/g, '/');
+      return (
+        s === configPath.replace(/\\/g, '/') ||
+        s === skillsDir.replace(/\\/g, '/') ||
+        s === agentsDir.replace(/\\/g, '/')
+      );
     });
-    mockFs.readFileSync = vi.fn(() => JSON.stringify({ systemPrompt: 'Prompt', mcpServers: { 'ninja-kage': {} } })) as any;
+    mockFs.readFileSync = vi.fn(() =>
+      JSON.stringify({ systemPrompt: 'Prompt', mcpServers: { 'ninja-kage': {} } })
+    ) as unknown as typeof mockFs.readFileSync;
 
     const adapter = new OpenCodeAdapter();
     const report = await adapter.verify(configDir);
@@ -718,16 +784,18 @@ describe('Verification', () => {
 
     mockFs.existsSync = vi.fn((p) => {
       const s = String(p).replace(/\\/g, '/');
-      return s === promptPath.replace(/\\/g, '/') ||
-             s === mcpPath.replace(/\\/g, '/') ||
-             s === skillsDir.replace(/\\/g, '/');
+      return (
+        s === promptPath.replace(/\\/g, '/') ||
+        s === mcpPath.replace(/\\/g, '/') ||
+        s === skillsDir.replace(/\\/g, '/')
+      );
     });
     mockFs.readFileSync = vi.fn((p) => {
       const s = String(p).replace(/\\/g, '/');
       if (s === promptPath.replace(/\\/g, '/')) return NINJA_MARKER_START;
       if (s === mcpPath.replace(/\\/g, '/')) return JSON.stringify([{ name: 'ninja-kage' }]);
       return '';
-    }) as any;
+    }) as unknown as typeof mockFs.readFileSync;
 
     const adapter = new WindsurfAdapter();
     const report = await adapter.verify(configDir);
@@ -740,7 +808,7 @@ describe('Verification', () => {
     '$name — verify() always returns a VerifyReport with correct shape',
     async ({ create }) => {
       mockFs.existsSync = vi.fn(() => false);
-      mockFs.readFileSync = vi.fn(() => '') as any;
+      mockFs.readFileSync = vi.fn(() => '') as unknown as typeof mockFs.readFileSync;
 
       const adapter = create();
       const report = await adapter.verify(adapter.globalConfigDir(FAKE_HOME));
@@ -769,12 +837,9 @@ describe('Agent Identity', () => {
     }
   );
 
-  it.each(allAdapters)(
-    '$name — displayName() returns non-empty string',
-    ({ create }) => {
-      const adapter = create();
-      expect(adapter.displayName()).toBeTruthy();
-      expect(typeof adapter.displayName()).toBe('string');
-    }
-  );
+  it.each(allAdapters)('$name — displayName() returns non-empty string', ({ create }) => {
+    const adapter = create();
+    expect(adapter.displayName()).toBeTruthy();
+    expect(typeof adapter.displayName()).toBe('string');
+  });
 });

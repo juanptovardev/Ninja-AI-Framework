@@ -1,4 +1,5 @@
 import type { MemoryLayer, VaultEntry } from '../schema.js';
+import { VaultError, ErrorCodes } from '@ninja/contracts';
 
 export interface BudgetAllocation {
   layer: MemoryLayer;
@@ -40,10 +41,13 @@ export class VaultBudgetManager {
 
   allocate(totalBudget: number, layers: MemoryLayer[]): Record<MemoryLayer, number> {
     if (totalBudget <= 0) {
-      throw new Error('totalBudget must be positive');
+      throw new VaultError(ErrorCodes.VAULT_BUDGET_NOT_POSITIVE, 'totalBudget must be positive');
     }
     if (!layers || layers.length === 0) {
-      throw new Error('layers must contain at least one layer');
+      throw new VaultError(
+        ErrorCodes.VAULT_LAYERS_REQUIRED,
+        'layers must contain at least one layer'
+      );
     }
 
     const allocation: Record<string, number> = {};
@@ -57,7 +61,7 @@ export class VaultBudgetManager {
     const requestedLayers = layers.filter((l) => layerPercentages[l] !== undefined);
 
     if (requestedLayers.length === 0) {
-      throw new Error('No valid layers provided');
+      throw new VaultError(ErrorCodes.VAULT_NO_VALID_LAYERS, 'No valid layers provided');
     }
 
     const totalRequested = requestedLayers.reduce((sum, l) => sum + layerPercentages[l], 0);

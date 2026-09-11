@@ -16,12 +16,25 @@ import type {
 } from './schema';
 import { MemoryManager } from './memory';
 import { AGENT_DEFINITIONS } from './definitions';
-import { LLMClient, type LLMRequest, type LLMResponse, classifyLLMError } from '@ninja/integrations-llm';
-import { ModelSelector, FallbackChain, type ModelCapability, type SelectionStrategy } from '@ninja/model-gateway';
+import {
+  LLMClient,
+  type LLMRequest,
+  type LLMResponse,
+  classifyLLMError,
+} from '@ninja/integrations-llm';
+import {
+  ModelSelector,
+  FallbackChain,
+  type ModelCapability,
+  type SelectionStrategy,
+} from '@ninja/model-gateway';
 import { LLMError, EngineError, ErrorCodes, BudgetError } from '@ninja/contracts';
 import type { BudgetManager } from '@ninja/model-gateway';
 
-const ROLE_SELECTION_MAP: Record<string, { capability: ModelCapability; strategy: SelectionStrategy }> = {
+const ROLE_SELECTION_MAP: Record<
+  string,
+  { capability: ModelCapability; strategy: SelectionStrategy }
+> = {
   Planner: { capability: 'reasoning', strategy: 'most-capable' },
   Planificator: { capability: 'chat', strategy: 'fastest' },
   Librarian: { capability: 'chat', strategy: 'fastest' },
@@ -54,7 +67,7 @@ export class AgentExecutor implements StepHandler {
     private readonly budgetManager?: BudgetManager,
     private readonly sessionTokenBudget?: number,
     /** Optional repo for RF-16 mini-commits per agent. If undefined, no per-agent commit row is persisted. */
-    private readonly agentCommitRepository?: AgentCommitRepository,
+    private readonly agentCommitRepository?: AgentCommitRepository
   ) {}
 
   /**
@@ -66,13 +79,16 @@ export class AgentExecutor implements StepHandler {
    */
   private async completeWithFallback(
     request: LLMRequest,
-    sessionId?: string,
-  ): Promise<LLMResponse | { fallback: true; retryable: true; status: 'failed'; result: string; timestamp: string }> {
+    sessionId?: string
+  ): Promise<
+    | LLMResponse
+    | { fallback: true; retryable: true; status: 'failed'; result: string; timestamp: string }
+  > {
     if (this.budgetManager && this.sessionTokenBudget !== undefined && sessionId) {
       if (this.budgetManager.isOverBudget(sessionId, this.sessionTokenBudget)) {
         throw new BudgetError(
           `Token budget exceeded for session ${sessionId} (limit: ${this.sessionTokenBudget})`,
-          { context: { sessionId, limit: this.sessionTokenBudget } },
+          { context: { sessionId, limit: this.sessionTokenBudget } }
         );
       }
     }
@@ -105,12 +121,14 @@ export class AgentExecutor implements StepHandler {
       throw new LLMError(
         ErrorCodes.LLM_ALL_PROVIDERS_FAILED,
         `LLM chain exhausted from ${request.model}`,
-        { retryable: false, cause: lastError, context: { initialModel: request.model } },
+        { retryable: false, cause: lastError, context: { initialModel: request.model } }
       );
     }
 
     // Legacy mode: return historic fallback object
-    this.logger.warn(`[fallback] chain exhausted, using legacy fallback object (NINJA_LLM_FAIL_MODE=legacy)`);
+    this.logger.warn(
+      `[fallback] chain exhausted, using legacy fallback object (NINJA_LLM_FAIL_MODE=legacy)`
+    );
     return {
       fallback: true as const,
       retryable: true as const,
@@ -194,15 +212,18 @@ export class AgentExecutor implements StepHandler {
       const result = await this.executeAgentTask(task, updatedInstance);
 
       // Registrar commit del resultado
-      await this.logAgentResult({
-        id: crypto.randomUUID(),
-        agentInstanceId: instance.instanceId,
-        taskId: task.id,
-        summary: `Tarea completada: ${task.description}`,
-        technicalDetails: JSON.stringify(result),
-        artifacts: [],
-        createdAt: new Date().toISOString(),
-      }, updatedInstance);
+      await this.logAgentResult(
+        {
+          id: crypto.randomUUID(),
+          agentInstanceId: instance.instanceId,
+          taskId: task.id,
+          summary: `Tarea completada: ${task.description}`,
+          technicalDetails: JSON.stringify(result),
+          artifacts: [],
+          createdAt: new Date().toISOString(),
+        },
+        updatedInstance
+      );
 
       // Actualizar estado a completado
       const completedInstance: AgentInstance = {
@@ -391,12 +412,20 @@ export class AgentExecutor implements StepHandler {
   /**
    * Descubre habilidades para la tarea, retornando subset de JSON schema.
    */
-  private async discoverSkillsForTask(task: AgentTask, definition: AgentDefinition): Promise<Record<string, unknown>[]> {
+  private async discoverSkillsForTask(
+    task: AgentTask,
+    definition: AgentDefinition
+  ): Promise<Record<string, unknown>[]> {
     try {
-      const allTools = await (this.arsenalRegistry as any).getTools() || [];
+      type ArsenalToolsAccess = {
+        getTools?: () => Array<{ id: string; name: string; schema?: Record<string, unknown> }>;
+      };
+      const allTools = (await (this.arsenalRegistry as ArsenalToolsAccess).getTools?.()) ?? [];
       return allTools
-        .filter((t: any) => definition.allowedTools.includes(t.id) || definition.allowedTools.includes(t.name))
-        .map((t: any) => t.schema);
+        .filter(
+          (t) => definition.allowedTools.includes(t.id) || definition.allowedTools.includes(t.name)
+        )
+        .map((t) => t.schema ?? {});
     } catch (e) {
       this.logger.error(`Failed to discover skills: ${(e as Error).message}`);
       return [];
@@ -418,10 +447,16 @@ export class AgentExecutor implements StepHandler {
   /**
    * Ejecuta map-reduce para tareas grandes evadiendo rate limits y evitando recursión.
    */
-  private async executeWithMapReduce(task: AgentTask, instance: AgentInstance): Promise<MapReduceResult> {
+  private async executeWithMapReduce(
+    task: AgentTask,
+    instance: AgentInstance
+  ): Promise<MapReduceResult> {
     this.logger.info(`Starting Map-Reduce for task ${task.id}`);
     const agentDef = this.getAgentDefinitionById(instance.definitionId);
-    if (!agentDef) throw new EngineError(ErrorCodes.ENGINE_COORDINATOR_FAILED, 'Agent definition not found', { context: { taskId: task.id } });
+    if (!agentDef)
+      throw new EngineError(ErrorCodes.ENGINE_COORDINATOR_FAILED, 'Agent definition not found', {
+        context: { taskId: task.id },
+      });
 
     const startTime = Date.now();
 
@@ -431,7 +466,7 @@ export class AgentExecutor implements StepHandler {
       description: chunk,
       input: { ...task.input, chunkIndex: index },
       agentRole: agentDef.role,
-      isSubTask: true
+      isSubTask: true,
     }));
 
     const subResults = await Promise.allSettled(
@@ -443,7 +478,7 @@ export class AgentExecutor implements StepHandler {
           input: st.input,
           status: 'planning',
           createdAt: new Date().toISOString(),
-          isSubTask: true
+          isSubTask: true,
         };
         return this.executeAgentTask(subAgentTask, instance);
       })
@@ -452,11 +487,12 @@ export class AgentExecutor implements StepHandler {
     const successfulResults: Record<string, unknown>[] = [];
     let totalTokens = 0;
 
-    subResults.forEach(res => {
+    subResults.forEach((res) => {
       if (res.status === 'fulfilled' && res.value && !res.value.fallback) {
         successfulResults.push(res.value);
-        if ((res.value.executionContext as any)?.tokensUsed) {
-          totalTokens += (res.value.executionContext as any).tokensUsed as number;
+        const executionContext = res.value.executionContext as { tokensUsed?: number } | undefined;
+        if (executionContext?.tokensUsed) {
+          totalTokens += executionContext.tokensUsed;
         }
       } else if (res.status === 'rejected') {
         this.logger.warn(`Subtask failed during Map-Reduce: ${res.reason}`);
@@ -465,14 +501,14 @@ export class AgentExecutor implements StepHandler {
 
     const reduceMessage = {
       role: 'user' as const,
-      content: `Reduce the following partial results into a single final result:\n${JSON.stringify(successfulResults)}`
+      content: `Reduce the following partial results into a single final result:\n${JSON.stringify(successfulResults)}`,
     };
 
     const request: LLMRequest = {
       model: 'gpt-4o-mini',
       messages: [
         { role: 'system', content: 'You are a summarizer. Merge partial results logically.' },
-        reduceMessage
+        reduceMessage,
       ],
       temperature: 0.3,
       max_tokens: 2048,
@@ -506,8 +542,8 @@ export class AgentExecutor implements StepHandler {
       metrics: {
         totalTokens,
         parallelTasks: subTasks.length,
-        executionTimeMs: Date.now() - startTime
-      }
+        executionTimeMs: Date.now() - startTime,
+      },
     };
   }
 
@@ -518,12 +554,19 @@ export class AgentExecutor implements StepHandler {
     // Obtener definición del agente basada en el rol del step
     const role = step.agentRole as AgentRole;
     if (!role) {
-      throw new EngineError(ErrorCodes.ENGINE_INVALID_INTAKE, `Step does not specify an agent role: ${step.id}`, { httpStatus: 400, context: { stepId: step.id } });
+      throw new EngineError(
+        ErrorCodes.ENGINE_INVALID_INTAKE,
+        `Step does not specify an agent role: ${step.id}`,
+        { httpStatus: 400, context: { stepId: step.id } }
+      );
     }
 
     const agentDefinition = AGENT_DEFINITIONS[role];
     if (!agentDefinition) {
-      throw new EngineError(ErrorCodes.ENGINE_INVALID_INTAKE, `Unknown agent role: ${role}`, { httpStatus: 400, context: { role } });
+      throw new EngineError(ErrorCodes.ENGINE_INVALID_INTAKE, `Unknown agent role: ${role}`, {
+        httpStatus: 400,
+        context: { role },
+      });
     }
 
     // Crear instancia del agente
@@ -552,17 +595,16 @@ export class AgentExecutor implements StepHandler {
    * - Persiste fila en agent_commits via AgentCommitRepository (RF-16) si está inyectado.
    * - Actualiza Run y Artifact repositories como antes.
    */
-  private async logAgentResult(
-    record: AgentCommitRecord,
-    instance?: AgentInstance,
-  ): Promise<void> {
+  private async logAgentResult(record: AgentCommitRecord, instance?: AgentInstance): Promise<void> {
     try {
       this.logger.info(`Agent commit recorded: ${record.summary} for task ${record.taskId}`);
 
       // RF-16: persistir en agent_commits para /api/commits y /commits page
       if (this.agentCommitRepository) {
         try {
-          const agentDef = instance ? this.getAgentDefinitionById(instance.definitionId) : undefined;
+          const agentDef = instance
+            ? this.getAgentDefinitionById(instance.definitionId)
+            : undefined;
           const role = agentDef?.role ?? 'unknown';
           const filesChanged = (record.artifacts ?? [])
             .map((a) => a.name)
@@ -583,35 +625,7 @@ export class AgentExecutor implements StepHandler {
       }
 
       // Integracion Trace Ledger (Gap 4)
-      if (typeof (this.runRepository as any).updateStatus === 'function') {
-        await (this.runRepository as any).updateStatus(record.taskId, 'completed', {
-          summary: record.summary,
-          technicalDetails: record.technicalDetails
-        });
-      } else if (typeof (this.runRepository as any).updateRunStatus === 'function') {
-        await (this.runRepository as any).updateRunStatus(record.taskId, 'completed', {
-          summary: record.summary,
-          technicalDetails: record.technicalDetails
-        });
-      } else if (typeof (this.runRepository as any).save === 'function') {
-        await (this.runRepository as any).save({ id: record.taskId, status: 'completed' });
-      }
-
-      if (record.artifacts && record.artifacts.length > 0) {
-        for (const artifact of record.artifacts) {
-          if (typeof (this.artifactRepository as any).createArtifact === 'function') {
-            await (this.artifactRepository as any).createArtifact({
-              id: crypto.randomUUID(),
-              runId: record.taskId,
-              name: artifact.name,
-              type: artifact.type as any,
-              content: artifact.content,
-              metadata: {},
-              createdAt: new Date().toISOString()
-            });
-          }
-        }
-      }
+      await this.runRepository.updateStatus(record.taskId, 'completed');
     } catch (error) {
       this.logger.error(`Failed to log agent result: ${(error as Error).message}`);
     }
@@ -626,7 +640,11 @@ export class AgentExecutor implements StepHandler {
   ): Promise<Record<string, unknown>> {
     const agentDef = this.getAgentDefinitionById(instance.definitionId);
     if (!agentDef) {
-      throw new EngineError(ErrorCodes.ENGINE_COORDINATOR_FAILED, `Agent definition not found: ${instance.definitionId}`, { context: { definitionId: instance.definitionId } });
+      throw new EngineError(
+        ErrorCodes.ENGINE_COORDINATOR_FAILED,
+        `Agent definition not found: ${instance.definitionId}`,
+        { context: { definitionId: instance.definitionId } }
+      );
     }
 
     if (!task.isSubTask && task.description.length > 4000) {
@@ -674,7 +692,7 @@ export class AgentExecutor implements StepHandler {
         capability: 'chat',
         strategy: 'balanced',
       };
-      
+
       const selectionResult = this.modelSelector.select({
         capability: selectionConfig.capability,
         strategy: selectionConfig.strategy,

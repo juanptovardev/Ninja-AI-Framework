@@ -3,29 +3,36 @@ import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
 import rateLimit from '@fastify/rate-limit';
 import websocketPlugin from '@fastify/websocket';
-import type { RuntimeStatus } from '@ninja/contracts';
+import { AuthError } from '@ninja/contracts';
 import { createLogger } from '@ninja/logging';
 import { eventBus } from '@ninja/events';
 import { parseEnv } from './env-schema.js';
 import { sanitizeError } from './sanitize-error.js';
 import { getOrCreateRuntimeKey } from './auth-key.js';
-import { AuthError } from '@ninja/contracts';
-import { ShellExecuteSchema, GitCommitSchema, RosterAssignSchema } from './route-schemas.js';
-import { RUNTIME_NAME, RUNTIME_VERSION } from './constants.js';
 import { registerBusRoutes } from './bus-router.js';
 import { registerErrorHandlers } from './error-handler.js';
 import { registerHealthRoutes } from './routes/health.js';
+import { registerStatusRoutes } from './routes/status.routes.js';
+import { registerRosterRoutes } from './routes/roster.routes.js';
+import { registerWsEventsRoutes } from './routes/ws-events.routes.js';
+import { registerPulseRoutes } from './routes/pulse.routes.js';
+import { registerVaultRoutes } from './routes/vault.routes.js';
+import { registerModelGatewayRoutes } from './routes/model-gateway.routes.js';
+import { registerLearningRoutes } from './routes/learning.routes.js';
+import { registerIntegrationsRoutes } from './routes/integrations.routes.js';
+import { registerForgeLabRoutes } from './routes/forge-lab.routes.js';
+import { registerSessionRoutes } from './routes/session.routes.js';
+import { registerDashboardRoutes } from './routes/dashboard.routes.js';
+import { registerInstallerRoutes } from './routes/installer.routes.js';
 import { registerEngineRoutes } from './routes/engine.routes.js';
 import { registerApprovalsRoutes } from './routes/approvals.routes.js';
 import { registerArsenalRoutes } from './routes/arsenal.routes.js';
 import { registerShutdownStep, getShutdownSteps, clearShutdownSteps } from './shutdown-registry.js';
-import { closeDb } from '@ninja/storage';
+import { closeDb, initDb, runMigrations } from '@ninja/storage';
 import { registerRequestLogging } from './request-logging.js';
 import { KageEngine, HttpController } from '@ninja/kage-engine';
 import { bootstrap as bootstrapArsenal } from '@ninja/arsenal-registry';
-import { requireActiveContext } from '@ninja/workbench';
-import { initDb, runMigrations } from '@ninja/storage';
-import { WORKSPACE_MIGRATIONS } from '@ninja/workbench';
+import { requireActiveContext, WORKSPACE_MIGRATIONS } from '@ninja/workbench';
 import { WorkflowExecutor } from '@ninja/flow-matrix';
 import { AgentExecutor } from '@ninja/agent-runtime';
 import {
@@ -36,14 +43,13 @@ import {
   PulseMetricRepository,
   AuditLogRepository,
 } from '@ninja/trace-ledger';
-import type { NinjaEvent } from '@ninja/contracts';
 import { getNinjaGlobalDir } from '@ninja/config';
 import { LLMRegistry } from '@ninja/integrations-llm';
-import { PulseMonitor, setDashboardMonitor, getDashboardData } from '@ninja/pulse-center';
+import { PulseMonitor, setDashboardMonitor } from '@ninja/pulse-center';
 import { RosterManager } from '@ninja/roster';
 import { DelegationRouter } from '@ninja/delegation-router';
+import type { ClientId } from '@ninja/roster';
 import { registerMcpRuntimeRoutes } from './mcp-runtime-server.js';
-import { registerRosterVerifyRoute } from './routes/roster-verify.js';
 import { FailoverManager } from './failover.js';
 import { PolicyEngine, ApprovalManager, Auditor, Guardian } from '@ninja/sentinel';
 import path from 'path';
@@ -62,23 +68,8 @@ import {
 } from '@ninja/model-gateway';
 import { LearningHarvester, LearningPromoter, LearningEvaluator } from '@ninja/learning-loop';
 
-// Phase 8: External Integrations & Forge Lab
-import { executeCommand, validateCommand, type ShellCommand } from '@ninja/integrations-shell';
-import { GitClient, commit } from '@ninja/integrations-git';
-import { scanDirectory } from '@ninja/integrations-fs';
-import { httpRequest } from '@ninja/integrations-http';
-import {
-  RepoAnalyzer,
-  ContentExtractor,
-  normalizeContent,
-  scoreContent,
-  promoteContent,
-  LabPromoter,
-} from '@ninja/forge-lab';
-
 // Installer (Gentle AI-compatible orchestration pipeline)
 import { AgentInstaller } from '@ninja/installer';
-import type { ClientId } from '@ninja/roster';
 
 const log = createLogger('kage-runtime:server');
 
@@ -106,17 +97,15 @@ export async function createServer(): Promise<FastifyInstance> {
     genReqId: () => crypto.randomUUID(),
   });
 
+  const nodeEnv = env.NODE_ENV;
+
   // ── Request logging (WP-F2.7): access log mínimo con correlationId ─────────
   registerRequestLogging(server, { skipPaths: ['/health'] });
 
   // ── Security headers (WP-C4c / F2.6, ADR-0012) ─────────────────────────────
-  // CSP deshabilitada: el runtime sirve API/WS, no HTML propio (el dashboard es
-  // forge-console/Next.js, que gestiona sus cabeceras).
   await server.register(helmet, { contentSecurityPolicy: false });
 
   // ── Rate limiting (WP-C4c / F2.6, ADR-0012) ────────────────────────────────
-  // Global: 100 req/min por X-Ninja-Key (o IP en rutas públicas).
-  // /api/shell/execute: 10/min (route-level override) — ejecución de comandos.
   await server.register(rateLimit, {
     global: true,
     max: 100,
@@ -165,40 +154,16 @@ export async function createServer(): Promise<FastifyInstance> {
       const key = request.headers['x-ninja-key'];
       if (key !== runtimeKey) {
         const err = new AuthError('Missing or invalid X-Ninja-Key header');
-        return reply
-          .status(401)
-          .send(sanitizeError(err, env.NODE_ENV as 'production' | 'development' | 'test'));
+        return reply.status(401).send(sanitizeError(err, nodeEnv));
       }
     });
   }
 
   // ── Global Error Handler (WP-C1) ───────────────────────────────────────────────
-  registerErrorHandlers(server, env.NODE_ENV as 'production' | 'development' | 'test');
+  registerErrorHandlers(server, nodeEnv);
 
-  // ── Health & Status ──────────────────────────────────────────────────────────
-  // GET /health y GET /health/ready se registran más abajo (registerHealthRoutes,
-  // WP-C3a) una vez que la DB y el env validado están disponibles.
-  server.get('/api/status', async (_request, _reply): Promise<RuntimeStatus> => {
-    log.debug('Status check requested');
-    return {
-      status: 'running',
-      version: RUNTIME_VERSION,
-      uptime: process.uptime(),
-      timestamp: new Date().toISOString(),
-    };
-  });
-
-  // Alias para compatibilidad hacia atrás
-  server.get('/status', async (_request, _reply): Promise<RuntimeStatus> => {
-    return {
-      status: 'running',
-      version: RUNTIME_VERSION,
-      uptime: process.uptime(),
-      timestamp: new Date().toISOString(),
-    };
-  });
-
-  // ── Event Bus Routes ─────────────────────────────────────────────────────────
+  // ── Status & Event Bus ──────────────────────────────────────────────────────
+  registerStatusRoutes(server);
   registerBusRoutes(server);
 
   // ── Engine Dependencies ──────────────────────────────────────────────────────
@@ -220,7 +185,6 @@ export async function createServer(): Promise<FastifyInstance> {
     env: { LLM_BASE_URL: env.LLM_BASE_URL, LLM_API_KEY: env.LLM_API_KEY },
     expectedMigrations: WORKSPACE_MIGRATIONS.length,
   });
-  log.info('Granular health routes registered (/health, /health/ready)');
 
   // Inicializar Repositories del Trace Ledger
   const sessionRepo = new SessionRepository(db);
@@ -250,19 +214,14 @@ export async function createServer(): Promise<FastifyInstance> {
   log.info(`LLM Integration active with provider: ${providerId}`);
 
   // ── Phase 5: Intelligence & Memory Initialization ─────────────────────────
-  log.info('Initializing Phase 5: Intelligence & Memory...');
-
-  // 1. Storage Clients (Engram & LightRAG)
-  // engramClient is already initialized as a singleton in the package
   const lightragClient = new LightRAGClient(
     process.env.LIGHTRAG_API_URL || 'http://localhost:8000'
   );
 
-  // 2. Vault & Memory
+  // Vault & Memory
   const agentNamespaceManager = new AgentNamespaceManager();
   const hotMemoryProvider: IHotMemoryProvider = {
     getEntries: async (agentId, sessionId) => {
-      // Intentar obtener el namespace actual de la memoria volátil
       const ns = agentNamespaceManager.getNamespace(agentId, sessionId, '');
       return ns?.hotMemory || [];
     },
@@ -276,7 +235,7 @@ export async function createServer(): Promise<FastifyInstance> {
     eventBus,
   });
 
-  // 3. Model Gateway (Selección Inteligente)
+  // Model Gateway (Selección Inteligente)
   const mc = ModelCatalog.getInstance();
   const modelBudgetManager = BudgetManager.getInstance(eventBus);
   const modelSelector = new ModelSelector(mc, eventBus);
@@ -289,7 +248,7 @@ export async function createServer(): Promise<FastifyInstance> {
     eventBus,
   });
 
-  // 4. Learning Loop
+  // Learning Loop
   const learningHarvester = new LearningHarvester({
     runRepository: runRepo,
     artifactRepository: artifactRepo,
@@ -298,8 +257,6 @@ export async function createServer(): Promise<FastifyInstance> {
   });
   const learningEvaluator = new LearningEvaluator({ eventBus });
   const learningPromoter = new LearningPromoter(engramClient, eventBus);
-
-  log.info('Intelligence & Memory modules initialized successfully');
 
   // Inicializar Executors para Workflow y Agentes
   const workflowExecutor = new WorkflowExecutor(eventBus, runRepo, artifactRepo);
@@ -330,40 +287,11 @@ export async function createServer(): Promise<FastifyInstance> {
     eventBus,
     log
   );
-  log.info('Kage Engine initialized');
 
   // ── Roster, Router & Failover (Always-On Multi-Client Integration) ──
   const rosterManager = new RosterManager();
   rosterManager.unlock();
   rosterManager.detectAndSync();
-
-  server.get('/api/roster', async (_request, reply) => {
-    return reply.send(rosterManager.getRoster());
-  });
-
-  server.post('/api/roster/assign', async (request, reply) => {
-    const parsed = RosterAssignSchema.safeParse(request.body);
-    if (!parsed.success) {
-      return reply.status(400).send({
-        error: 'Invalid request body',
-        code: 'VALIDATION_ERROR',
-        issues: parsed.error.issues,
-      });
-    }
-    const { clientId, role } = parsed.data;
-    try {
-      rosterManager.assignRole(clientId as any, role as any);
-      return reply.send({ success: true });
-    } catch (err) {
-      if (clientId.startsWith('agent-')) {
-        log.info(`Mocking roster assignment for UI agent: ${clientId} to ${role}`);
-        return reply.send({ success: true });
-      }
-      return reply
-        .status(400)
-        .send(sanitizeError(err, env.NODE_ENV as 'production' | 'development' | 'test'));
-    }
-  });
 
   const delegationRouter = new DelegationRouter({
     rosterManager,
@@ -375,7 +303,6 @@ export async function createServer(): Promise<FastifyInstance> {
   failoverManager.start();
 
   // ── Pulse Center & Sentinel ──────────────────────────────────────────────────
-  // Repos de persistencia Pulse/Audit (WP-C4b / F2.5) — misma DB global de storage
   const pulseMetricRepo = new PulseMetricRepository(db);
   const auditLogRepo = new AuditLogRepository(db);
 
@@ -386,11 +313,10 @@ export async function createServer(): Promise<FastifyInstance> {
   });
   pulseMonitor.start();
   setDashboardMonitor(pulseMonitor);
-  log.info('Pulse Center Monitor started');
 
   const policyEngine = new PolicyEngine(log);
   policyEngine.registerPolicy({
-    id: crypto.randomUUID() as any,
+    id: crypto.randomUUID(),
     name: 'Block external execution by default',
     description: 'Requires approval to execute shell commands',
     actionType: 'shell.execute',
@@ -418,9 +344,6 @@ export async function createServer(): Promise<FastifyInstance> {
   log.info('Sentinel System started');
 
   // ── Shutdown Registry (WP-C4a / F2.4) ─────────────────────────────────────
-  // Orden dictado por el plan: WS/HTTP → Executor/Failover → Pulse → Auditor
-  // (flush) → Engram → SQLite (última). WS/HTTP lo cierra lifecycle.ts
-  // directamente (server.close()); aquí registramos el resto en orden.
   registerShutdownStep('failover-manager', () => failoverManager.stop());
   registerShutdownStep('pulse-monitor', () => pulseMonitor.stop());
   registerShutdownStep('sentinel-auditor', () => auditor.stop());
@@ -452,11 +375,11 @@ export async function createServer(): Promise<FastifyInstance> {
         },
         dbPath: '',
         ninjaDir: '',
-      } as any;
+      };
     }
   });
 
-  // ── Engine Routes ─────────────────────────────────────────────────────────
+  // ── MCP Runtime Routes ─────────────────────────────────────────────────────
   registerMcpRuntimeRoutes(server, {
     rosterManager,
     delegationRouter,
@@ -464,83 +387,10 @@ export async function createServer(): Promise<FastifyInstance> {
     engine,
   });
 
-  /**
-   * Canal WS de eventos en tiempo real.
-   */
-  server.get('/ws/events', { websocket: true }, (socket, _request) => {
-    log.info('WebSocket client connected to /ws/events');
+  // ── WebSocket Events Channel ───────────────────────────────────────────────
+  registerWsEventsRoutes(server, { engine, authDisabled, runtimeKey });
 
-    // WP-B11: WS auth — first message must be { action: 'auth', key }
-    let authenticated = authDisabled;
-
-    const authTimeout = authDisabled
-      ? null
-      : setTimeout(() => {
-          if (!authenticated) {
-            socket.close(1008, 'Auth timeout: send auth handshake within 5s');
-          }
-        }, 5000);
-
-    let busSubscription: { unsubscribe: () => void } | null = null;
-
-    const subscribe = () => {
-      busSubscription = eventBus.on('*', (event: NinjaEvent) => {
-        if (socket.readyState === socket.OPEN) {
-          socket.send(JSON.stringify(event));
-        }
-      });
-    };
-
-    const unsubscribe = () => busSubscription?.unsubscribe();
-
-    if (authDisabled) {
-      subscribe();
-    }
-
-    socket.on('message', (raw: Buffer) => {
-      try {
-        const msg = JSON.parse(raw.toString());
-
-        if (!authenticated) {
-          if (msg.action === 'auth' && msg.key === runtimeKey) {
-            authenticated = true;
-            if (authTimeout) clearTimeout(authTimeout);
-            socket.send(JSON.stringify({ type: 'auth.ok' }));
-            subscribe();
-          } else {
-            socket.close(1008, 'Invalid auth');
-          }
-          return;
-        }
-
-        if (msg.type === 'ping') {
-          socket.send(JSON.stringify({ type: 'pong', ts: Date.now() }));
-        } else if (msg.action === 'interview:answers') {
-          if (typeof (engine as any).submitAnswers === 'function') {
-            (engine as any).submitAnswers(msg.payload);
-          } else {
-            log.warn('engine.submitAnswers no está implementado aún en KageEngine');
-          }
-        }
-      } catch (err) {
-        log.debug('Failed to parse WS message', err);
-      }
-    });
-
-    socket.on('close', () => {
-      if (authTimeout) clearTimeout(authTimeout);
-      unsubscribe();
-      log.info('WebSocket client disconnected from /ws/events');
-    });
-
-    socket.on('error', (err: Error) => {
-      if (authTimeout) clearTimeout(authTimeout);
-      unsubscribe();
-      log.error('WebSocket error in /ws/events', err);
-    });
-  });
-
-  // ── Engine Routes (WP-D4 1/2): interview / submit / run lifecycle ───────────
+  // ── Engine Routes (WP-D4 1/2) ──────────────────────────────────────────────
   registerEngineRoutes(server, {
     engine,
     httpController,
@@ -548,17 +398,8 @@ export async function createServer(): Promise<FastifyInstance> {
     sessionTokenBudget: env.NINJA_SESSION_TOKEN_BUDGET,
   });
 
-  // ── Pulse Center & Sentinel Routes ──────────────────────────────────────────────
-  server.get('/api/health/pulse', async (_request, reply) => {
-    try {
-      const data = getDashboardData();
-      return reply.send(data);
-    } catch (err: any) {
-      return reply
-        .status(500)
-        .send(sanitizeError(err, env.NODE_ENV as 'production' | 'development' | 'test'));
-    }
-  });
+  // ── Roster Routes ──────────────────────────────────────────────────────────
+  registerRosterRoutes(server, { rosterManager, nodeEnv });
 
   // ── Approvals, Audit & Commits Routes (WP-D4 1/2) ─────────────────────────
   registerApprovalsRoutes(server, {
@@ -574,424 +415,37 @@ export async function createServer(): Promise<FastifyInstance> {
     vaultCoordinator,
   });
 
-  // ── Phase 5: Vault & Intelligence Routes ──────────────────────────────────
-  interface VaultContextQuery {
-    q: string;
-    sessionId: string;
-    agentId?: string;
-    layers?: string;
-    budget?: string;
-  }
-
-  server.get<{ Querystring: VaultContextQuery }>('/api/vault/context', async (request, reply) => {
-    const { q, sessionId, agentId, layers, budget } = request.query;
-    if (!q || !sessionId) {
-      return reply.status(400).send({ error: 'Query (q) and sessionId are required' });
-    }
-
-    const results = await vaultCoordinator.query({
-      agentId: agentId || 'guest',
-      sessionId,
-      query: q,
-      layers: layers ? (layers.split(',') as any[]) : ['HOT', 'WARM', 'COLD'],
-      tokenBudget: budget ? parseInt(budget) : 2000,
-    });
-    return reply.send(results);
+  // ── Phase 5: Vault, Model Gateway & Learning Routes ────────────────────────
+  registerVaultRoutes(server, { vaultCoordinator });
+  registerModelGatewayRoutes(server, {
+    modelCatalog: mc,
+    modelBudgetManager,
+    sessionTokenBudget: env.NINJA_SESSION_TOKEN_BUDGET,
+  });
+  registerLearningRoutes(server, {
+    learningHarvester,
+    learningEvaluator,
+    learningPromoter,
+    nodeEnv,
   });
 
-  server.get('/api/model-gateway/status', async (_request, reply) => {
-    return reply.send({
-      catalogSize: mc.getAll().length,
-      activeStrategy: 'dynamic-hybrid',
-      stats: modelBudgetManager.getGlobalUsage(),
-    });
+  // ── Phase 8: Integrations, Forge Lab, Session, Dashboard & Installer ──────
+  registerIntegrationsRoutes(server, { approvalManager, nodeEnv });
+  registerForgeLabRoutes(server, { artifactRepo, nodeEnv });
+  registerSessionRoutes(server, { sessionRepo, nodeEnv });
+  registerDashboardRoutes(server, {
+    engine,
+    approvalManager,
+    runRepo,
+    providerId,
+    baseUrl,
   });
-
-  server.get('/api/budget/status', async (request, reply) => {
-    const { sessionId } = request.query as { sessionId?: string };
-    return reply.send({
-      global: modelBudgetManager.getGlobalUsage(),
-      session: sessionId ? (modelBudgetManager.getSessionSummary(sessionId) ?? null) : null,
-      limit: env.NINJA_SESSION_TOKEN_BUDGET ?? null,
-    });
-  });
-
-  server.get('/api/learning/candidates', async (_request, reply) => {
-    const candidates = await learningHarvester.harvest(7);
-    return reply.send(candidates);
-  });
-
-  server.post<{ Params: { id: string } }>('/api/learning/promote/:id', async (request, reply) => {
-    const { id } = request.params;
-    try {
-      // 1. Obtener candidatos recientemente cosechados
-      const candidates = await learningHarvester.harvest(30);
-      const candidate = candidates.find((c) => c.runId === id);
-
-      if (!candidate)
-        return reply.status(404).send({ error: 'Candidate not found in recent runs' });
-
-      // 2. Evaluar
-      const report = learningEvaluator.evaluate(candidate);
-
-      // 3. Promocionar (si el reporte lo recomienda)
-      const result = await learningPromoter.promote(report, candidate);
-
-      if (!result.success) {
-        return reply.status(500).send({ error: result.error.message });
-      }
-
-      return reply.send({
-        success: true,
-        promoted: report.recommendPromotion,
-        score: report.totalScore,
-      });
-    } catch (err) {
-      return reply
-        .status(500)
-        .send(sanitizeError(err, env.NODE_ENV as 'production' | 'development' | 'test'));
-    }
-  });
-
-  // ── Phase 8: External Integrations & Forge Lab ──────────────────────────
-  log.info('Initializing Phase 8 routes: Integrations & Forge Lab');
-
-  // Integrations-Shell Routes (rate limit estricto: 10/min — WP-C4c / F2.6)
-  server.post(
-    '/api/shell/execute',
-    {
-      config: {
-        rateLimit: { max: 10, timeWindow: '1 minute' },
-      },
-    },
-    async (request, reply) => {
-      const parsed = ShellExecuteSchema.safeParse(request.body);
-      if (!parsed.success) {
-        return reply.status(400).send({
-          error: 'Invalid request body',
-          code: 'VALIDATION_ERROR',
-          issues: parsed.error.issues,
-        });
-      }
-      const { cmd, args, cwd } = parsed.data;
-      const shellCommand: ShellCommand = { cmd, args, cwd };
-      const validation = validateCommand(shellCommand);
-      if (!validation.allowed) {
-        return reply.status(403).send({ error: validation.reason });
-      }
-      const result = await executeCommand(shellCommand);
-      return reply.send(result);
-    }
-  );
-
-  // Integrations-Git Routes
-  server.get('/api/git/status', async (request, reply) => {
-    const { repoPath } = request.query as { repoPath?: string };
-    const git = new GitClient(repoPath || process.cwd());
-    try {
-      if (!(await git.isGitRepo())) {
-        return reply.status(400).send({ error: 'Not a git repository' });
-      }
-      const result = await git.run(['status', '--porcelain', '-b']);
-      return reply.send({ rawStatus: result.stdout });
-    } catch (err) {
-      return reply
-        .status(500)
-        .send(sanitizeError(err, env.NODE_ENV as 'production' | 'development' | 'test'));
-    }
-  });
-
-  server.get('/api/git/log', async (request, reply) => {
-    const { repoPath, limit } = request.query as { repoPath?: string; limit?: string };
-    const git = new GitClient(repoPath || process.cwd());
-    const result = await git.run(['log', `-n`, limit || '20', '--oneline']);
-    return reply.send({ rawLog: result.stdout });
-  });
-
-  server.post('/api/git/commit', async (request, reply) => {
-    const parsed = GitCommitSchema.safeParse(request.body);
-    if (!parsed.success) {
-      return reply.status(400).send({
-        error: 'Invalid request body',
-        code: 'VALIDATION_ERROR',
-        issues: parsed.error.issues,
-      });
-    }
-    const { message, repoPath } = parsed.data;
-    try {
-      const approvalResult = await approvalManager.createApprovalRequest({
-        runId: crypto.randomUUID(),
-        agentId: 'kage-runtime',
-        actionType: 'git.commit',
-        actionSummary: `Git commit: "${message}"`,
-        technicalDetails: JSON.stringify({ repoPath, message }),
-        policyId: 'git.commit.policy',
-      });
-      if (!approvalResult.approved) {
-        return reply
-          .status(403)
-          .send({ error: 'Commit rejected by Sentinel policy', notes: approvalResult.notes });
-      }
-      const git = new GitClient(repoPath || process.cwd());
-      await commit(git, message);
-      return reply.send({
-        success: true,
-        message: 'Commit created successfully',
-        repoPath: repoPath || process.cwd(),
-      });
-    } catch (err) {
-      return reply
-        .status(500)
-        .send(sanitizeError(err, env.NODE_ENV as 'production' | 'development' | 'test'));
-    }
-  });
-
-  // Integrations-FS Routes
-  server.get('/api/fs/scan', async (request, reply) => {
-    const { dirPath } = request.query as { dirPath?: string };
-    const results = await scanDirectory(dirPath || process.cwd());
-    return reply.send(results);
-  });
-
-  // Forge Lab Routes
-  server.post('/api/forgelab/analyze', async (request, reply) => {
-    const { url } = request.body as { url: string };
-    if (!url) return reply.status(400).send({ error: 'GitHub URL is required' });
-
-    try {
-      const analyzer = new RepoAnalyzer(httpRequest);
-      const analysis = await analyzer.analyzeGitHubRepo(url);
-
-      const extractor = new ContentExtractor(httpRequest);
-      const extracted = await extractor.extractRelevantFiles(analysis, {
-        targetTypes: ['skill', 'pattern'],
-      });
-
-      const pipelineResults = await Promise.all(
-        extracted.map(async (e) => {
-          const norm = normalizeContent(e);
-          const score = scoreContent(norm);
-          // Use LabPromoter for database persistence
-          const labPromoter = new LabPromoter(artifactRepo, crypto.randomUUID(), eventBus, log);
-          const promo = await labPromoter.promoteContent(norm, score);
-          return { file: e.sourcePath, score, promoted: promo.promoted };
-        })
-      );
-
-      return reply.send({ analysis, pipelineResults });
-    } catch (err) {
-      return reply
-        .status(500)
-        .send(sanitizeError(err, env.NODE_ENV as 'production' | 'development' | 'test'));
-    }
-  });
-
-  server.get('/api/forgelab/results', async (_request, reply) => {
-    // Temporary stub, would realistically query TraceLedger/Storage
-    return reply.send({ runs: [] });
-  });
-
-  log.info('Kage Engine and Phase 5/8 routes registered');
-
-  // ── Session Routes ─────────────────────────────────────────────────────────
-
-  server.post('/api/session/init', async (request, reply) => {
-    try {
-      const workspaceId = 'default-workspace';
-      const session = sessionRepo.create({
-        workspaceId,
-        startedAt: new Date().toISOString(),
-      });
-
-      await engramClient.recordObservation(
-        'session.init',
-        `Initialized blank session ${session.id} for workspace ${workspaceId}`
-      );
-
-      return reply.send({ sessionId: session.id, status: 'initialized' });
-    } catch (err: any) {
-      log.error('Failed to init session', err);
-      return reply
-        .status(500)
-        .send(sanitizeError(err, env.NODE_ENV as 'production' | 'development' | 'test'));
-    }
-  });
-
-  server.get('/api/session/list', async (_request, reply) => {
-    const sessions =
-      typeof (sessionRepo as any).findAll === 'function' ? (sessionRepo as any).findAll() : [];
-    return reply.send(sessions);
-  });
-
-  server.post('/api/session/restore/:id', async (request, reply) => {
-    const id = (request.params as any).id;
-    try {
-      const session = sessionRepo.findById(id);
-      if (!session) {
-        return reply.status(404).send({ error: 'Session not found' });
-      }
-
-      await engramClient.recordObservation('session.restore', `Restored session ${id}`);
-      return reply.send({ sessionId: id, status: 'restored' });
-    } catch (err: any) {
-      log.error('Failed to restore session', err);
-      return reply
-        .status(500)
-        .send(sanitizeError(err, env.NODE_ENV as 'production' | 'development' | 'test'));
-    }
-  });
-
-  // ── Dashboard & Settings Routes ────────────────────────────────────────────
-
-  server.get('/api/dashboard', async (_request, reply) => {
-    try {
-      const pulseData = getDashboardData();
-      const pendingApprovals = approvalManager.listPendingApprovals();
-      const activeRuns =
-        typeof (engine as any).getActiveRuns === 'function' ? (engine as any).getActiveRuns() : [];
-
-      // Get recent tasks from runs
-      const recentTasks =
-        typeof (runRepo as any).findRecent === 'function' ? (runRepo as any).findRecent(20) : [];
-
-      return reply.send({
-        systemState: 'running',
-        runsActive: Array.isArray(activeRuns) ? activeRuns.length : 0,
-        agentsActive: (pulseData as any)?.agentMetrics?.activeCount ?? 0,
-        pendingApprovals: pendingApprovals.length,
-        recentTasks: recentTasks,
-        pulse: pulseData,
-        uptime: process.uptime(),
-        version: RUNTIME_VERSION,
-      });
-    } catch (err: any) {
-      log.warn('Dashboard endpoint error, returning defaults', err);
-      return reply.send({
-        systemState: 'running',
-        runsActive: 0,
-        agentsActive: 0,
-        pendingApprovals: 0,
-        recentTasks: [],
-        pulse: null,
-        uptime: process.uptime(),
-        version: RUNTIME_VERSION,
-      });
-    }
-  });
-
-  server.get('/api/settings/providers', async (_request, reply) => {
-    try {
-      const registry = LLMRegistry.getInstance();
-      const providers =
-        typeof (registry as any).getAll === 'function' ? (registry as any).getAll() : [];
-      return reply.send(providers);
-    } catch (err: any) {
-      // Return current env-configured provider as fallback
-      return reply.send([
-        {
-          id: providerId,
-          name: providerId,
-          baseUrl: baseUrl,
-          models: [process.env.LLM_DEFAULT_MODEL || 'unknown'],
-          isActive: true,
-        },
-      ]);
-    }
-  });
-
-  server.get('/api/settings/workspace', async (_request, reply) => {
-    try {
-      const ctx = requireActiveContext();
-      return reply.send({
-        name: ctx.workspace?.name || 'ninja-ai-framework',
-        path: ctx.workspace?.path || process.cwd(),
-        createdAt: ctx.workspace?.createdAt || new Date().toISOString(),
-        lastAccessed: new Date().toISOString(),
-      });
-    } catch {
-      return reply.send({
-        name: 'ninja-ai-framework',
-        path: process.cwd(),
-        createdAt: new Date().toISOString(),
-        lastAccessed: new Date().toISOString(),
-      });
-    }
-  });
-
-  // ── Installer Routes (Gentle AI-compatible orchestration pipeline) ──────────
-  // These routes mirror Gentle AI's install/sync/uninstall/doctor commands
-  // but expose them as REST endpoints for the Kage Runtime server.
 
   const agentInstaller = new AgentInstaller();
+  registerInstallerRoutes(server, { agentInstaller });
+  registerPulseRoutes(server, { nodeEnv });
 
-  // POST /api/install/:agentId — install Ninja into a specific agent
-  server.post<{ Params: { agentId: string } }>('/api/install/:agentId', async (request, reply) => {
-    const { agentId } = request.params;
-    const result = await agentInstaller.install(agentId as ClientId, {
-      backup: true,
-      verify: true,
-    });
-    return reply.status(result.success ? 200 : 400).send(result);
-  });
-
-  // POST /api/install/all — install Ninja into all detected agents
-  server.post('/api/install/all', async (_request, reply) => {
-    const results = await agentInstaller.installAll({ backup: true, verify: true });
-    return reply.send({
-      total: results.length,
-      succeeded: results.filter((r) => r.success).length,
-      failed: results.filter((r) => !r.success).length,
-      results,
-    });
-  });
-
-  // POST /api/sync/:agentId — sync Ninja files to a specific agent
-  server.post<{ Params: { agentId: string } }>('/api/sync/:agentId', async (request, reply) => {
-    const { agentId } = request.params;
-    const result = await agentInstaller.sync(agentId as ClientId);
-    return reply.send(result);
-  });
-
-  // DELETE /api/install/:agentId — uninstall Ninja from a specific agent
-  server.delete<{ Params: { agentId: string }; Querystring: { restore?: string } }>(
-    '/api/install/:agentId',
-    async (request, reply) => {
-      const { agentId } = request.params;
-      const restoreBackup = request.query.restore === 'true';
-      const result = await agentInstaller.uninstall(agentId as ClientId, restoreBackup);
-      return reply.send(result);
-    }
-  );
-
-  // GET /api/install/:agentId/verify — verify agent config
-  server.get<{ Params: { agentId: string } }>(
-    '/api/install/:agentId/verify',
-    async (request, reply) => {
-      const { agentId } = request.params;
-      const report = await agentInstaller.verify(agentId as ClientId);
-      return reply.send(report);
-    }
-  );
-
-  // GET /api/doctor — verify all detected agents (Ninja doctor)
-  server.get('/api/doctor', async (_request, reply) => {
-    const { detectAllClients } = await import('@ninja/roster');
-    const detected = detectAllClients();
-    const reports = await Promise.all(
-      Object.keys(detected).map((id) => agentInstaller.verify(id as ClientId))
-    );
-    return reply.send({
-      total: reports.length,
-      passed: reports.filter((r) => r.passed).length,
-      failed: reports.filter((r) => !r.passed).length,
-      reports,
-    });
-  });
-
-  // GET /api/roster/verify — verify ALL known agents (including undetected)
-  registerRosterVerifyRoute(server, { agentInstaller });
-
-  log.info('Installer routes registered: /api/install, /api/sync, /api/doctor, /api/roster/verify');
+  log.info('Kage Engine and Phase 5/8 routes registered');
 
   return server;
 }

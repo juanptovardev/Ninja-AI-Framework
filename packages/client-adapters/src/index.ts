@@ -1,5 +1,6 @@
 import { IClientAdapter } from './types.js';
 import type { ClientId } from '@ninja/roster';
+import { NinjaError, ErrorCodes } from '@ninja/contracts';
 import { HeadlessCliAdapter } from './adapters/headless.js';
 import { PtyInteractiveAdapter } from './adapters/pty.js';
 import { McpAdapter } from './adapters/mcp.js';
@@ -7,7 +8,12 @@ import { WebSocketAdapter } from './adapters/websocket.js';
 import { KimiAdapter } from './adapters/kimi-adapter.js';
 import { KiroAdapter } from './adapters/kiro-adapter.js';
 import { QwenAdapter } from './adapters/qwen-adapter.js';
-import { GenericAgentAdapter, GenericAgentConfig, PRESET_AGENTS, createGenericAgent } from './adapters/generic-agents-adapter.js';
+import {
+  GenericAgentAdapter,
+  GenericAgentConfig,
+  PRESET_AGENTS,
+  createGenericAgent,
+} from './adapters/generic-agents-adapter.js';
 import { ClaudeAdapter } from './adapters/claude-adapter.js';
 import { CodexAdapter } from './adapters/codex-adapter.js';
 import { CursorAdapter } from './adapters/cursor-adapter.js';
@@ -32,7 +38,9 @@ export * from './adapters/opencode-adapter.js';
 export * from './adapters/windsurf-adapter.js';
 export * from './adapters/gemini-cli-adapter.js';
 
-export function getClientAdapter(connectionType: 'headless-cli' | 'pty' | 'mcp-stdio' | 'mcp-http' | 'vsix-websocket'): IClientAdapter {
+export function getClientAdapter(
+  connectionType: 'headless-cli' | 'pty' | 'mcp-stdio' | 'mcp-http' | 'vsix-websocket'
+): IClientAdapter {
   switch (connectionType) {
     case 'headless-cli':
       return new HeadlessCliAdapter();
@@ -44,7 +52,11 @@ export function getClientAdapter(connectionType: 'headless-cli' | 'pty' | 'mcp-s
     case 'vsix-websocket':
       return new WebSocketAdapter();
     default:
-      throw new Error(`Unsupported client adapter connection type: ${connectionType}`);
+      throw new NinjaError(
+        ErrorCodes.ADAPTER_UNSUPPORTED_CONNECTION,
+        `Unsupported client adapter connection type: ${connectionType}`,
+        'runtime'
+      );
   }
 }
 

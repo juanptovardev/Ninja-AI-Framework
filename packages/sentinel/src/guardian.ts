@@ -20,8 +20,11 @@ export class Guardian {
   start(): void {
     // Escuchar problemas de salud emitidos por Pulse Center
     this.eventBus.on('health.degradation.detected', (event: NinjaEvent) => {
-      const payload = event.payload as any;
-      this.logger.warn('Guardian detected health degradation. Emitting intervention event.', payload);
+      const payload = event.payload as { providerId?: string };
+      this.logger.warn(
+        'Guardian detected health degradation. Emitting intervention event.',
+        payload
+      );
 
       this.eventBus.emit({
         id: crypto.randomUUID() as ID,
@@ -30,13 +33,13 @@ export class Guardian {
         timestamp: new Date().toISOString(),
         payload: {
           reason: 'System health degraded: ' + (payload.providerId || 'unknown'),
-          action: 'pause_affected_agents'
-        }
+          action: 'pause_affected_agents',
+        },
       });
     });
 
     this.eventBus.on('health.context.inefficient', (event: NinjaEvent) => {
-      const payload = event.payload as any;
+      const payload = event.payload as Record<string, unknown>;
       this.logger.warn('Guardian detected context inefficiency', payload);
     });
   }
@@ -46,16 +49,18 @@ export class Guardian {
    * Si la decisión es 'block', emite sentinel.action.blocked.
    * Si la decisión es 'require-approval', crea una solicitud de aprobación y suspende la acción.
    * Si la decisión es 'allow', retorna true.
-   * 
+   *
    * @returns Promise<boolean> - true si la acción está permitida, false si está bloqueada o pendiente de aprobación
    * @throws {ApprovalPendingError} Cuando la acción requiere aprobación y se crea la ticket
    */
-  async evaluateAction(actionType: string, agentId: ID, runId: ID, context?: Record<string, unknown>): Promise<boolean> {
+  async evaluateAction(
+    actionType: string,
+    agentId: ID,
+    runId: ID,
+    context?: Record<string, unknown>
+  ): Promise<boolean> {
     if (!this.policyEngine) {
-      this.logger.error(
-        'Guardian sin PolicyEngine — deny-by-default (WP-B5)',
-        { actionType }
-      );
+      this.logger.error('Guardian sin PolicyEngine — deny-by-default (WP-B5)', { actionType });
       return false;
     }
 
@@ -67,7 +72,11 @@ export class Guardian {
 
     switch (decision.action) {
       case 'block': {
-        this.logger.warn('Guardian blocking action', { actionType, agentId, policyId: decision.policyId });
+        this.logger.warn('Guardian blocking action', {
+          actionType,
+          agentId,
+          policyId: decision.policyId,
+        });
 
         const blockedPayload: SentinelBlockedPayload = {
           agentId,

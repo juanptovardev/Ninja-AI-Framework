@@ -6,6 +6,7 @@
 import type { Result } from '@ninja/contracts';
 import { ok, err } from '@ninja/contracts';
 import { eventBus, createEvent } from '@ninja/events';
+import type { EventBusLike } from '@ninja/events';
 import type {
   ModelEntry,
   ModelCapability,
@@ -15,6 +16,7 @@ import type {
   ModelSelectedPayload,
   ModelGatewayExhaustedPayload,
 } from './schema.js';
+import type { ModelCatalog } from './catalog.js';
 import { modelCatalog } from './catalog.js';
 
 // ---------------------------------------------------------------------------
@@ -39,6 +41,15 @@ export class ModelSelectionError extends Error {
   }
 }
 
+/**
+ * Vista estructural del catálogo que usa el selector.
+ * Permite inyectar mocks sin acoplarse a la clase concreta.
+ */
+export type ModelCatalogLike = Pick<
+  ModelCatalog,
+  'getByCapability' | 'filterByAvailableKeys' | 'getApiKeys'
+>;
+
 // ---------------------------------------------------------------------------
 // KeyRotator
 // ---------------------------------------------------------------------------
@@ -46,13 +57,13 @@ export class ModelSelectionError extends Error {
 export class KeyRotator {
   private indices = new Map<string, number>();
 
-  constructor(private catalog: typeof modelCatalog) {}
+  constructor(private catalog: ModelCatalogLike) {}
 
   getNextKey(provider: string): string | undefined {
     if (provider === 'ollama') return undefined; // Local doesn't need key
     const keys = this.catalog.getApiKeys(provider);
     if (!keys || keys.length === 0) return undefined;
-    
+
     const currentIndex = this.indices.get(provider) || 0;
     const key = keys[currentIndex];
     this.indices.set(provider, (currentIndex + 1) % keys.length);
@@ -65,11 +76,11 @@ export class KeyRotator {
 // ---------------------------------------------------------------------------
 
 export class ModelSelector {
-  private catalog: typeof modelCatalog;
-  private eventBus: typeof eventBus;
+  private catalog: ModelCatalogLike;
+  private eventBus: EventBusLike;
   private rotator: KeyRotator;
 
-  constructor(catalog?: typeof modelCatalog, eventBusInstance?: typeof eventBus) {
+  constructor(catalog?: ModelCatalogLike, eventBusInstance?: EventBusLike) {
     this.catalog = catalog ?? modelCatalog;
     this.eventBus = eventBusInstance ?? eventBus;
     this.rotator = new KeyRotator(this.catalog);
@@ -83,7 +94,7 @@ export class ModelSelector {
       return err(new ModelSelectionError('NO_CAPABILITY_MATCH', request.capability, 0));
     }
 
-    const availableKeysIds = new Set(this.catalog.filterByAvailableKeys().map(m => m.id));
+    const availableKeysIds = new Set(this.catalog.filterByAvailableKeys().map((m) => m.id));
     const available = byCapability.filter((m) => m.isAvailable && availableKeysIds.has(m.id));
 
     if (available.length === 0) {
@@ -207,11 +218,7 @@ export class ModelSelector {
     this.eventBus.emit(event);
   }
 
-  private emitExhausted(
-    capability: ModelCapability,
-    reason: string,
-    availableCount: number
-  ): void {
+  private emitExhausted(capability: ModelCapability, reason: string, availableCount: number): void {
     const payload: ModelGatewayExhaustedPayload = { capability, reason, availableCount };
     const event = createEvent('model.gateway.exhausted', 'model-gateway', payload);
     this.eventBus.emit(event);

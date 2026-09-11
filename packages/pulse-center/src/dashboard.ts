@@ -7,6 +7,7 @@
 import type { PulseMonitor } from './monitor.js';
 import { getOpenFindings, getFindingStats } from './finding.js';
 import { type DashboardData, type HealthScore, HealthScoreSchema } from './schema.js';
+import { NinjaError, ErrorCodes } from '@ninja/contracts';
 
 // ============================================================================
 // Referencia global al monitor (seteada en inicialización)
@@ -43,8 +44,10 @@ export function getDashboardMonitor(): PulseMonitor | null {
  */
 export function getDashboardData(): DashboardData {
   if (!globalMonitor) {
-    throw new Error(
-      'PulseMonitor not configured. Call setDashboardMonitor() before using getDashboardData().'
+    throw new NinjaError(
+      ErrorCodes.PULSE_MONITOR_NOT_CONFIGURED,
+      'PulseMonitor not configured. Call setDashboardMonitor() before using getDashboardData().',
+      'runtime'
     );
   }
 
@@ -70,6 +73,17 @@ export function getDashboardData(): DashboardData {
 // Vistas especializadas del dashboard
 // ============================================================================
 
+function requireMonitor(): PulseMonitor {
+  if (!globalMonitor) {
+    throw new NinjaError(
+      ErrorCodes.PULSE_MONITOR_NOT_CONFIGURED,
+      'PulseMonitor not configured. Call setDashboardMonitor() first.',
+      'runtime'
+    );
+  }
+  return globalMonitor;
+}
+
 /**
  * Obtiene un resumen de salud del sistema.
  * Útil para displays rápidos o indicadores de estado.
@@ -82,9 +96,7 @@ export function getHealthSummary(): {
   criticalFindingsCount: number;
   lastUpdated: number;
 } {
-  if (!globalMonitor) {
-    throw new Error('PulseMonitor not configured. Call setDashboardMonitor() first.');
-  }
+  requireMonitor();
 
   const dashboardData = getDashboardData();
 
@@ -174,11 +186,9 @@ export function getProviderMetrics(): Array<{
   uptime: number;
   lastUpdated: number;
 }> {
-  if (!globalMonitor) {
-    throw new Error('PulseMonitor not configured. Call setDashboardMonitor() first.');
-  }
+  const monitor = requireMonitor();
 
-  const scores = Array.from(globalMonitor.getStabilityScores().values());
+  const scores = Array.from(monitor.getStabilityScores().values());
 
   return scores.map((score) => ({
     providerId: score.providerId,
@@ -202,11 +212,9 @@ export function getAgentEfficiencyMetrics(): Array<{
   responseQuality: number;
   lastUpdated: number;
 }> {
-  if (!globalMonitor) {
-    throw new Error('PulseMonitor not configured. Call setDashboardMonitor() first.');
-  }
+  const monitor = requireMonitor();
 
-  const scores = Array.from(globalMonitor.getContextEfficiencyScores().values());
+  const scores = Array.from(monitor.getContextEfficiencyScores().values());
 
   return scores.map((score) => ({
     agentId: score.agentId,

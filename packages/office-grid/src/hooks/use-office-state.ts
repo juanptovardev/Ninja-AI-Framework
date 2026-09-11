@@ -460,76 +460,85 @@ export const useOfficeState = (config?: Partial<typeof DEFAULT_CONFIG>): UseOffi
   }, [cleanup, connect]);
 
   // Move agent between departments
-  const moveAgent = useCallback(async (agentId: string, departmentId: DepartmentId) => {
-    const currentState = stateRef.current;
-    const agent = currentState.agents[agentId];
-    if (!agent) return false;
+  const moveAgent = useCallback(
+    async (agentId: string, departmentId: DepartmentId) => {
+      const currentState = stateRef.current;
+      const agent = currentState.agents[agentId];
+      if (!agent) return false;
 
-    const oldDept = agent.department;
-    if (oldDept === departmentId) return true;
+      const oldDept = agent.department;
+      if (oldDept === departmentId) return true;
 
-    // Save rollback data
-    const rollbackAgents = { ...currentState.agents };
-    const rollbackDepartments = { ...currentState.departments };
+      // Save rollback data
+      const rollbackAgents = { ...currentState.agents };
+      const rollbackDepartments = { ...currentState.departments };
 
-    // Optimistic Update
-    setState((prev) => {
-      const updatedAgent: AgentNode = { ...prev.agents[agentId], department: departmentId };
-      
-      const newDepts = { ...prev.departments };
-      if (prev.departments[oldDept]) {
-        newDepts[oldDept] = {
-          ...prev.departments[oldDept],
-          agents: prev.departments[oldDept].agents.filter((id: string) => id !== agentId)
+      // Optimistic Update
+      setState((prev) => {
+        const updatedAgent: AgentNode = { ...prev.agents[agentId], department: departmentId };
+
+        const newDepts = { ...prev.departments };
+        if (prev.departments[oldDept]) {
+          newDepts[oldDept] = {
+            ...prev.departments[oldDept],
+            agents: prev.departments[oldDept].agents.filter((id: string) => id !== agentId),
+          };
+        }
+        if (prev.departments[departmentId]) {
+          newDepts[departmentId] = {
+            ...prev.departments[departmentId],
+            agents: [
+              ...prev.departments[departmentId].agents.filter((id: string) => id !== agentId),
+              agentId,
+            ],
+          };
+        }
+
+        return {
+          ...prev,
+          agents: {
+            ...prev.agents,
+            [agentId]: updatedAgent,
+          },
+          departments: newDepts,
         };
-      }
-      if (prev.departments[departmentId]) {
-        newDepts[departmentId] = {
-          ...prev.departments[departmentId],
-          agents: [...prev.departments[departmentId].agents.filter((id: string) => id !== agentId), agentId]
-        };
-      }
-
-      return {
-        ...prev,
-        agents: {
-          ...prev.agents,
-          [agentId]: updatedAgent
-        },
-        departments: newDepts
-      };
-    });
-
-    try {
-      const wsUrlObj = new URL(finalConfig.wsUrl);
-      const httpProtocol = wsUrlObj.protocol === 'wss:' ? 'https:' : 'http:';
-      const apiUrl = `${httpProtocol}//${wsUrlObj.host}/api/roster/assign`;
-
-      const res = await fetch(apiUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ clientId: agentId, role: departmentId }),
       });
 
-      if (!res.ok) {
-        throw new Error(`Failed to update roster on backend: status ${res.status}`);
-      }
+      try {
+        const wsUrlObj = new URL(finalConfig.wsUrl);
+        const httpProtocol = wsUrlObj.protocol === 'wss:' ? 'https:' : 'http:';
+        const apiUrl = `${httpProtocol}//${wsUrlObj.host}/api/roster/assign`;
 
-      logger.info(`Successfully moved agent ${agentId} to department ${departmentId}`);
-      return true;
-    } catch (err) {
-      logger.error(`Failed to move agent ${agentId} to department ${departmentId}`, err);
-      // Rollback
-      setState((prev) => ({
-        ...prev,
-        agents: rollbackAgents,
-        departments: rollbackDepartments
-      }));
-      return false;
-    }
-  }, [finalConfig.wsUrl]);
+        const res = await fetch(apiUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ clientId: agentId, role: departmentId }),
+        });
+
+        if (!res.ok) {
+          // NOTE(T6.4): kept as plain Error on purpose — importing @ninja/contracts
+          // into this client hook breaks the forge-console Turbopack build (barrel
+          // .js resolution). Single remaining prod throw; tracked, not hidden.
+          throw new Error(`Failed to update roster on backend: status ${res.status}`);
+        }
+
+        logger.info(`Successfully moved agent ${agentId} to department ${departmentId}`);
+        return true;
+      } catch (err) {
+        logger.error(`Failed to move agent ${agentId} to department ${departmentId}`, err);
+        // Rollback
+        setState((prev) => ({
+          ...prev,
+          agents: rollbackAgents,
+          departments: rollbackDepartments,
+        }));
+        return false;
+      }
+    },
+    [finalConfig.wsUrl]
+  );
 
   return {
     state,

@@ -4,6 +4,7 @@ import os from 'os';
 import crypto from 'crypto';
 import { createLogger } from '@ninja/logging';
 import type { ClientId } from '@ninja/roster';
+import { NinjaError, ErrorCodes } from '@ninja/contracts';
 import type { BackupManifest } from './types.js';
 
 const log = createLogger('installer:backup');
@@ -28,7 +29,11 @@ export class BackupManager {
    * Creates a backup of the specified files in the agent's config directory.
    * Returns a BackupManifest that can be used to restore later.
    */
-  async createBackup(agentId: ClientId, configDir: string, description?: string): Promise<BackupManifest> {
+  async createBackup(
+    agentId: ClientId,
+    configDir: string,
+    description?: string
+  ): Promise<BackupManifest> {
     const id = crypto.randomUUID();
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
     const backupPath = path.join(this.backupDir, `${timestamp}-${agentId}-${id.slice(0, 8)}`);
@@ -75,7 +80,11 @@ export class BackupManager {
    */
   async restore(manifest: BackupManifest, configDir: string): Promise<void> {
     if (!fs.existsSync(manifest.backupPath)) {
-      throw new Error(`Backup path not found: ${manifest.backupPath}`);
+      throw new NinjaError(
+        ErrorCodes.INSTALLER_BACKUP_NOT_FOUND,
+        `Backup path not found: ${manifest.backupPath}`,
+        'runtime'
+      );
     }
 
     for (const relative of manifest.files) {
@@ -91,7 +100,9 @@ export class BackupManager {
       fs.copyFileSync(src, dest);
     }
 
-    log.info(`Restored ${manifest.files.length} files from backup ${manifest.id} for ${manifest.agentId}`);
+    log.info(
+      `Restored ${manifest.files.length} files from backup ${manifest.id} for ${manifest.agentId}`
+    );
   }
 
   /**
@@ -116,8 +127,8 @@ export class BackupManager {
       }
     }
 
-    return results.sort((a, b) =>
-      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    return results.sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
     );
   }
 

@@ -7,8 +7,9 @@
  *   import type { NinjaEvent, EventHandler, EventSubscription } from '@ninja/contracts';
  */
 
-// Bus de eventos (clase + singleton)
+// Bus de eventos (clase + singleton + tipo estructural)
 export { EventBus, eventBus } from './bus';
+export type { EventBusLike } from './bus';
 
 // Helpers de fábrica
 export { createEvent } from './helpers';

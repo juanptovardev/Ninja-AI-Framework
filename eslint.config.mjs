@@ -63,6 +63,11 @@ const NINJA_ERROR_MIGRATED = [
   'packages/kage-engine/src/coordinator.ts',
   'packages/roster/src/roster.ts',
   'packages/integrations-http/src/client.ts',
+  'packages/workbench/src/context.ts',
+  'packages/vault/src/scoring/budget-manager.ts',
+  'packages/vault/src/coordinator.ts',
+  'packages/pulse-center/src/finding.ts',
+  'packages/pulse-center/src/dashboard.ts',
 ];
 
 /**
@@ -162,13 +167,9 @@ const DEBT_F31_THROW = [
   'packages/arsenal-registry/src/__tests__/mcp-server.test.ts',
   'packages/arsenal-registry/src/__tests__/mcp-adapter.test.ts',
   // src legacy (migrar a NinjaError en F3.1)
-  'packages/workbench/src/context.ts',
-  'packages/vault/src/scoring/budget-manager.ts',
-  'packages/vault/src/coordinator.ts',
-  'packages/pulse-center/src/finding.ts',
-  'packages/pulse-center/src/dashboard.ts',
-  'packages/office-grid/src/hooks/use-office-state.ts',
   'packages/kage-engine/src/approvals.ts',
+  // visual side-layer: no value-import de @ninja/contracts en bundles client (Turbopack)
+  'packages/office-grid/src/hooks/use-office-state.ts',
   'packages/integrations-llm/src/registry.ts',
   'packages/integrations-lightrag/src/lightrag-client.ts',
   'packages/integrations-git/src/operations.ts',
@@ -375,6 +376,38 @@ export default tseslint.config(
       'packages/agent-runtime/src/executor-budget.test.ts',
       'packages/agent-runtime/src/executor-fallback.test.ts',
       'packages/agent-runtime/src/executor-rf16.test.ts',
+    ],
+    rules: {
+      'no-restricted-imports': 'off',
+    },
+  },
+
+  // ── DEBT(T6.4/2026-09-10) — violaciones de capa PREEXISTENTES en main ──────
+  {
+    // DEBT(T6.4): estos imports violaban no-restricted-imports YA en main
+    // (verificado por orquestador el 2026-09-10: versions main linteadas, mismos
+    // errores; el obrero T6.4 añadió CERO violaciones nuevas — mapa en dossier
+    // wp-d4-routes-2.md). T6.4 debía tocar estos archivos (as-any=0 + throws=0)
+    // y G1 bloquea cualquier commit que los stagee. Migrar los edges (mover tipos
+    // a contracts, reinyectar dependencias) es rediseño de arquitectura: requiere
+    // ADR de capas, fuera de alcance T6.4. Expiry: revisión ADR de capas.
+    // NO añadir archivos nuevos a esta lista sin dossier que lo justifique.
+    files: [
+      'packages/client-adapters/src/adapters/generic-agents-adapter.ts',
+      'packages/client-adapters/src/base-adapter.ts',
+      'packages/client-adapters/src/index.ts',
+      'packages/delegation-router/src/router.ts',
+      'packages/forge-lab/src/repo-analyzer.ts',
+      'packages/installer/src/backup.ts',
+      'packages/installer/src/content/system-prompt.ts',
+      'packages/installer/src/types.ts',
+      'packages/installer/src/tests/arsenal-bridge.test.ts',
+      'packages/installer/src/tests/auto-installer.test.ts',
+      'packages/kage-engine/src/intake.ts',
+      'packages/model-gateway/src/budget.ts',
+      'packages/model-gateway/src/budget.test.ts',
+      'packages/vault/src/coordinator.ts',
+      'packages/vault/src/coordinator.test.ts',
     ],
     rules: {
       'no-restricted-imports': 'off',

@@ -1,6 +1,7 @@
 import { stat, readdir } from 'node:fs/promises';
 import { resolve, join, extname } from 'node:path';
 import { eventBus, createEvent } from '@ninja/events';
+import { NinjaError, ErrorCodes } from '@ninja/contracts';
 import { assertWithinBoundary } from './boundary.js';
 
 // Types
@@ -34,7 +35,11 @@ export async function getMetadata(path: string): Promise<FileMetadata> {
       isDirectory: stats.isDirectory(),
     };
   } catch (error) {
-    throw new Error(`Failed to get metadata for: ${path}`);
+    throw new NinjaError(
+      ErrorCodes.FS_METADATA_FAILED,
+      `Failed to get metadata for: ${path}`,
+      'fs'
+    );
   }
 }
 
@@ -63,7 +68,11 @@ export async function scanDirectory(path: string, depth?: number): Promise<FileM
 
       return metadata;
     } catch (error) {
-      throw new Error(`Failed to scan directory: ${currentPath}`);
+      throw new NinjaError(
+        ErrorCodes.FS_SCAN_FAILED,
+        `Failed to scan directory: ${currentPath}`,
+        'fs'
+      );
     }
   }
 
@@ -81,7 +90,7 @@ export async function scanDirectory(path: string, depth?: number): Promise<FileM
 
     return result;
   } catch (error) {
-    throw new Error(`Failed to scan directory: ${path}`);
+    throw new NinjaError(ErrorCodes.FS_SCAN_FAILED, `Failed to scan directory: ${path}`, 'fs');
   }
 }
 
@@ -113,7 +122,11 @@ export async function getFileTree(path: string): Promise<FileTreeNode> {
         return { name, path: currentPath };
       }
     } catch (error) {
-      throw new Error(`Failed to get file tree for: ${currentPath}`);
+      throw new NinjaError(
+        ErrorCodes.FS_TREE_FAILED,
+        `Failed to get file tree for: ${currentPath}`,
+        'fs'
+      );
     }
   }
 

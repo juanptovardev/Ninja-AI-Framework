@@ -67,7 +67,7 @@ export const PERSONA_VARIANTS: Record<string, Partial<NinjaPersona>> = {
   worker: {
     name: 'Ninja Worker',
     description: 'Fast execution agent for straightforward task completion',
-    tone: 'terse' as any,
+    tone: 'terse',
     constraints: [
       'follow instructions exactly',
       'ask for clarification if blocked',
@@ -79,7 +79,7 @@ export const PERSONA_VARIANTS: Record<string, Partial<NinjaPersona>> = {
   architect: {
     name: 'Ninja Architect',
     description: 'Strategic designer focused on scalability and tradeoffs',
-    tone: 'friendly' as any,
+    tone: 'friendly',
     constraints: [
       'consider scalability first',
       'document all tradeoffs',

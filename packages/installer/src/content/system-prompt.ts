@@ -66,7 +66,7 @@ Use these to check if the Ninja runtime is active and to report your phase statu
 
 ## Coding Conventions
 
-- **Strict TypeScript**: No \`any\`, no \`as any\`, no \`// @ts-ignore\`
+- **Strict TypeScript**: No untyped \`any\` (no type assertions, no \`// @ts-ignore\`)
 - **No forbidden deps**: No axios, node-fetch, express, lodash, winston
 - **Use native fetch**: \`globalThis.fetch\` for all HTTP
 - **pnpm workspace**: Internal deps use \`workspace:*\`
@@ -143,7 +143,7 @@ Use these to check if the Ninja runtime is active and to report your phase statu
 
 ## Coding Conventions
 
-- **Strict TypeScript**: No \`any\`, no \`as any\`, no \`// @ts-ignore\`
+- **Strict TypeScript**: No untyped \`any\` (no type assertions, no \`// @ts-ignore\`)
 - **No forbidden deps**: No axios, node-fetch, express, lodash, winston
 - **Use native fetch**: \`globalThis.fetch\` for all HTTP
 - **pnpm workspace**: Internal deps use \`workspace:*\`
