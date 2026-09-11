@@ -84,4 +84,4 @@ Extras: `pnpm lint` → 0 errores (60 warnings preexistentes, ninguno en archivo
 
 ## REPORTA
 
-REPORTA SHA=<pendiente> | STEPS=4 | TESTS=15/15 | BUILD=35/35 | E2E=bloqueado+fixtures de tests/e2e/helpers solo soportan runtime real (waitForRuntime), sin infra de mocking y no se inventaron fixtures nuevos | DOSSIER=wp-e-onboarding.md | FUERA-DE-ALCANCE=NINGUNA
+REPORTA SHA=920b5c0 | STEPS=4 | TESTS=15/15 | BUILD=35/35 | E2E=bloqueado+fixtures de tests/e2e/helpers solo soportan runtime real (waitForRuntime), sin infra de mocking y no se inventaron fixtures nuevos | DOSSIER=wp-e-onboarding.md | FUERA-DE-ALCANCE=NINGUNA
