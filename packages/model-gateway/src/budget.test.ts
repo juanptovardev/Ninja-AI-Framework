@@ -19,7 +19,7 @@ describe('BudgetManager', () => {
   beforeEach(() => {
     BudgetManager.resetInstance();
     mockEventBus = new MockEventBus();
-    budgetManager = BudgetManager.getInstance(mockEventBus as any);
+    budgetManager = BudgetManager.getInstance(mockEventBus);
     budgetManager.reset(sessionId);
   });
 
@@ -97,7 +97,7 @@ describe('BudgetManager', () => {
 
       expect(events).toHaveLength(1);
       if (events[0]) {
-        expect((events[0].payload as any).percentage).toBeGreaterThanOrEqual(80);
+        expect((events[0].payload as { percentage: number }).percentage).toBeGreaterThanOrEqual(80);
       }
     });
 
@@ -109,7 +109,7 @@ describe('BudgetManager', () => {
 
       expect(events).toHaveLength(1);
       if (events[0]) {
-        expect(events[0].payload as any).toMatchObject({
+        expect(events[0].payload).toMatchObject({
           sessionId: 'exceeded-session',
           usage: 6000,
           limit: 5000,

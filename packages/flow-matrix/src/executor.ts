@@ -10,6 +10,7 @@ import type {
 import type { EventBus } from '@ninja/events';
 import type { RunRepository, ArtifactRepository } from '@ninja/trace-ledger';
 import type { RunStatus, ArtifactType } from '@ninja/trace-ledger';
+import { FlowError, ErrorCodes } from '@ninja/contracts';
 import { StepRunner, type StepHandler } from './step-runner';
 
 export class WorkflowExecutor {
@@ -109,7 +110,7 @@ export class WorkflowExecutor {
       // Determine final workflow status
       const finalState = this.getState(context.runId);
       if (!finalState) {
-        throw new Error('Workflow state lost during execution');
+        throw new FlowError(ErrorCodes.FLOW_STATE_LOST, 'Workflow state lost during execution');
       }
 
       const finalStatus: WorkflowStatus = Object.values(finalState.stepResults).every(
@@ -353,7 +354,10 @@ export class WorkflowExecutor {
     steps.forEach((step) => {
       step.dependsOn.forEach((dependencyId) => {
         if (stepMap.has(dependencyId)) {
-          graph.get(dependencyId)!.add(step.id);
+          const dependents = graph.get(dependencyId);
+          if (dependents) {
+            dependents.add(step.id);
+          }
           inDegree.set(step.id, (inDegree.get(step.id) || 0) + 1);
         }
       });
@@ -372,7 +376,10 @@ export class WorkflowExecutor {
 
     // Process nodes
     while (queue.length > 0) {
-      const stepId = queue.shift()!;
+      const stepId = queue.shift();
+      if (stepId === undefined) {
+        break;
+      }
       const step = stepMap.get(stepId);
       if (step) {
         result.push(step);
@@ -391,7 +398,10 @@ export class WorkflowExecutor {
 
     // Check for circular dependencies
     if (result.length !== steps.length) {
-      throw new Error('Circular dependency detected in workflow steps');
+      throw new FlowError(
+        ErrorCodes.FLOW_CIRCULAR_DEPENDENCY,
+        'Circular dependency detected in workflow steps'
+      );
     }
 
     return result;

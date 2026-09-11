@@ -117,6 +117,7 @@ export class RepoAnalyzer {
     // https://github.com/owner/repo.git
     // github.com/owner/repo
 
+    // eslint-disable-next-line no-useless-escape -- \/ es OBLIGATORIO en regex literal (sin escapar termina el literal); falso positivo de la regla
     const match = url.match(/(?:https?:\/\/)?(?:www\.)?github\.com\/([^\/]+)\/([^\/\.]+)/i);
     if (!match) {
       return null;
@@ -136,7 +137,7 @@ export class RepoAnalyzer {
       `https://api.github.com/repos/${owner}/${repo}`
     );
 
-    if (response.status === 403 && (response as any).headers?.['x-ratelimit-remaining'] === '0') {
+    if (response.status === 403 && response.headers['x-ratelimit-remaining'] === '0') {
       throw new RateLimitError();
     }
 
@@ -159,7 +160,7 @@ export class RepoAnalyzer {
         `https://api.github.com/repos/${owner}/${repo}/contents`
       );
 
-      if (response.status === 403 && (response as any).headers?.['x-ratelimit-remaining'] === '0') {
+      if (response.status === 403 && response.headers['x-ratelimit-remaining'] === '0') {
         throw new RateLimitError();
       }
 

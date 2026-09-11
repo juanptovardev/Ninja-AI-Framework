@@ -1,4 +1,4 @@
-import type { EventBus } from '@ninja/events';
+import type { EventBusLike } from '@ninja/events';
 import { eventBus as globalEventBus, createEvent } from '@ninja/events';
 import type { TokenUsage } from '@ninja/integrations-llm';
 
@@ -41,10 +41,10 @@ interface SessionBudgetState {
 export class BudgetManager {
   private static instance: BudgetManager | null = null;
   private sessionData: Map<string, SessionBudgetState>;
-  private eventBus: EventBus;
+  private eventBus: EventBusLike;
   private pricingTable: Map<string, PricingInfo>;
 
-  private constructor(eventBus: EventBus) {
+  private constructor(eventBus: EventBusLike) {
     this.sessionData = new Map();
     this.eventBus = eventBus;
     this.pricingTable = this.initializePricingTable();
@@ -226,7 +226,7 @@ export class BudgetManager {
     this.sessionData.delete(sessionId);
   }
 
-  static getInstance(eventBus?: EventBus): BudgetManager {
+  static getInstance(eventBus?: EventBusLike): BudgetManager {
     if (!BudgetManager.instance) {
       BudgetManager.instance = new BudgetManager(eventBus ?? globalEventBus);
     }

@@ -1,5 +1,6 @@
 import { GitClient, GitOperationBlockedError } from './git-client.js';
 import { eventBus, createEvent } from '@ninja/events';
+import { NinjaError, ErrorCodes } from '@ninja/contracts';
 
 // ---------------------------------------------------------------------------
 // Operations
@@ -30,7 +31,11 @@ export async function stage(client: GitClient, files?: string[]): Promise<void> 
  */
 export async function commit(client: GitClient, message: string): Promise<void> {
   if (!message || message.trim() === '') {
-    throw new Error('Commit message is required');
+    throw new NinjaError(
+      ErrorCodes.GIT_COMMIT_MESSAGE_REQUIRED,
+      'Commit message is required',
+      'runtime'
+    );
   }
 
   await client.verifyGitRepo();
@@ -69,12 +74,12 @@ export async function checkout(client: GitClient, branch: string): Promise<void>
 
   // Validate branch name
   if (!branch || branch.trim() === '') {
-    throw new Error('Branch name is required');
+    throw new NinjaError(ErrorCodes.GIT_BRANCH_NAME_REQUIRED, 'Branch name is required', 'runtime');
   }
 
   // Prevent dangerous operations
   if (branch.includes('..') || branch.includes('~') || branch.includes('^')) {
-    throw new Error('Invalid branch name');
+    throw new NinjaError(ErrorCodes.GIT_INVALID_BRANCH_NAME, 'Invalid branch name', 'runtime');
   }
 
   await client.runWithVerification(['checkout', branch]);
@@ -90,7 +95,7 @@ export async function pull(client: GitClient): Promise<void> {
   // Check if we're on a branch
   const branchResult = await client.run(['branch', '--show-current']);
   if (!branchResult.stdout.trim()) {
-    throw new Error('Cannot pull: not on a branch');
+    throw new NinjaError(ErrorCodes.GIT_NOT_ON_BRANCH, 'Cannot pull: not on a branch', 'runtime');
   }
 
   await client.runWithVerification(['pull'], 120000); // 2 minute timeout for pull

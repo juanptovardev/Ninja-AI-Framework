@@ -41,6 +41,22 @@ export const ErrorCodes = {
 | `LLM_SERVER` | `llm` | 502-503 | ✅ | LLM provider returned 5xx Server Error |
 | `LLM_CALL_FAILED` | `llm` | 503 | ❌ | Generic LLM call failure |
 | `LLM_ALL_PROVIDERS_FAILED` | `llm` | 503 | ✅ | All models in the fallback chain have been exhausted |
+| `LLM_PROVIDER_ALREADY_REGISTERED` | `llm` | 500 | ❌ | Provider already registered in the LLM registry — duplicate registration |
+| `LLM_PROVIDER_NOT_REGISTERED` | `llm` | 500 | ❌ | Provider requested from the LLM registry was never registered |
+| `ARSENAL_PERMISSION_DENIED` | `runtime` | 403 | ❌ | Tool execution denied by the arsenal permission guard |
+| `ARSENAL_TOOL_EXISTS` | `runtime` | 500 | ❌ | A tool with the given ID is already registered |
+| `ARSENAL_SKILL_EXISTS` | `runtime` | 500 | ❌ | A skill with the given ID is already registered |
+| `FLOW_STATE_LOST` | `flow` | 500 | ❌ | Workflow running state disappeared mid-execution |
+| `FLOW_CIRCULAR_DEPENDENCY` | `flow` | 500 | ❌ | Workflow step graph contains a circular dependency |
+| `INSTALLER_BACKUP_NOT_FOUND` | `runtime` | 404 | ❌ | Backup manifest path does not exist on disk |
+| `FS_METADATA_FAILED` | `fs` | 500 | ❌ | stat/metadata read failed for a path |
+| `FS_SCAN_FAILED` | `fs` | 500 | ❌ | Directory scan failed |
+| `FS_TREE_FAILED` | `fs` | 500 | ❌ | Recursive file-tree build failed |
+| `GIT_COMMIT_MESSAGE_REQUIRED` | `runtime` | 500 | ❌ | Commit message is empty |
+| `GIT_BRANCH_NAME_REQUIRED` | `runtime` | 500 | ❌ | Branch name is empty |
+| `GIT_INVALID_BRANCH_NAME` | `runtime` | 400 | ❌ | Branch name contains forbidden characters (.., ~, ^) |
+| `GIT_NOT_ON_BRANCH` | `runtime` | 500 | ❌ | Pull attempted while not on a branch (detached HEAD) |
+| `LIGHTRAG_HTTP_ERROR` | `runtime` | 500 | ❌ | LightRAG HTTP returned a non-OK status |
 | `APPROVAL_DENIED` | `sentinel` | 403 | ❌ | Approval request was denied by policy |
 | `APPROVAL_TIMEOUT` | `sentinel` | 504 | ✅ | Approval request timed out waiting for resolution (retryable) |
 | `APPROVAL_NOT_FOUND` | `sentinel` | 404 | ❌ | Approval request ID not found |
@@ -54,6 +70,16 @@ export const ErrorCodes = {
 | `AUTH_REQUIRED` | `runtime` | 401 | ❌ | Missing or invalid X-Ninja-Key header — authentication required |
 | `CIRCUIT_OPEN` | `runtime` | 500 | ❌ | Circuit breaker is OPEN — service temporarily unavailable (retryable) |
 | `NOT_FOUND` | `runtime` | 404 | ❌ | Requested resource was not found |
+| `ADAPTER_UNSUPPORTED_CONNECTION` | `runtime` | 500 | ❌ | Client adapter connection type is not supported by getClientAdapter |
+| `ADAPTER_METHOD_NOT_IMPLEMENTED` | `runtime` | 500 | ❌ | Base transport adapter method invoked without an override in the concrete adapter |
+| `VAULT_LAYERS_EMPTY` | `vault` | 500 | ❌ | VaultQuery.layers must contain at least one layer — no layers to query |
+| `VAULT_UNSUPPORTED_LAYER` | `vault` | 500 | ❌ | A memory layer ID was requested that the vault does not support |
+| `VAULT_BUDGET_NOT_POSITIVE` | `vault` | 500 | ❌ | Budget allocation received a non-positive totalBudget |
+| `VAULT_LAYERS_REQUIRED` | `vault` | 500 | ❌ | Budget allocation requires at least one layer |
+| `VAULT_NO_VALID_LAYERS` | `vault` | 500 | ❌ | Budget allocation found no valid layers for percentage allocation |
+| `PULSE_MONITOR_NOT_CONFIGURED` | `runtime` | 500 | ❌ | PulseMonitor not configured — call setDashboardMonitor() before dashboard reads |
+| `PULSE_INVALID_FINDING` | `runtime` | 400 | ❌ | Finding data failed Zod validation in openFinding |
+| `WORKBENCH_NO_ACTIVE_CONTEXT` | `runtime` | 500 | ❌ | requireActiveContext called before any workspace context was set |
 
 ## Usage
 

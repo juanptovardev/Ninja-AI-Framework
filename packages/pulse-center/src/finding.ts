@@ -11,6 +11,7 @@ import {
   type FindingFilter,
   FindingSchema,
 } from './schema.js';
+import { NinjaError, ErrorCodes } from '@ninja/contracts';
 
 // ============================================================================
 // Almacenamiento en Memoria
@@ -79,8 +80,10 @@ export function openFinding(data: OpenFindingInput): Finding {
   const validation = FindingSchema.safeParse(findingData);
 
   if (!validation.success) {
-    throw new Error(
-      `Invalid finding data: ${validation.error.issues.map((e) => e.message).join(', ')}`
+    throw new NinjaError(
+      ErrorCodes.PULSE_INVALID_FINDING,
+      `Invalid finding data: ${validation.error.issues.map((e) => e.message).join(', ')}`,
+      'runtime'
     );
   }
 
@@ -193,12 +196,14 @@ export function getFindings(filter?: FindingFilter): Finding[] {
     findings = findings.filter((f) => f.resolved === filter.resolved);
   }
 
-  if (filter.since !== undefined) {
-    findings = findings.filter((f) => f.timestamp >= filter.since!);
+  const since = filter.since;
+  if (since !== undefined) {
+    findings = findings.filter((f) => f.timestamp >= since);
   }
 
-  if (filter.until !== undefined) {
-    findings = findings.filter((f) => f.timestamp <= filter.until!);
+  const until = filter.until;
+  if (until !== undefined) {
+    findings = findings.filter((f) => f.timestamp <= until);
   }
 
   // Ordenar por timestamp descendente

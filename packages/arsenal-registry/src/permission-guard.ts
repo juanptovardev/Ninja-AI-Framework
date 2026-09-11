@@ -1,4 +1,5 @@
 import type { ToolDefinition, ToolContext } from './schema';
+import { NinjaError, ErrorCodes } from '@ninja/contracts';
 
 /**
  * Resultado de verificación de permisos
@@ -71,7 +72,11 @@ export async function validateAndExecute(
   const permissionResult = checkPermission(tool, context);
 
   if (!permissionResult.allowed && !permissionResult.requiresConfirmation) {
-    throw new Error(`Acceso denegado: ${permissionResult.reason}`);
+    throw new NinjaError(
+      ErrorCodes.ARSENAL_PERMISSION_DENIED,
+      `Acceso denegado: ${permissionResult.reason}`,
+      'runtime'
+    );
   }
 
   // Aquí iría la integración con Sentinel para confirmaciones

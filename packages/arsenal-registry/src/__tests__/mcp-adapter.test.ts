@@ -2,13 +2,13 @@ import { describe, it, expect, beforeEach, vi, type Mock } from 'vitest';
 import { arsenalToolToMCPTool, listMCPTools, executeMCPTool } from '../mcp-adapter';
 import type { ArsenalRegistry } from '../registry';
 import type { ToolDefinition, ToolContext, ToolResult } from '../schema';
-import type { MCPTool, MCPToolCallResult } from '../mcp-schema';
+import type { MCPTool, MCPToolCallResult, MCPTextContent } from '../mcp-schema';
 import { MCP_ERROR_CODES } from '../mcp-schema';
 
 // Mock ArsenalRegistry
 type MockArsenalRegistry = {
-  listTools: Mock,
-  getTool: Mock,
+  listTools: Mock;
+  getTool: Mock;
 };
 
 function createMockRegistry(): MockArsenalRegistry {
@@ -76,24 +76,24 @@ export const MOCK_TOOLS: ToolDefinition[] = [
 
 describe('MCP Adapter', () => {
   let registry: MockArsenalRegistry;
-  
+
   beforeEach(() => {
     registry = createMockRegistry();
-    
+
     // Setup mock tools - clone to avoid reference issues
-    const mockTools = MOCK_TOOLS.map(tool => ({
+    const mockTools = MOCK_TOOLS.map((tool) => ({
       ...tool,
       handler: vi.fn(tool.handler),
     }));
-    
+
     registry.listTools.mockReturnValue(mockTools);
-    mockTools.forEach(tool => {
+    mockTools.forEach((tool) => {
       registry.getTool.mockImplementation((id: string) => {
-        return mockTools.find(t => t.id === id) || mockTools.find(t => t.name === id) || null;
+        return mockTools.find((t) => t.id === id) || mockTools.find((t) => t.name === id) || null;
       });
     });
   });
-  
+
   describe('arsenalToolToMCPTool()', () => {
     it('should convert a minimal Arsenal tool to MCPTool', () => {
       const arsenalTool = {
@@ -105,9 +105,9 @@ describe('MCP Adapter', () => {
         permission: 'safe' as const,
         handler: vi.fn(),
       };
-      
+
       const result = arsenalToolToMCPTool(arsenalTool);
-      
+
       expect(result).toEqual({
         name: 'test.tool',
         title: 'Test Tool',
@@ -126,7 +126,7 @@ describe('MCP Adapter', () => {
         },
       });
     });
-    
+
     it('should convert an Arsenal tool with outputSchema', () => {
       const arsenalTool = {
         id: 'test.tool',
@@ -143,9 +143,9 @@ describe('MCP Adapter', () => {
         },
         handler: vi.fn(),
       };
-      
+
       const result = arsenalToolToMCPTool(arsenalTool);
-      
+
       expect(result.outputSchema).toEqual({
         type: 'object',
         properties: {
@@ -159,7 +159,7 @@ describe('MCP Adapter', () => {
         openWorldHint: false,
       });
     });
-    
+
     it('should correctly map permission safe to MCP annotations', () => {
       const arsenalTool = {
         id: 'test.tool',
@@ -170,9 +170,9 @@ describe('MCP Adapter', () => {
         permission: 'safe' as const,
         handler: vi.fn(),
       };
-      
+
       const result = arsenalToolToMCPTool(arsenalTool);
-      
+
       expect(result.annotations).toEqual({
         readOnlyHint: true,
         destructiveHint: false,
@@ -180,7 +180,7 @@ describe('MCP Adapter', () => {
         openWorldHint: false,
       });
     });
-    
+
     it('should correctly map permission confirm to MCP annotations', () => {
       const arsenalTool = {
         id: 'test.tool',
@@ -191,9 +191,9 @@ describe('MCP Adapter', () => {
         permission: 'confirm' as const,
         handler: vi.fn(),
       };
-      
+
       const result = arsenalToolToMCPTool(arsenalTool);
-      
+
       expect(result.annotations).toEqual({
         readOnlyHint: false,
         destructiveHint: true,
@@ -201,7 +201,7 @@ describe('MCP Adapter', () => {
         openWorldHint: false,
       });
     });
-    
+
     it('should correctly map permission restricted to MCP annotations', () => {
       const arsenalTool = {
         id: 'test.tool',
@@ -212,9 +212,9 @@ describe('MCP Adapter', () => {
         permission: 'restricted' as const,
         handler: vi.fn(),
       };
-      
+
       const result = arsenalToolToMCPTool(arsenalTool);
-      
+
       expect(result.annotations).toEqual({
         readOnlyHint: false,
         destructiveHint: true,
@@ -222,11 +222,11 @@ describe('MCP Adapter', () => {
         openWorldHint: true,
       });
     });
-    
+
     it('should use hardcoded schemas for native tools', () => {
       const nativeTools = ['fs.read', 'fs.write', 'fs.list', 'shell.exec', 'http.get', 'http.post'];
-      
-      nativeTools.forEach(id => {
+
+      nativeTools.forEach((id) => {
         const arsenalTool = {
           id,
           name: id,
@@ -236,7 +236,7 @@ describe('MCP Adapter', () => {
           permission: 'safe' as const,
           handler: vi.fn(),
         };
-        
+
         const result = arsenalToolToMCPTool(arsenalTool);
         expect(result.inputSchema).toBeDefined();
         expect(result.inputSchema.properties).toBeDefined();
@@ -244,16 +244,16 @@ describe('MCP Adapter', () => {
       });
     });
   });
-  
+
   describe('listMCPTools()', () => {
     it('should return all non-blocked tools converted to MCP format', () => {
       const result = listMCPTools(registry as unknown as ArsenalRegistry);
-      
+
       expect(result.length).toBe(3); // fs.read, fs.write, shell.exec (not blocked.tool)
-      expect(result.every(tool => tool.name !== 'blocked.tool')).toBe(true);
-      
+      expect(result.every((tool) => tool.name !== 'blocked.tool')).toBe(true);
+
       // Verify each tool has correct MCP structure
-      result.forEach(tool => {
+      result.forEach((tool) => {
         expect(tool).toHaveProperty('name');
         expect(tool).toHaveProperty('title');
         expect(tool).toHaveProperty('description');
@@ -261,23 +261,23 @@ describe('MCP Adapter', () => {
         expect(tool).toHaveProperty('annotations');
       });
     });
-    
+
     it('should return empty array when no tools are available', () => {
       registry.listTools.mockReturnValue([]);
-      
+
       const result = listMCPTools(registry as unknown as ArsenalRegistry);
       expect(result.length).toBe(0);
     });
-    
+
     it('should filter out blocked tools', () => {
       // Include only blocked tool
       registry.listTools.mockReturnValue([MOCK_TOOLS[3]]);
-      
+
       const result = listMCPTools(registry as unknown as ArsenalRegistry);
       expect(result.length).toBe(0);
     });
   });
-  
+
   describe('executeMCPTool()', () => {
     it('should successfully execute a registered tool with valid args', async () => {
       const mockHandler = vi.fn(async () => ({
@@ -285,7 +285,7 @@ describe('MCP Adapter', () => {
         output: { test: 'success' },
         duration: 10,
       }));
-      
+
       const testTool = {
         id: 'test.tool',
         name: 'test.tool',
@@ -295,85 +295,86 @@ describe('MCP Adapter', () => {
         permission: 'safe' as const,
         handler: mockHandler,
       };
-      
+
       registry.getTool.mockReturnValue(testTool);
-      
-      const result = await executeMCPTool(
-        registry as unknown as ArsenalRegistry,
-        'test.tool',
-        { arg1: 'value' }
+
+      const result = await executeMCPTool(registry as unknown as ArsenalRegistry, 'test.tool', {
+        arg1: 'value',
+      });
+
+      expect(mockHandler).toHaveBeenCalledWith(
+        { arg1: 'value' },
+        expect.objectContaining({
+          agentId: 'mcp-external',
+          runId: 'mcp-run',
+          sessionId: 'mcp-session',
+          permissions: new Set(['safe', 'confirm']),
+        })
       );
-      
-      expect(mockHandler).toHaveBeenCalledWith({ arg1: 'value' }, expect.objectContaining({
-        agentId: 'mcp-external',
-        runId: 'mcp-run', 
-        sessionId: 'mcp-session',
-        permissions: new Set(['safe', 'confirm']),
-      }));
-      
+
       expect(result.isError).toBe(false);
       expect(result.content[0].type).toBe('text');
       // Don't check structuredContent as it's dynamically generated based on the handler result
     });
-    
+
     it('should return error when tool is not found', async () => {
       registry.getTool.mockReturnValue(null);
-      
+
       const result = await executeMCPTool(
         registry as unknown as ArsenalRegistry,
         'non-existent.tool',
         {}
       );
-      
+
       expect(result.isError).toBe(true);
-      expect((result.content[0] as any).text).toBe("Tool 'non-existent.tool' not found");
+      expect((result.content[0] as MCPTextContent).text).toBe("Tool 'non-existent.tool' not found");
     });
-    
+
     it('should deny execution for restricted tools', async () => {
       const restrictedTool = MOCK_TOOLS[2]; // shell.exec with restricted permission
       registry.getTool.mockReturnValue(restrictedTool);
-      
-      const result = await executeMCPTool(
-        registry as unknown as ArsenalRegistry,
-        'shell.exec',
-        {}
-      );
-      
+
+      const result = await executeMCPTool(registry as unknown as ArsenalRegistry, 'shell.exec', {});
+
       expect(result).toEqual({
-        content: [{
-          type: 'text',
-          text: "Tool 'shell.exec' requiere permisos restricted. Acceso denegado desde MCP.",
-        }],
+        content: [
+          {
+            type: 'text',
+            text: "Tool 'shell.exec' requiere permisos restricted. Acceso denegado desde MCP.",
+          },
+        ],
         isError: true,
       });
     });
-    
+
     it('should deny execution for blocked tools', async () => {
       const blockedTool = MOCK_TOOLS[3]; // blocked.tool with blocked permission
       registry.getTool.mockReturnValue(blockedTool);
-      
+
       const result = await executeMCPTool(
         registry as unknown as ArsenalRegistry,
         'blocked.tool',
         {}
       );
-      
+
       expect(result).toEqual({
-        content: [{
-          type: 'text',
-          text: "Tool 'blocked.tool' está bloqueada por política de seguridad.",
-        }],
+        content: [
+          {
+            type: 'text',
+            text: "Tool 'blocked.tool' está bloqueada por política de seguridad.",
+          },
+        ],
         isError: true,
       });
     });
-    
+
     it('should handle tool execution errors gracefully', async () => {
       const mockHandler = vi.fn(async () => ({
         success: false,
         error: 'Failed to execute tool',
         duration: 5,
       }));
-      
+
       const testTool = {
         id: 'test.tool',
         name: 'test.tool',
@@ -383,26 +384,22 @@ describe('MCP Adapter', () => {
         permission: 'safe' as const,
         handler: mockHandler,
       };
-      
+
       registry.getTool.mockReturnValue(testTool);
-      
-      const result = await executeMCPTool(
-        registry as unknown as ArsenalRegistry,
-        'test.tool',
-        {}
-      );
-      
-        const outputStr = JSON.stringify({ test: 'success' }, null, 2);
+
+      const result = await executeMCPTool(registry as unknown as ArsenalRegistry, 'test.tool', {});
+
+      const outputStr = JSON.stringify({ test: 'success' }, null, 2);
       expect(result.isError).toBe(true);
       expect(result.content[0].type).toBe('text');
-      expect((result.content[0] as any).text).toBe('Failed to execute tool');
+      expect((result.content[0] as MCPTextContent).text).toBe('Failed to execute tool');
     });
-    
+
     it('should handle unexpected errors during tool execution', async () => {
       const mockHandler = vi.fn(async () => {
         throw new Error('Unexpected error');
       });
-      
+
       const testTool = {
         id: 'test.tool',
         name: 'test.tool',
@@ -412,26 +409,22 @@ describe('MCP Adapter', () => {
         permission: 'safe' as const,
         handler: mockHandler,
       };
-      
+
       registry.getTool.mockReturnValue(testTool);
-      
-      const result = await executeMCPTool(
-        registry as unknown as ArsenalRegistry,
-        'test.tool',
-        {}
-      );
-      
+
+      const result = await executeMCPTool(registry as unknown as ArsenalRegistry, 'test.tool', {});
+
       expect(result.isError).toBe(true);
-      expect((result.content[0] as any).text).toBe('Error interno: Unexpected error');
+      expect((result.content[0] as MCPTextContent).text).toBe('Error interno: Unexpected error');
     });
-    
+
     it('should handle successful execution with undefined output', async () => {
       const mockHandler = vi.fn(async () => ({
         success: true,
         output: undefined,
         duration: 10,
       }));
-      
+
       const testTool = {
         id: 'test.tool',
         name: 'test.tool',
@@ -441,20 +434,18 @@ describe('MCP Adapter', () => {
         permission: 'safe' as const,
         handler: mockHandler,
       };
-      
+
       registry.getTool.mockReturnValue(testTool);
-      
-      const result = await executeMCPTool(
-        registry as unknown as ArsenalRegistry,
-        'test.tool',
-        {}
-      );
-      
+
+      const result = await executeMCPTool(registry as unknown as ArsenalRegistry, 'test.tool', {});
+
       expect(result).toEqual({
-        content: [{
-          type: 'text',
-          text: 'Tool executed successfully (no output)',
-        }],
+        content: [
+          {
+            type: 'text',
+            text: 'Tool executed successfully (no output)',
+          },
+        ],
         isError: false,
       });
     });

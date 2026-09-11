@@ -43,6 +43,50 @@ export const ErrorCodes = {
   LLM_CALL_FAILED: 'LLM_CALL_FAILED' as ErrorCode,
   /** All models in the fallback chain have been exhausted */
   LLM_ALL_PROVIDERS_FAILED: 'LLM_ALL_PROVIDERS_FAILED' as ErrorCode,
+  /** Provider already registered in the LLM registry — duplicate registration */
+  LLM_PROVIDER_ALREADY_REGISTERED: 'LLM_PROVIDER_ALREADY_REGISTERED' as ErrorCode,
+  /** Provider requested from the LLM registry was never registered */
+  LLM_PROVIDER_NOT_REGISTERED: 'LLM_PROVIDER_NOT_REGISTERED' as ErrorCode,
+
+  // Arsenal Registry (WP-D4 2/2)
+  /** Tool execution denied by the arsenal permission guard */
+  ARSENAL_PERMISSION_DENIED: 'ARSENAL_PERMISSION_DENIED' as ErrorCode,
+  /** A tool with the given ID is already registered */
+  ARSENAL_TOOL_EXISTS: 'ARSENAL_TOOL_EXISTS' as ErrorCode,
+  /** A skill with the given ID is already registered */
+  ARSENAL_SKILL_EXISTS: 'ARSENAL_SKILL_EXISTS' as ErrorCode,
+
+  // Flow Matrix (WP-D4 2/2)
+  /** Workflow running state disappeared mid-execution */
+  FLOW_STATE_LOST: 'FLOW_STATE_LOST' as ErrorCode,
+  /** Workflow step graph contains a circular dependency */
+  FLOW_CIRCULAR_DEPENDENCY: 'FLOW_CIRCULAR_DEPENDENCY' as ErrorCode,
+
+  // Installer (WP-D4 2/2)
+  /** Backup manifest path does not exist on disk */
+  INSTALLER_BACKUP_NOT_FOUND: 'INSTALLER_BACKUP_NOT_FOUND' as ErrorCode,
+
+  // Filesystem / integrations-fs (WP-D4 2/2)
+  /** stat/metadata read failed for a path */
+  FS_METADATA_FAILED: 'FS_METADATA_FAILED' as ErrorCode,
+  /** Directory scan failed */
+  FS_SCAN_FAILED: 'FS_SCAN_FAILED' as ErrorCode,
+  /** Recursive file-tree build failed */
+  FS_TREE_FAILED: 'FS_TREE_FAILED' as ErrorCode,
+
+  // Git / integrations-git (WP-D4 2/2)
+  /** Commit message is empty */
+  GIT_COMMIT_MESSAGE_REQUIRED: 'GIT_COMMIT_MESSAGE_REQUIRED' as ErrorCode,
+  /** Branch name is empty */
+  GIT_BRANCH_NAME_REQUIRED: 'GIT_BRANCH_NAME_REQUIRED' as ErrorCode,
+  /** Branch name contains forbidden characters (.., ~, ^) */
+  GIT_INVALID_BRANCH_NAME: 'GIT_INVALID_BRANCH_NAME' as ErrorCode,
+  /** Pull attempted while not on a branch (detached HEAD) */
+  GIT_NOT_ON_BRANCH: 'GIT_NOT_ON_BRANCH' as ErrorCode,
+
+  // LightRAG / integrations-lightrag (WP-D4 2/2)
+  /** LightRAG HTTP returned a non-OK status */
+  LIGHTRAG_HTTP_ERROR: 'LIGHTRAG_HTTP_ERROR' as ErrorCode,
 
   // Sentinel / approval
   /** Approval request was denied by policy */
@@ -85,6 +129,34 @@ export const ErrorCodes = {
   // Not Found (WP-C1)
   /** Requested resource was not found */
   NOT_FOUND: 'NOT_FOUND' as ErrorCode,
+
+  // Client adapters (WP-D4)
+  /** Client adapter connection type is not supported by getClientAdapter */
+  ADAPTER_UNSUPPORTED_CONNECTION: 'ADAPTER_UNSUPPORTED_CONNECTION' as ErrorCode,
+  /** Base transport adapter method invoked without an override in the concrete adapter */
+  ADAPTER_METHOD_NOT_IMPLEMENTED: 'ADAPTER_METHOD_NOT_IMPLEMENTED' as ErrorCode,
+
+  // Vault (WP-D4 2/2)
+  /** VaultQuery.layers must contain at least one layer — no layers to query */
+  VAULT_LAYERS_EMPTY: 'VAULT_LAYERS_EMPTY' as ErrorCode,
+  /** A memory layer ID was requested that the vault does not support */
+  VAULT_UNSUPPORTED_LAYER: 'VAULT_UNSUPPORTED_LAYER' as ErrorCode,
+  /** Budget allocation received a non-positive totalBudget */
+  VAULT_BUDGET_NOT_POSITIVE: 'VAULT_BUDGET_NOT_POSITIVE' as ErrorCode,
+  /** Budget allocation requires at least one layer */
+  VAULT_LAYERS_REQUIRED: 'VAULT_LAYERS_REQUIRED' as ErrorCode,
+  /** Budget allocation found no valid layers for percentage allocation */
+  VAULT_NO_VALID_LAYERS: 'VAULT_NO_VALID_LAYERS' as ErrorCode,
+
+  // Pulse Center (WP-D4 2/2)
+  /** PulseMonitor not configured — call setDashboardMonitor() before dashboard reads */
+  PULSE_MONITOR_NOT_CONFIGURED: 'PULSE_MONITOR_NOT_CONFIGURED' as ErrorCode,
+  /** Finding data failed Zod validation in openFinding */
+  PULSE_INVALID_FINDING: 'PULSE_INVALID_FINDING' as ErrorCode,
+
+  // Workbench (WP-D4 2/2)
+  /** requireActiveContext called before any workspace context was set */
+  WORKBENCH_NO_ACTIVE_CONTEXT: 'WORKBENCH_NO_ACTIVE_CONTEXT' as ErrorCode,
 } as const;
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -165,7 +237,7 @@ export class NinjaError extends Error {
     code: string,
     message: string,
     domain: NinjaErrorDomain,
-    opts: NinjaErrorOptions = {},
+    opts: NinjaErrorOptions = {}
   ) {
     super(message, opts.cause !== undefined ? { cause: opts.cause } : undefined);
     // Preserve instanceof after TypeScript transpilation
@@ -222,7 +294,11 @@ export class LLMError extends NinjaError {
 
 export class BudgetError extends NinjaError {
   constructor(message: string, opts?: NinjaErrorOptions) {
-    super(ErrorCodes.BUDGET_EXCEEDED, message, 'budget', { httpStatus: 429, retryable: false, ...opts });
+    super(ErrorCodes.BUDGET_EXCEEDED, message, 'budget', {
+      httpStatus: 429,
+      retryable: false,
+      ...opts,
+    });
     Object.defineProperty(this, 'name', { value: 'BudgetError' });
   }
 }
@@ -322,7 +398,7 @@ export function wrapUnknown(
   e: unknown,
   code: string,
   domain: NinjaErrorDomain,
-  opts?: Omit<NinjaErrorOptions, 'cause'>,
+  opts?: Omit<NinjaErrorOptions, 'cause'>
 ): NinjaError {
   if (isNinjaError(e)) return e;
   if (e instanceof Error) {

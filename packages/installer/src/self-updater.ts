@@ -70,7 +70,7 @@ export class SelfUpdater {
         return { hasUpdate: false, currentVersion, latestVersion };
       }
 
-      const data = await response.json() as any;
+      const data: { version?: string } = await response.json();
       latestVersion = data.version ?? currentVersion;
     } catch (err) {
       log.warn('Failed to fetch latest version from registry', err);
@@ -99,9 +99,10 @@ export class SelfUpdater {
     const pm = this.detectPackageManager();
 
     return new Promise((resolve) => {
-      const cmd = pm === 'pnpm'
-        ? `pnpm add -g ninja-ai-framework@latest`
-        : `npm install -g ninja-ai-framework@latest`;
+      const cmd =
+        pm === 'pnpm'
+          ? `pnpm add -g ninja-ai-framework@latest`
+          : `npm install -g ninja-ai-framework@latest`;
 
       log.info(`Updating via: ${pm} — ${cmd}`);
 

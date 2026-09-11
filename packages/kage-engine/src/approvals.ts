@@ -1,6 +1,7 @@
 import type { EngineApproval, ApprovalResult } from './schema';
 import type { EventBus } from '@ninja/events';
 import type { Logger } from '@ninja/logging';
+import { EngineError, ErrorCodes } from '@ninja/contracts';
 
 // Manejador de aprobaciones
 export class ApprovalManager {
@@ -72,7 +73,7 @@ export class ApprovalManager {
     // 1. Verificar que la aprobación exista
     const approval = this.approvals.get(approvalId);
     if (!approval) {
-      throw new Error(`Approval ${approvalId} not found`);
+      throw new EngineError(ErrorCodes.APPROVAL_NOT_FOUND, `Approval ${approvalId} not found`);
     }
 
     // 2. Limpiar timeout si existe
@@ -117,7 +118,7 @@ export class ApprovalManager {
     // 1. Verificar que la aprobación exista
     const approval = this.approvals.get(approvalId);
     if (!approval) {
-      throw new Error(`Approval ${approvalId} not found`);
+      throw new EngineError(ErrorCodes.APPROVAL_NOT_FOUND, `Approval ${approvalId} not found`);
     }
 
     // 2. Limpiar timeout y rechazar promesa pendiente

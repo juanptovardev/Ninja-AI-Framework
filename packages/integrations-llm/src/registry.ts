@@ -1,5 +1,6 @@
 import { LLMProvider, LLMRequest, LLMResponse } from './schema';
 import { LLMClient } from './client';
+import { LLMError, ErrorCodes } from '@ninja/contracts';
 
 const TIER_MAPPING: Record<LLMProvider, number> = {
   openai: 1,
@@ -10,7 +11,7 @@ const TIER_MAPPING: Record<LLMProvider, number> = {
 };
 
 export class LLMRegistry {
-  private static instance: LLMRegistry;
+  private static instance: LLMRegistry | undefined;
   private clients: Map<LLMProvider, LLMClient> = new Map();
 
   private constructor() {}
@@ -22,9 +23,16 @@ export class LLMRegistry {
     return LLMRegistry.instance;
   }
 
+  public static resetInstance(): void {
+    LLMRegistry.instance = undefined;
+  }
+
   public register(provider: LLMProvider, baseUrl: string, apiKey: string): void {
     if (this.clients.has(provider)) {
-      throw new Error(`Provider ${provider} is already registered`);
+      throw new LLMError(
+        ErrorCodes.LLM_PROVIDER_ALREADY_REGISTERED,
+        `Provider ${provider} is already registered`
+      );
     }
     this.clients.set(provider, new LLMClient(provider, baseUrl, apiKey));
   }
@@ -32,7 +40,10 @@ export class LLMRegistry {
   public get(provider: LLMProvider): LLMClient {
     const client = this.clients.get(provider);
     if (!client) {
-      throw new Error(`Provider ${provider} is not registered`);
+      throw new LLMError(
+        ErrorCodes.LLM_PROVIDER_NOT_REGISTERED,
+        `Provider ${provider} is not registered`
+      );
     }
     return client;
   }
@@ -41,13 +52,16 @@ export class LLMRegistry {
     return this.clients.has(provider);
   }
 
-  public async executeWithFallback(providerId: LLMProvider, request: LLMRequest): Promise<LLMResponse> {
+  public async executeWithFallback(
+    providerId: LLMProvider,
+    request: LLMRequest
+  ): Promise<LLMResponse> {
     const client = this.get(providerId);
     try {
       return await client.complete(request);
     } catch (error) {
       const tier = TIER_MAPPING[providerId] || 1;
-      
+
       let alternative: LLMClient | null = null;
       for (const [p, c] of this.clients.entries()) {
         if (p !== providerId && (TIER_MAPPING[p] || 1) === tier) {

@@ -1,7 +1,8 @@
-import { EventBus, createEvent } from '@ninja/events';
+import { createEvent } from '@ninja/events';
+import type { EventBusLike } from '@ninja/events';
 import { createLogger } from '@ninja/logging';
-import type { ID, Result } from '@ninja/contracts';
-import { ok, err } from '@ninja/contracts';
+import type { ID } from '@ninja/contracts';
+import { VaultError, ErrorCodes } from '@ninja/contracts';
 import type {
   MemoryLayer,
   VaultQuery,
@@ -12,29 +13,46 @@ import type {
   IHotMemoryProvider,
   ContextBudgetExceededPayload,
 } from './schema.js';
-import type { LightRAGDocument, LightRAGQuery, LightRAGResult } from '@ninja/integrations-lightrag';
+import type { LightRAGDocument, LightRAGQuery } from '@ninja/integrations-lightrag';
 import type { MemoryEntry } from '@ninja/integrations-engram';
 import type { Artifact } from '@ninja/trace-ledger';
 import { RelevanceScorer } from './scoring/relevance-scorer.js';
 import { VaultBudgetManager } from './scoring/budget-manager.js';
 
+/**
+ * Vistas estructurales de los adaptadores externos que usa el VaultCoordinator.
+ * Permiten inyectar mocks/tests sin acoplarse a las clases concretas.
+ */
+type EngramClientLike = Pick<
+  import('@ninja/integrations-engram').EngramClient,
+  'store' | 'retrieve'
+>;
+type LightRAGClientLike = Pick<
+  import('@ninja/integrations-lightrag').LightRAGClient,
+  'index' | 'query'
+>;
+type ArtifactRepositoryLike = Pick<
+  import('@ninja/trace-ledger').ArtifactRepository,
+  'create' | 'findByType'
+>;
+
 const log = createLogger('vault');
 
 export class VaultCoordinator {
-  private engramClient: import('@ninja/integrations-engram').EngramClient;
-  private lightragClient: import('@ninja/integrations-lightrag').LightRAGClient;
-  private traceLedgerArtifactRepo: import('@ninja/trace-ledger').ArtifactRepository;
+  private engramClient: EngramClientLike;
+  private lightragClient: LightRAGClientLike;
+  private traceLedgerArtifactRepo: ArtifactRepositoryLike;
   private hotMemoryProvider: IHotMemoryProvider;
-  private eventBus: EventBus;
+  private eventBus: EventBusLike;
   private relevanceScorer: RelevanceScorer;
   private budgetManager: VaultBudgetManager;
 
   constructor(deps: {
-    engram: import('@ninja/integrations-engram').EngramClient;
-    lightrag: import('@ninja/integrations-lightrag').LightRAGClient;
-    traceLedger: { artifactRepository: import('@ninja/trace-ledger').ArtifactRepository };
+    engram: EngramClientLike;
+    lightrag: LightRAGClientLike;
+    traceLedger: { artifactRepository: ArtifactRepositoryLike };
     hotMemoryProvider: IHotMemoryProvider;
-    eventBus: EventBus;
+    eventBus: EventBusLike;
     relevanceScorer?: RelevanceScorer;
     budgetManager?: VaultBudgetManager;
   }) {
@@ -59,7 +77,10 @@ export class VaultCoordinator {
     const { agentId, sessionId, query, layers, tokenBudget } = req;
 
     if (!layers || layers.length === 0) {
-      throw new Error('VaultQuery.layers must contain at least one layer');
+      throw new VaultError(
+        ErrorCodes.VAULT_LAYERS_EMPTY,
+        'VaultQuery.layers must contain at least one layer'
+      );
     }
 
     log.info('Vault query initiated', { agentId, sessionId, layers, tokenBudget });
@@ -95,7 +116,8 @@ export class VaultCoordinator {
 
     // Emitir evento si se excedió el presupuesto
     if (trimResult.trimmed > 0) {
-      const actualTokens = trimResult.totalTokens + this.estimateTokensFromTrimmed(trimResult.trimmed);
+      const actualTokens =
+        trimResult.totalTokens + this.estimateTokensFromTrimmed(trimResult.trimmed);
       const payload: ContextBudgetExceededPayload = {
         agentId,
         sessionId,
@@ -205,7 +227,9 @@ export class VaultCoordinator {
 
         case 'COLD': {
           if (!this.lightragClient || !process.env.LIGHTRAG_API_URL) {
-            log.warn('LightRAG client not configured or LIGHTRAG_API_URL is missing, skipping COLD write');
+            log.warn(
+              'LightRAG client not configured or LIGHTRAG_API_URL is missing, skipping COLD write'
+            );
             break;
           }
           try {
@@ -342,7 +366,9 @@ export class VaultCoordinator {
 
       case 'COLD': {
         if (!this.lightragClient || !process.env.LIGHTRAG_API_URL) {
-          log.warn('LightRAG client not configured or LIGHTRAG_API_URL is missing, skipping COLD layer');
+          log.warn(
+            'LightRAG client not configured or LIGHTRAG_API_URL is missing, skipping COLD layer'
+          );
           return {
             entries: [],
             layer: 'COLD',
@@ -403,7 +429,10 @@ export class VaultCoordinator {
       }
 
       default:
-        throw new Error(`Unsupported memory layer: ${layer}`);
+        throw new VaultError(
+          ErrorCodes.VAULT_UNSUPPORTED_LAYER,
+          `Unsupported memory layer: ${layer}`
+        );
     }
   }
 

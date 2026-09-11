@@ -28,8 +28,8 @@ export interface GenericAgentConfig {
   configDir: string;
   delegationModel: DelegationModel;
   systemPromptFile?: string;
-  skillsSubdir?: string;
-  agentsSubdir?: string;
+  skillsSubdir?: string | null;
+  agentsSubdir?: string | null;
   mcpFile?: string;
   connectionFlags?: string[];
 }
@@ -212,7 +212,8 @@ export class GenericAgentAdapter extends BaseTransportAdapter implements IClient
       }
     }
 
-    const mcpServers: Record<string, unknown> = (config.mcpServers as Record<string, unknown>) || {};
+    const mcpServers: Record<string, unknown> =
+      (config.mcpServers as Record<string, unknown>) || {};
     for (const server of servers) {
       if (server.url) {
         mcpServers[server.name] = { url: server.url };
@@ -266,7 +267,9 @@ export class GenericAgentAdapter extends BaseTransportAdapter implements IClient
         child.kill('SIGKILL');
         resolve({
           status: 'timeout',
-          output: stdout || `Timeout: Process did not respond within ${options.timeoutMs || 60000}ms. Stderr: ${stderr}`,
+          output:
+            stdout ||
+            `Timeout: Process did not respond within ${options.timeoutMs || 60000}ms. Stderr: ${stderr}`,
           durationMs: Date.now() - startTime,
         });
       }, options.timeoutMs || 60000);
@@ -360,7 +363,7 @@ export const PRESET_AGENTS: Record<string, GenericAgentConfig> = {
     delegationModel: 'solo',
     systemPromptFile: 'system-prompt.md',
     skillsSubdir: 'skills',
-    agentsSubdir: null as any,
+    agentsSubdir: null,
     mcpFile: 'mcp.json',
   },
   openclaw: {
@@ -371,7 +374,7 @@ export const PRESET_AGENTS: Record<string, GenericAgentConfig> = {
     delegationModel: 'solo',
     systemPromptFile: 'AGENTS.md',
     skillsSubdir: 'skills',
-    agentsSubdir: null as any,
+    agentsSubdir: null,
     mcpFile: 'mcp_config.json',
   },
   pi: {
@@ -393,7 +396,7 @@ export const PRESET_AGENTS: Record<string, GenericAgentConfig> = {
     delegationModel: 'full',
     systemPromptFile: 'AGENTS.md',
     skillsSubdir: 'skills',
-    agentsSubdir: null as any,
+    agentsSubdir: null,
     mcpFile: 'kilo.json',
   },
   'vscode-copilot': {
@@ -414,8 +417,8 @@ export const PRESET_AGENTS: Record<string, GenericAgentConfig> = {
     configDir: '~/.deepseek',
     delegationModel: 'solo',
     systemPromptFile: 'config.json',
-    skillsSubdir: null as any,
-    agentsSubdir: null as any,
+    skillsSubdir: null,
+    agentsSubdir: null,
     mcpFile: 'mcp.json',
     connectionFlags: ['tui'],
   },

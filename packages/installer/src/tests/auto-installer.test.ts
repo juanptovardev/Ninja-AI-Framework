@@ -12,11 +12,45 @@ vi.mock('@ninja/roster', async (importOriginal) => {
   };
 });
 
+// Tipos derivados del SUT (precedente FakeEngramClient): el test no importa
+// tipos de la capa roster directamente — línea 3 preexistente queda en DEBT.
+type ClientConfig = NonNullable<ReturnType<typeof detectClient>>;
+type ClientId = Parameters<typeof detectClient>[0];
+
 // Mock child_process spawn
 vi.mock('child_process', () => ({
   execSync: vi.fn(),
   spawn: vi.fn(),
 }));
+
+function makeDetectedClient(
+  overrides: Partial<Pick<ClientConfig, 'id' | 'supportsAutoInstall' | 'installCommand'>> = {}
+): ClientConfig {
+  const {
+    id = 'claude-code',
+    supportsAutoInstall = true,
+    installCommand = 'npm install -g @anthropic/claude-code',
+  } = overrides;
+  return {
+    id,
+    name: id,
+    type: 'cli',
+    executablePath: '',
+    configPath: '',
+    configDir: '',
+    mcpConfigPath: '',
+    skillsDir: '',
+    agentsDir: '',
+    status: 'connected',
+    capabilities: [],
+    assignedRole: 'worker',
+    delegationModel: 'solo',
+    connectionMethod: { type: 'headless-cli', command: '', flags: [] },
+    supportsAutoInstall,
+    installCommand,
+    installUrl: '',
+  };
+}
 
 describe('AutoInstaller', () => {
   let autoInstaller: AutoInstaller;
@@ -28,22 +62,16 @@ describe('AutoInstaller', () => {
 
   describe('canAutoInstall', () => {
     it('should return true for a client that supports auto-install and has non-empty command', () => {
-      vi.mocked(detectClient).mockReturnValue({
-        id: 'claude-code',
-        supportsAutoInstall: true,
-        installCommand: 'npm install -g @anthropic/claude-code',
-      } as any);
+      vi.mocked(detectClient).mockReturnValue(makeDetectedClient());
 
       expect(autoInstaller.canAutoInstall('claude-code')).toBe(true);
       expect(detectClient).toHaveBeenCalledWith('claude-code', true);
     });
 
     it('should return false for a client that does not support auto-install', () => {
-      vi.mocked(detectClient).mockReturnValue({
-        id: 'cursor',
-        supportsAutoInstall: false,
-        installCommand: '',
-      } as any);
+      vi.mocked(detectClient).mockReturnValue(
+        makeDetectedClient({ id: 'cursor', supportsAutoInstall: false, installCommand: '' })
+      );
 
       expect(autoInstaller.canAutoInstall('cursor')).toBe(false);
     });
@@ -65,11 +93,7 @@ describe('AutoInstaller', () => {
     });
 
     it('should execute command and return success: true on successful command execution', async () => {
-      vi.mocked(detectClient).mockReturnValue({
-        id: 'claude-code',
-        supportsAutoInstall: true,
-        installCommand: 'npm install -g @anthropic/claude-code',
-      } as any);
+      vi.mocked(detectClient).mockReturnValue(makeDetectedClient());
 
       const mockChild: any = {
         stdout: {
@@ -92,15 +116,14 @@ describe('AutoInstaller', () => {
       expect(result.success).toBe(true);
       expect(result.output).toBe('Installation complete');
       expect(result.command).toBe('npm install -g @anthropic/claude-code');
-      expect(spawn).toHaveBeenCalledWith('npm install -g @anthropic/claude-code', expect.any(Object));
+      expect(spawn).toHaveBeenCalledWith(
+        'npm install -g @anthropic/claude-code',
+        expect.any(Object)
+      );
     });
 
     it('should catch spawn errors and return success: false with output', async () => {
-      vi.mocked(detectClient).mockReturnValue({
-        id: 'claude-code',
-        supportsAutoInstall: true,
-        installCommand: 'npm install -g @anthropic/claude-code',
-      } as any);
+      vi.mocked(detectClient).mockReturnValue(makeDetectedClient());
 
       const mockChild: any = {
         stdout: { on: vi.fn() },
@@ -126,16 +149,12 @@ describe('AutoInstaller', () => {
 
   describe('installAll', () => {
     it('should sequentialize installation of supported clients', async () => {
-      vi.mocked(detectClient).mockImplementation(((id: string, force?: boolean) => {
+      vi.mocked(detectClient).mockImplementation((id: ClientId, _force?: boolean) => {
         if (id === 'claude-code') {
-          return {
-            id: 'claude-code',
-            supportsAutoInstall: true,
-            installCommand: 'npm install -g @anthropic/claude-code',
-          } as any;
+          return makeDetectedClient();
         }
         return null;
-      }) as any);
+      });
 
       const mockChild: any = {
         stdout: { on: vi.fn() },

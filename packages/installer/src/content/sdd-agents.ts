@@ -96,7 +96,7 @@ One-paragraph conclusion of what was found.
 ## Handoff
 
 Before ending your phase:
-1. \`mem_save\` with title \`"Explore: [topic]"\", type \`"discovery"\`, including your recommended path
+1. \`mem_save\` with title \`"Explore: [topic]"\`, type \`"discovery"\`, including your recommended path
 2. Ensure \`.sdd/explore/FINDINGS.md\` is complete and committed (if inside a repo)
 
 Do **not** implement anything. Do **not** write code. This is a pure research phase.
@@ -487,7 +487,7 @@ Implement the tasks defined in the task breakdown. Write actual code following t
 
 3. **Implement the task**: Write code that satisfies the spec requirements and design decisions for this task.
    - Follow existing code style (naming, typing, file structure)
-   - No \`any\`, no \`as any\`, no \`// @ts-ignore\`
+   - No untyped \`any\`: no type assertions, no \`// @ts-ignore\`
    - Add JSDoc comments for public APIs — no inline comments for obvious code
    - Include proper error handling (never swallow errors)
    - Use \`@ninja/logging\` for operational logs, \`@ninja/events\` for significant events

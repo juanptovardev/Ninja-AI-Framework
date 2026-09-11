@@ -28,7 +28,7 @@ describe('WP-B7: PulseMonitor — stability score reflects latencyMs', () => {
 
   beforeEach(() => {
     eventBus = new MockEventBus();
-    monitor = new PulseMonitor(eventBus as any);
+    monitor = new PulseMonitor(eventBus);
     monitor.start();
   });
 
@@ -79,7 +79,9 @@ describe('WP-B7: PulseMonitor — stability score reflects latencyMs', () => {
 
     const scoreEvents = eventBus.getEvents('health.score.updated');
     expect(scoreEvents.length).toBe(1);
-    expect((scoreEvents[0].payload as any).scoreType).toBe('stability');
+    expect(
+      (scoreEvents[0].payload as { scoreType: 'stability' | 'contextEfficiency' }).scoreType
+    ).toBe('stability');
   });
 
   it('emits health.degradation.detected when score falls below threshold (default 60)', () => {

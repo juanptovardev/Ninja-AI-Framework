@@ -15,10 +15,18 @@ function createMockLogger(): Logger {
   const logs: Array<{ level: string; message: string; args: unknown[] }> = [];
   const logger: Logger = {
     name: 'test-mock',
-    debug: (message: string, ...args: unknown[]) => { logs.push({ level: 'debug', message, args }); },
-    info: (message: string, ...args: unknown[]) => { logs.push({ level: 'info', message, args }); },
-    warn: (message: string, ...args: unknown[]) => { logs.push({ level: 'warn', message, args }); },
-    error: (message: string, ...args: unknown[]) => { logs.push({ level: 'error', message, args }); },
+    debug: (message: string, ...args: unknown[]) => {
+      logs.push({ level: 'debug', message, args });
+    },
+    info: (message: string, ...args: unknown[]) => {
+      logs.push({ level: 'info', message, args });
+    },
+    warn: (message: string, ...args: unknown[]) => {
+      logs.push({ level: 'warn', message, args });
+    },
+    error: (message: string, ...args: unknown[]) => {
+      logs.push({ level: 'error', message, args });
+    },
   };
   return logger;
 }
@@ -212,8 +220,12 @@ describe('AgentExecutor', () => {
       const result = await executor.executeStep(step, context);
 
       expect(result.output).toHaveProperty('executionContext');
-      expect((result.output as Record<string, unknown>).executionContext).toHaveProperty('modelUsed');
-      expect((result.output as Record<string, unknown>).executionContext).toHaveProperty('tokensUsed');
+      expect((result.output as Record<string, unknown>).executionContext).toHaveProperty(
+        'modelUsed'
+      );
+      expect((result.output as Record<string, unknown>).executionContext).toHaveProperty(
+        'tokensUsed'
+      );
     });
   });
 
@@ -452,15 +464,17 @@ describe('AgentExecutor', () => {
   describe('Map-Reduce Execution', () => {
     it('should split large tasks and execute in parallel', async () => {
       // Simulate large task
-      const longDescription = 'A'.repeat(5000); 
+      const longDescription = 'A'.repeat(5000);
       const step = makeWorkflowStep({ agentRole: 'Planner', name: longDescription });
       const context = makeWorkflowContext();
 
       // Return a generic JSON so it parses successfully
-      (mockLLM as any).defaultResponse = JSON.stringify({ subtasks: ['task1', 'task2'], partial: 1, final: 'reduced' });
+      mockLLM.setDefaultResponse(
+        JSON.stringify({ subtasks: ['task1', 'task2'], partial: 1, final: 'reduced' })
+      );
 
       const result = await executor.executeStep(step, context);
-      
+
       expect(result.status).toBe('completed');
       expect(result.output.reducedOutput).toBeDefined();
     });
@@ -470,9 +484,15 @@ describe('AgentExecutor', () => {
       const context = makeWorkflowContext();
 
       // For the subtasks, they also might be long, but we must not split them again.
-      // We'll spy on internal executeAgentTask and executeWithMapReduce if possible, or just 
+      // We'll spy on internal executeAgentTask and executeWithMapReduce if possible, or just
       // rely on the call sequence.
-      (mockLLM as any).defaultResponse = JSON.stringify({ subtasks: ['long_subtask_1', 'long_subtask_2'], partial: 1, final: 'reduced' });
+      mockLLM.setDefaultResponse(
+        JSON.stringify({
+          subtasks: ['long_subtask_1', 'long_subtask_2'],
+          partial: 1,
+          final: 'reduced',
+        })
+      );
 
       const result = await executor.executeStep(step, context);
       expect(result.status).toBe('completed');
@@ -483,7 +503,9 @@ describe('AgentExecutor', () => {
       const step = makeWorkflowStep({ agentRole: 'Planner', name: longDescription });
       const context = makeWorkflowContext();
 
-      (mockLLM as any).defaultResponse = JSON.stringify({ subtasks: ['task1', 'task2'], partial: 2, final: 'reduced with errors' });
+      mockLLM.setDefaultResponse(
+        JSON.stringify({ subtasks: ['task1', 'task2'], partial: 2, final: 'reduced with errors' })
+      );
       // One fails, one succeeds
       mockLLM.setNextError({ type: 'server_error', message: 'Isolated 500' });
 
