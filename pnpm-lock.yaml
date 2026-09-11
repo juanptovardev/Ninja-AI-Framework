@@ -549,12 +549,18 @@ importers:
 
   packages/flow-matrix:
     dependencies:
+      '@ninja/common-utils':
+        specifier: workspace:*
+        version: link:../common-utils
       '@ninja/contracts':
         specifier: workspace:*
         version: link:../contracts
       '@ninja/events':
         specifier: workspace:*
         version: link:../events
+      '@ninja/logging':
+        specifier: workspace:*
+        version: link:../logging
       '@ninja/storage':
         specifier: workspace:*
         version: link:../storage
