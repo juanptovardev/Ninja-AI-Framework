@@ -1,9 +1,10 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Card, Input, Button, Badge, Select, Divider, Spinner, PageHeader } from '@ninja/ui-kit';
-import { fetchProviders, fetchWorkspaceSettings, api } from '../../lib/api';
+import { Button, Badge, PageHeader } from '@ninja/ui-kit';
+import { fetchProviders, fetchWorkspaceSettings, saveProvider, deleteProvider, saveWorkspaceSettings } from '../../lib/api';
 import type { LLMProvider, WorkspaceSettings, ProviderType } from '../../lib/types';
+import { providerTypeOptions, buildProviderFormDefaults } from '../../lib/settings';
 import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
 import { Plus, PlugsConnected, Plugs, Key, HardDrives, Trash, PencilSimple } from '@phosphor-icons/react';
@@ -11,24 +12,6 @@ import { toast } from 'sonner';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 
 gsap.registerPlugin(useGSAP);
-
-const providerTypeOptions = [
-  { value: 'openai', label: 'OpenAI' },
-  { value: 'anthropic', label: 'Anthropic' },
-  { value: 'ollama', label: 'Ollama (Local)' },
-  { value: 'openrouter', label: 'OpenRouter' },
-  { value: 'groq', label: 'Groq' },
-  { value: 'custom', label: 'Custom' },
-];
-
-const providerDefaults: Record<ProviderType, { baseUrl: string; models: string[] }> = {
-  openai: { baseUrl: 'https://api.openai.com', models: ['gpt-4', 'gpt-3.5-turbo'] },
-  anthropic: { baseUrl: 'https://api.anthropic.com', models: ['claude-3-opus', 'claude-3-sonnet'] },
-  ollama: { baseUrl: 'http://localhost:11434', models: ['llama2', 'codellama'] },
-  openrouter: { baseUrl: 'https://openrouter.ai/api', models: ['anthropic/claude-3-opus'] },
-  groq: { baseUrl: 'https://api.groq.com/openai', models: ['mixtral-8x7b-32768'] },
-  custom: { baseUrl: '', models: [] },
-};
 
 function formatTimeAgo(timestamp: string | number): string {
   const seconds = Math.floor((Date.now() - new Date(timestamp).getTime()) / 1000);
@@ -102,13 +85,10 @@ export default function SettingsPage() {
 
   const handleProviderTypeChange = (value: string) => {
     const type = value as ProviderType;
-    const defaults = providerDefaults[type];
     setFormData({
       ...formData,
       providerType: type,
-      name: type === 'custom' ? '' : providerTypeOptions.find((o) => o.value === type)?.label || '',
-      baseUrl: defaults.baseUrl,
-      models: defaults.models.join(', '),
+      ...buildProviderFormDefaults(type),
     });
   };
 
@@ -159,7 +139,7 @@ export default function SettingsPage() {
     try {
       setSaving(true);
       const models = formData.models.split(',').map((m) => m.trim()).filter(Boolean);
-      const res = await api.post<LLMProvider>('/api/settings/providers', {
+      const res = await saveProvider({
         id: editingId || undefined,
         name: formData.name,
         baseUrl: formData.baseUrl,
@@ -197,7 +177,7 @@ export default function SettingsPage() {
     if (!pendingDeleteId) return;
     setConfirmOpen(false);
     try {
-      const res = await api.del(`/api/settings/providers/${pendingDeleteId}`);
+      const res = await deleteProvider(pendingDeleteId);
       if (res.error) throw new Error(res.error.message);
       setProviders(providers.filter((p) => p.id !== pendingDeleteId));
     } catch {
@@ -210,7 +190,7 @@ export default function SettingsPage() {
   const handleSaveWorkspace = async () => {
     try {
       setSaving(true);
-      const res = await api.post<WorkspaceSettings>('/api/settings/workspace', { name: workspaceForm.name });
+      const res = await saveWorkspaceSettings(workspaceForm.name);
       if (res.error) throw new Error(res.error.message);
       setWorkspace(res.data!);
       toast.success('Workspace settings saved');

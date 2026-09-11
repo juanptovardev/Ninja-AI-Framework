@@ -1,18 +1,18 @@
 'use client';
 
 import React, { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { useUccStore } from '../lib/ucc-store';
-import { api } from '../lib/api';
 import IntentBar from './IntentBar';
 import LiveTimeline from './LiveTimeline';
 import WorkspaceRouter from './WorkspaceRouter';
 import ConversationRail from './ConversationRail';
 import ContextPanel from './ContextPanel';
 import OfficeOverlay from './OfficeOverlay';
-import SettingsOverlay from './SettingsOverlay';
 
 export default function UccDashboard() {
   const uccStore = useUccStore();
+  const router = useRouter();
 
   useEffect(() => {
     // Escuchar teclas de acceso rápido globales
@@ -22,15 +22,15 @@ export default function UccDashboard() {
         e.preventDefault();
         uccStore.toggleOffice();
       }
-      // ⌘, o Ctrl+, para abrir Configuración
+      // ⌘, o Ctrl+, para ir a Configuración (fuente única: /settings)
       if ((e.metaKey || e.ctrlKey) && e.key === ',') {
         e.preventDefault();
-        uccStore.toggleSettings();
+        router.push('/settings');
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [uccStore]);
+  }, [uccStore, router]);
 
   return (
     <div className="flex flex-col h-screen w-full bg-[#030712] text-zinc-100 overflow-hidden font-sans selection:bg-emerald-500/20 selection:text-emerald-300">
@@ -55,7 +55,7 @@ export default function UccDashboard() {
             🏢 Office Canvas <kbd className="text-[10px] text-zinc-500 bg-black/40 px-1.5 py-0.5 rounded font-sans font-normal border border-white/5 ml-1">⌘O</kbd>
           </button>
           <button
-            onClick={() => uccStore.toggleSettings()}
+            onClick={() => router.push('/settings')}
             className="bg-zinc-900 hover:bg-zinc-850 border border-white/5 hover:border-white/10 text-zinc-300 text-xs px-3 py-1.5 rounded-xl transition-all flex items-center gap-1.5 cursor-pointer font-medium"
           >
             ⚙️ Configuración <kbd className="text-[10px] text-zinc-500 bg-black/40 px-1.5 py-0.5 rounded font-sans font-normal border border-white/5 ml-1">⌘,</kbd>
@@ -96,7 +96,6 @@ export default function UccDashboard() {
 
       {/* Overlays / Modals */}
       <OfficeOverlay />
-      <SettingsOverlay />
     </div>
   );
 }
