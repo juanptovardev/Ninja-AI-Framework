@@ -40,6 +40,11 @@ export default defineConfig({
   resolve: {
     alias: baseAliases,
   },
+  oxc: {
+    jsx: {
+      runtime: 'automatic',
+    },
+  },
   test: {
     include: [
       'packages/*/src/**/*.test.ts',

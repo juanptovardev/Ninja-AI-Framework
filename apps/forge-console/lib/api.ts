@@ -106,6 +106,25 @@ export async function fetchWorkspaceSettings(): Promise<WorkspaceSettings> {
   return res.data!;
 }
 
+export async function saveProvider(input: {
+  id?: string;
+  name: string;
+  baseUrl: string;
+  apiKey?: string;
+  models: string[];
+  isActive: boolean;
+}): Promise<ApiResponse<LLMProvider>> {
+  return post<LLMProvider>('/api/settings/providers', input);
+}
+
+export async function deleteProvider(id: string): Promise<ApiResponse<LLMProvider>> {
+  return del<LLMProvider>(`/api/settings/providers/${id}`);
+}
+
+export async function saveWorkspaceSettings(name: string): Promise<ApiResponse<WorkspaceSettings>> {
+  return post<WorkspaceSettings>('/api/settings/workspace', { name });
+}
+
 export const api = {
   get,
   post,
