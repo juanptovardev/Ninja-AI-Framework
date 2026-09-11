@@ -8,6 +8,7 @@ import type { DashboardData, TaskStatus } from '../lib/types';
 import type { AgentInfo, AgentState } from '@ninja/ui-kit';
 import { Toaster } from 'sonner';
 import * as RadixTooltip from '@radix-ui/react-tooltip';
+import { DegradedModeBanner } from '../components/DegradedModeBanner';
 
 interface GlobalState {
   sessionStart: number;
@@ -198,6 +199,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
       <RadixTooltip.Provider>
         <GlobalStateProvider>
           <Toaster richColors position="top-right" />
+          <DegradedModeBanner />
           {children}
         </GlobalStateProvider>
       </RadixTooltip.Provider>
@@ -210,6 +212,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
     <RadixTooltip.Provider>
       <GlobalStateProvider>
         <Toaster richColors position="top-right" />
+        <DegradedModeBanner />
         <ShellLayout
           sidebarProps={{
             activePath,
