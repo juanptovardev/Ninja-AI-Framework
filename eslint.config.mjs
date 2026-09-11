@@ -391,6 +391,8 @@ export default tseslint.config(
     // y G1 bloquea cualquier commit que los stagee. Migrar los edges (mover tipos
     // a contracts, reinyectar dependencias) es rediseño de arquitectura: requiere
     // ADR de capas, fuera de alcance T6.4. Expiry: revisión ADR de capas.
+    // Decisión registrada: docs/adr/0013-layer-debt-grandfather.md (accepted
+    // 2026-09-11, reversible por el dueño). Ver también EXC-4 en Quality Manual §15.
     // NO añadir archivos nuevos a esta lista sin dossier que lo justifique.
     files: [
       'packages/client-adapters/src/adapters/generic-agents-adapter.ts',

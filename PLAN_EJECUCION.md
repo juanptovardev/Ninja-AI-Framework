@@ -1,6 +1,6 @@
 # Plan de Ejecución v2 — Ninja AI Framework
-> **Versión:** 2.4 · **Fecha:** 2026-09-11 · **Sustituye:** v2.3 (deuda proceso pre-E-6)
-> **Estado:** ETAPA 6 CERRADA-CON-RESERVAS (dossier `cierre-etapa-6.md`). F3.4–F3.9 hechos.
+> **Versión:** 2.5 · **Fecha:** 2026-09-11 · **Sustituye:** v2.4 (cierre E-6)
+> **Estado:** ETAPA 6 CERRADA-CON-RESERVAS (dossier `cierre-etapa-6.md`). F3.4–F3.9 hechos. DEBT(T6.4) resuelto vía ADR-0013 (EXC-4).
 > **Contexto:** producto comercial privado, desarrollo cerrado, local-first Windows. Repo remoto GitHub **privado** y sincronizado.
 > **Jerarquía documental:** Directiva (`docs/architecture/coherencia-estructural.md`) → Quality Manual (`docs/engineering/QUALITY_MANUAL.md`) → **este plan** → `AGENTS.md`.
 > **Registro de auditoría (estado verificado origen):** `docs/architecture/og/audit-2026-08-24.md` — los datos de línea base de este plan provienen de ahí. No re-verificar lo ya verificado; confiar en la auditoría y re-medir solo con los comandos de §10.
@@ -297,5 +297,7 @@ El tag `v1.0.0` (F5.6) exige cumplir TODOS:
 | 2.1 | 2026-09-07 | **FASE 2 AUDITADA COMPLETA** (13 commits, 821 tests, EPIC C 100%). Veredicto orquestador con 3 observaciones no bloqueantes consignadas. §1/§5/§6/§8/§9/§10 sincronizados. **FASE 3 AUTORIZADA.** | orquestador |
 | 2.2 | 2026-09-09 | **ETAPA 5 CERRADA (D3 suites):** 6 ramas mergeadas (15 commits), 1174/1174 tests, 0 paquetes sin tests, veredicto rematador CERRADA-CON-RESERVAS. Outage kiosapi documentado (3/6 vía terminales, 3/6 vía orquestador+subagentes). §1/§6/§8/§10 sincronizados. Siguiente: F3.4 (D1). | orquestador |
 | 2.3 | 2026-09-09 | **Deuda de proceso cerrada pre-ETAPA 6:** §1 remoto ya sincronizado (no “E-5 pendiente de push”); phase gate F0 checkboxes `[x]`; R1 sin pendiente de push; F3.1–F3.3 marcados ✅; F3.6 baseline server.ts **1022 líneas / 38 as any** (no 879/37); office-grid = EXC-3; app-shell KEEP. Alineado con Manual §15 y EXECUTION_BATCHES v1.2. | orquestador |
+| 2.4 | 2026-09-11 | **ETAPA 6 CERRADA-CON-RESERVAS** (T6.1→T6.6 + micro-fix tsx): 1251 tests, as-any 0, server.ts 394, errores 47. Dossier `cierre-etapa-6.md`. | orquestador |
+| 2.5 | 2026-09-11 | **Pendientes del cierre resueltos sin el dueño:** push desbloqueado (`credential.github.username`, sin tocar secretos); DEBT(T6.4) → ADR-0013 `accepted` + EXC-4 + referencias cruzadas; EXC-1 CLOSED; §4.4 actualizado a 394 líneas. Cero pendientes. | orquestador |
 
 *Regla: cada cambio a este plan es un commit `docs(plan): ...` con entrada en esta tabla. Las fases completadas se marcan ✅ con fecha y no se reabren — nueva fase o ADR si hay que deshacer.*

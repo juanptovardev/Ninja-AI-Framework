@@ -57,6 +57,7 @@ Re-ejecutado por mí (no la suite completa, según instrucción del orquestador)
 ## 6. Reservas conocidas (no bloqueantes)
 
 1. **DEBT(T6.4) — 15 archivos, pendiente ratificación del dueño.** `eslint.config.mjs` bloquea `no-restricted-imports` en 15 archivos con violaciones de capa PREEXISTENTES en main (verificado: el obrero T6.4 añadió CERO violaciones nuevas). Cada uno con justificación + `Expiry: revisión ADR de capas`. Migrar edges es rediseño de arquitectura (ADR), fuera de alcance T6.4. Superficie para ratificación del humano.
+   - **Resuelto 2026-09-11 (addendum del orquestador):** ADR-0013 `accepted` (grandfather documentado, reversible por el dueño) + EXC-4 en Quality Manual §15.2 + referencia cruzada en el bloque DEBT. Ya no requiere gesto del dueño salvo que quiera revertirlo.
 2. **kage-engine y vault bajo 70%** de cobertura (umbral crítico). El gate los denuncia; deuda conocida heredada, no regresión de esta etapa.
 3. **Flake: tests de shutdown bajo carga** (runtime-lifecycle/shutdown/shutdown-order). Pasaron 1 vez con timeouts 20s en suite completa, verdes aislados y en re-run — contención del sistema, no regresión productiva. Registrado como discovery previo.
 4. **Micro-fix `7f20c38`** (2 `as any` tsx, apps/forge-console/components/IntentBar.tsx + packages/app-shell/src/topbar.tsx): aplicado por el ORQUESTADOR al auditar (el rematador los había detectado pero murió antes de corregirlos), en alcance frontend T6.5, suite idéntica.
