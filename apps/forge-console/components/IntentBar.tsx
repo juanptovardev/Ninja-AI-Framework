@@ -77,7 +77,7 @@ export default function IntentBar() {
           <div className="flex items-center gap-2">
             <select
               value={mode}
-              onChange={(e) => setMode(e.target.value as any)}
+              onChange={(e) => setMode(e.target.value as 'build' | 'repair' | 'template' | 'workspace')}
               className="bg-zinc-800 text-zinc-300 text-xs rounded-lg px-2.5 py-1 focus:outline-none border border-white/5 cursor-pointer hover:bg-zinc-750 transition-colors"
             >
               <option value="build">🔨 Build</option>

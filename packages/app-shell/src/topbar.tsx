@@ -1,5 +1,6 @@
 import React from 'react';
 import { Badge, SessionTimer } from '@ninja/ui-kit';
+import type { BadgeVariant } from '@ninja/ui-kit';
 
 // ─── Types ───────────────────────────────────────────────────
 
@@ -25,7 +26,7 @@ export const Topbar: React.FC<TopbarProps> = ({
   sessionStartTime,
 }) => {
   // Status badge config
-  const statusConfig: Record<ConnectionStatus, { label: string; variant: string }> = {
+  const statusConfig: Record<ConnectionStatus, { label: string; variant: BadgeVariant }> = {
     connected: { label: 'Connected', variant: 'success' },
     disconnected: { label: 'Disconnected', variant: 'danger' },
     connecting: { label: 'Connecting', variant: 'info' },
@@ -45,7 +46,7 @@ export const Topbar: React.FC<TopbarProps> = ({
 
       {/* Right side - Status + Session Timer */}
       <div className="flex items-center gap-4">
-        <Badge variant={variant as any} pulse={connectionStatus === 'connecting'}>
+        <Badge variant={variant} pulse={connectionStatus === 'connecting'}>
           {label}
         </Badge>
 
