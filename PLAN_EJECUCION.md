@@ -1,5 +1,6 @@
 # Plan de Ejecución v2 — Ninja AI Framework
-> **Versión:** 2.3 · **Fecha:** 2026-09-09 · **Sustituye:** v2.2 (cierre E-5) · v2.0 (2026-08-24, base de auditoría)
+> **Versión:** 2.4 · **Fecha:** 2026-09-11 · **Sustituye:** v2.3 (deuda proceso pre-E-6)
+> **Estado:** ETAPA 6 CERRADA-CON-RESERVAS (dossier `cierre-etapa-6.md`). F3.4–F3.9 hechos.
 > **Contexto:** producto comercial privado, desarrollo cerrado, local-first Windows. Repo remoto GitHub **privado** y sincronizado.
 > **Jerarquía documental:** Directiva (`docs/architecture/coherencia-estructural.md`) → Quality Manual (`docs/engineering/QUALITY_MANUAL.md`) → **este plan** → `AGENTS.md`.
 > **Registro de auditoría (estado verificado origen):** `docs/architecture/og/audit-2026-08-24.md` — los datos de línea base de este plan provienen de ahí. No re-verificar lo ya verificado; confiar en la auditoría y re-medir solo con los comandos de §10.
@@ -131,9 +132,10 @@
 
 ---
 
-## 6. FASE 3 — EPIC D (Calidad) — orden estricto R6: D3→D1→D2→D4→D5 **[EN CURSO — D3 COMPLETADO 2026-09-09]**
+## 6. FASE 3 — EPIC D (Calidad) — orden estricto R6: D3→D1→D2→D4→D5 ✅ **COMPLETADA 2026-09-11 (ETAPA 6 CERRADA-CON-RESERVAS)**
 > **Objetivo:** la deuda estructural medida (117 `as any`, 45 throws crudos, 11 paquetes sin tests) a cero, con thresholds sostenibles.
 > **Estado D3:** ✅ ETAPA 5 cerrada (veredicto rematador: CERRADA-CON-RESERVAS, dossier `cierre-etapa-5.md`). 6 ramas mergeadas. Coberturas: flow-matrix 96.12%, workbench 90% (≥70 ✅); resto ≥50% (mínimo forge-lab 57.83%). office-grid 33.82% = **EXC-3** (hook `use-office-state.ts` necesita jsdom; T6.2 debe excluirlo del threshold global, no instalar jsdom). app-shell: **KEEP** (F3.3 cerrado). Siguiente: F3.4 (D1 common-utils = T6.1).
+> **Estado ETAPA 6 (2026-09-11):** ✅ CERRADA-CON-RESERVAS (dossier `cierre-etapa-6.md`). T6.1 WP-D1 (61 tests, 94%) · T6.2 thresholds 50/70+EXC-3 · T6.3/T6.4 server.ts 1022→394, as-any 0, throws prod 0 (1 boundary documentado) · T6.5 boundaries+settings · T6.6 flow paralelo+deadlock · micro-fix tsx (as-any global 0 incl. `.tsx`). KPIs: tests 1174→1251 · as-any 114→0 · server 1022→394 · errores 19→47. Reservas: DEBT(T6.4) pendiente tu ratificación, kage-engine/vault <70, flakes shutdown. Siguiente: ETAPA 7 (requiere tu go).
 > **Entrada:** F2 completo.
 > **Estimación:** P50 10 d · P80 15 d
 

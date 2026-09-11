@@ -1,6 +1,6 @@
 # Plan Maestro Enterprise — Ninja AI Framework
-> **Rama activa**: `main` (145 commits) · **Última actualización**: 2026-09-09 (deuda de proceso pre-E-6)
-> **Operativo:** `PLAN_EJECUCION.md` v2.3 · Prompts: `docs/engineering/EXECUTION_BATCHES.md` v1.2 · siguiente: T6.1
+> **Rama activa**: `main` · **Última actualización**: 2026-09-11 (ETAPA 6 CERRADA-CON-RESERVAS)
+> **Operativo:** `PLAN_EJECUCION.md` v2.4 · ETAPA 6 ✅ (T6.1→T6.6 + micro-fix tsx) · siguiente: ETAPA 7 (bloqueada por tu veredicto)
 
 ---
 
