@@ -3,6 +3,7 @@ import { SkillDefinition, ToolDefinition } from './schema';
 import { fsReadTool, fsWriteTool, fsListTool } from './native/fs-tools';
 import { shellExecTool } from './native/shell-tools';
 import { httpGetTool, httpPostTool } from './native/http-tools';
+import { loadContentPack } from './content-pack-loader';
 
 /**
  * Carga las herramientas nativas del framework
@@ -74,11 +75,13 @@ export function loadNativeSkills(registry: ArsenalRegistry): void {
 /**
  * Bootstrap inicial del registry
  */
-export function bootstrap(): ArsenalRegistry {
+export function bootstrap(options?: { contentRoot?: string }): ArsenalRegistry {
   const registry = ArsenalRegistry.getInstance();
 
   loadNativeTools(registry);
   loadNativeSkills(registry);
+
+  loadContentPack(registry, { contentRoot: options?.contentRoot });
 
   return registry;
 }
