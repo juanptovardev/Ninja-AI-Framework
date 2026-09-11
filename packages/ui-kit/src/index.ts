@@ -17,6 +17,9 @@ export * from './components/widgets/session-timer';
 export * from './components/widgets/agent-status';
 export * from './components/widgets/context-depth';
 
+// ─── Live data mappers (evento → props de widgets) ───────
+export * from './components/widgets/live-data';
+
 // ─── Hooks ───────────────────────────────────────────────
 export * from './hooks/useWebSocket';
 export * from './hooks/useInterval';

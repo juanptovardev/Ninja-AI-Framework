@@ -30,6 +30,18 @@ export { checkPermission, validateAndExecute, type PermissionResult } from './pe
 // Funciones de bootstrap
 export { bootstrap, loadNativeTools, loadNativeSkills } from './loader.js';
 
+// Content pack (inventario real de content/ del repo)
+export {
+  ContentPackLoader,
+  loadContentPack,
+  parseSkillFrontmatter,
+  resolveContentRoot,
+  type ContentPackItem,
+  type ContentPackKind,
+  type ContentPackLoadResult,
+  type ContentPackLoaderOptions,
+} from './content-pack-loader.js';
+
 // ---------------------------------------------------------------------------
 // MCP Protocol (Model Context Protocol)
 // ---------------------------------------------------------------------------
@@ -38,11 +50,7 @@ export { bootstrap, loadNativeTools, loadNativeSkills } from './loader.js';
 export { MCPServer } from './mcp-server.js';
 
 // MCP adapter functions
-export {
-  arsenalToolToMCPTool,
-  listMCPTools,
-  executeMCPTool,
-} from './mcp-adapter.js';
+export { arsenalToolToMCPTool, listMCPTools, executeMCPTool } from './mcp-adapter.js';
 
 // MCP types
 export type {

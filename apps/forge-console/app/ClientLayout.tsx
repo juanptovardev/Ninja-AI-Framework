@@ -4,8 +4,15 @@ import React, { createContext, useContext, useState, useEffect, useMemo } from '
 import { ShellLayout, ContextPanel } from '@ninja/app-shell';
 import { usePathname, useRouter } from 'next/navigation';
 import { api, WS_URL } from '../lib/api';
-import type { DashboardData, TaskStatus } from '../lib/types';
-import type { AgentInfo, AgentState } from '@ninja/ui-kit';
+import type { DashboardData } from '../lib/types';
+import {
+  tokenMeterFromMetrics,
+  tokenDeltaFromEvent,
+  sessionStartFromUptime,
+  contextDepthFromTokenMeter,
+  agentsFromTasks,
+} from '@ninja/ui-kit';
+import type { AgentInfo } from '@ninja/ui-kit';
 import { Toaster } from 'sonner';
 import * as RadixTooltip from '@radix-ui/react-tooltip';
 
@@ -25,39 +32,32 @@ interface GlobalStateContextValue extends GlobalState {
 
 const GlobalStateContext = createContext<GlobalStateContextValue | null>(null);
 
-const DEFAULT_TOKEN_DATA = {
-  current: 18500,
-  max: 32000,
-};
-
-const taskStatusToAgentStatus = (status: TaskStatus): AgentState => {
-  switch (status) {
-    case 'running':
-      return 'working';
-    case 'pending':
-      return 'idle';
-    default:
-      return 'blocked';
-  }
+const EMPTY_TOKEN_DATA = {
+  current: 0,
+  max: 0,
 };
 
 export function GlobalStateProvider({ children }: { children: React.ReactNode }) {
   const [systemStatus, setSystemStatus] = useState<DashboardData | null>(null);
-  const [sessionStart] = useState(Date.now());
+  const [sessionStart, setSessionStart] = useState<number>(0);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
-  
-  const [tokenCurrent, setTokenCurrent] = useState(DEFAULT_TOKEN_DATA.current);
-  const [tokenMax, setTokenMax] = useState(DEFAULT_TOKEN_DATA.max);
+
+  const [tokenCurrent, setTokenCurrent] = useState(EMPTY_TOKEN_DATA.current);
+  const [tokenMax, setTokenMax] = useState(EMPTY_TOKEN_DATA.max);
 
   const fetchStatus = async () => {
     try {
       setIsLoading(true);
       const res = await api.get<DashboardData>('/api/dashboard');
       setSystemStatus(res.data);
-      if (res.data && res.data.pulse?.tokenMetrics) {
-        setTokenCurrent(res.data.pulse.tokenMetrics.used);
-        setTokenMax(res.data.pulse.tokenMetrics.budget);
+      if (res.data) {
+        const tokens = tokenMeterFromMetrics(res.data.pulse?.tokenMetrics, EMPTY_TOKEN_DATA);
+        setTokenCurrent(tokens.current);
+        setTokenMax(tokens.max);
+        if (typeof res.data.uptime === 'number') {
+          setSessionStart(sessionStartFromUptime(Date.now(), res.data.uptime));
+        }
       }
       setError(null);
     } catch (err) {
@@ -78,28 +78,36 @@ export function GlobalStateProvider({ children }: { children: React.ReactNode })
 
     const connectWs = () => {
       ws = new WebSocket(WS_URL);
-      
+
       ws.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
-          
+
           // Sumar tokens en tiempo real cuando un agente use LLM
-          if (data.type === 'agent.llm.called' && data.payload?.data?.tokensUsed) {
-            setTokenCurrent(prev => prev + (data.payload.data.tokensUsed as number));
+          const delta = tokenDeltaFromEvent(data);
+          if (delta > 0) {
+            setTokenCurrent((prev) => prev + delta);
           }
-          
+
           // Si el estado del run/engine cambia, refrescar la data general
           if (
-            data.type?.startsWith('engine.run.') || 
+            data.type?.startsWith('engine.run.') ||
             data.type?.startsWith('agent.task.')
           ) {
             // Un delay corto para permitir que el backend persista los estados en DB
             setTimeout(() => {
               api.get<DashboardData>('/api/dashboard').then((res) => {
                 setSystemStatus(res.data);
-                if (res.data && res.data.pulse?.tokenMetrics) {
-                  setTokenCurrent(res.data.pulse.tokenMetrics.used);
-                  setTokenMax(res.data.pulse.tokenMetrics.budget);
+                if (res.data) {
+                  const tokens = tokenMeterFromMetrics(
+                    res.data.pulse?.tokenMetrics,
+                    EMPTY_TOKEN_DATA
+                  );
+                  setTokenCurrent(tokens.current);
+                  setTokenMax(tokens.max);
+                  if (typeof res.data.uptime === 'number') {
+                    setSessionStart(sessionStartFromUptime(Date.now(), res.data.uptime));
+                  }
                 }
               }).catch(() => {});
             }, 100);
@@ -123,27 +131,15 @@ export function GlobalStateProvider({ children }: { children: React.ReactNode })
     if (!systemStatus?.recentTasks) {
       return [];
     }
-
-    const agentMap = new Map<string, AgentInfo & { _timestamp: number }>();
-
-    for (const task of systemStatus.recentTasks) {
-      if (!task.agent) continue;
-
-      const existing = agentMap.get(task.agent);
-      if (!existing || task.timestamp > existing._timestamp) {
-        agentMap.set(task.agent, {
-          id: `agent-${task.agent.toLowerCase().replace(/\s+/g, '-')}`,
-          name: task.agent,
-          state: taskStatusToAgentStatus(task.status),
-          task: task.status === 'running' ? task.name : undefined,
-          _timestamp: task.timestamp,
-        });
-      }
-    }
-
-    return Array.from(agentMap.values())
-      .slice(0, 5)
-      .map(({ _timestamp, ...rest }) => rest);
+    return agentsFromTasks(
+      systemStatus.recentTasks.map((task) => ({
+        id: task.id,
+        name: task.name,
+        status: task.status,
+        agent: task.agent,
+        timestamp: task.timestamp,
+      }))
+    );
   }, [systemStatus]);
 
   const value = useMemo<GlobalStateContextValue>(
@@ -179,10 +175,7 @@ function ContextPanelWrapper() {
       sessionStart={sessionStart}
       tokenData={{ current: tokenCurrent, max: tokenMax }}
       agentData={agents}
-      contextLayers={{
-        currentTokens: tokenCurrent,
-        maxTokens: tokenMax,
-      }}
+      contextLayers={contextDepthFromTokenMeter({ current: tokenCurrent, max: tokenMax })}
     />
   );
 }
