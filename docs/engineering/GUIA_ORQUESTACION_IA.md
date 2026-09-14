@@ -1,6 +1,6 @@
 # GUÍA DE ORQUESTACIÓN PARA IA — Ninja AI Framework
 
-> **Versión:** 1.1.0 · **Fecha:** 2026-09-13 · **Audiencia:** cualquier IA orquestadora
+> **Versión:** 1.2.0 · **Fecha:** 2026-09-14 · **Audiencia:** cualquier IA orquestadora
 > (opencode/Codex/Claude) que ejecute trabajo en este repositorio, y los obreros que lance.
 >
 > Esta guía es la **capa operativa de orquestación** del Quality Manual, y la documentación
@@ -52,8 +52,14 @@ Regla de oro anti-sesgo: **nadie califica su propio trabajo.** Obrero ≠ remata
 - `tools/verifications/wp-*.md` / `cierre-etapa-N.md` — dossiers. **Sin dossier no hay merge.**
 - `docs/adr/` — cada decisión de arquitectura nueva = ADR nuevo.
 - `.opencode/agents/` — **nuevo (v1.1):** definiciones de agentes que ejecutan este protocolo
-  (orquestador + fases como `sdd-apply` si las hubiera). El orquestador [ahora](#9-orquestador--agente)
-  existe como agente nombrado.
+  (orquestador + fases como `sdd-apply` si las hubiera). El orquestador existe como agente
+  nombrado (ver §2.1 del changelog v1.1.1).
+
+**Registro del agente en opencode (v1.2.0):** el `.md` del agente se referencia desde
+`~/.config/opencode/opencode.json` (clave `agent`, `prompt: {file:<ruta>}`). El path DEBE
+usar backslash simple (`C:\Users\...`), igual que los agentes sdd — un path con dobles
+backslashes hace que la TUI (`/agents`) descarte el agente silenciosamente aunque el CLI lo
+cargue. Reiniciar opencode tras cualquier cambio para que el picker lo vea.
 
 **Choque de nombres de dossier:** si el WP ya tiene dossier (ej. `wp-d1-common-utils.md`
 existe de una fase previa y la ETAPA 6 también toca common-utils), NO lo sobrescribas
@@ -362,3 +368,4 @@ elimina la dependencia operativa del humano: este decide dirección, no pasos.
 | 1.0.0 | 2026-09-10 | Versión inicial especializada en este repo, destilada de la orquestación ETAPA 5 (cierre `tools/verifications/cierre-etapa-5.md`) |
 | 1.1.0 | 2026-09-13 | Autonomía: §2.1 documenta el agente orquestador; §5 escalera con pool real verificado en E-7 (kiosapi/nvidia/openrouter `:free`/opencode-free); §9 gotchas 9–12 (muerte silenciosa, credencial invisible, orden build→typecheck, modelo EOL); 2.1 añade CONSISTENCIA + TRACE + ESTADO como archivos del sistema |
 | 1.1.1 | 2026-09-13 | Agente `ninja-orquestador` registrado y verificado (AGENT-OK, qwen3.8-flash). Validador: denylist por prefijos eliminada — gate económico (paidRemoved) mantiene Free-only con `denegados=0`. `.opencode/node_modules` ignorado |
+| 1.2.0 | 2026-09-14 | Agente reescrito con 20 puntos de mejora: intake genérico (F0) con definición de stack en runtime via context7, fase PLAN (F1) con go/no-go, prompts congelados con criterios ejecutables, watchdog de muerte silenciosa, presupuesto de lectura, REPORTA completo, cierre ciego, auditoría anti-claims, escalera de proveedores, presupuesto de autonomía, STOP/SOLO-HUMANO, gotchas PowerShell, reutilización 80%, bootstrap de gobernanza si el repo no la tiene. Bug corregido: path del prompt en opencode.json con backslash simple (dobles backslashes hacían invisible el agente en la TUI `/agents`) |
