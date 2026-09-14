@@ -275,6 +275,10 @@ escribe `kiosapi-validator.log`; el humo se verifica con el texto de respuesta.
   matar huérfanos (`Get-Process node` + `Stop-Process`), re-ejecutar los 3 archivos aislados,
   y solo entonces la suite completa. Dos verdes aislados = contención, no regresión. Los
   procesos node de workers muertos acumulan CPU y falsean los timeouts: limpiarlos es G0.
+- **Rate-limit global compartido en suite paralela:** `rate-limit-security.test.ts` puede ver
+  429 en vez de 200 si otro test consumió el budget de 100 req/min en la misma ventana.
+  Verde aislado + commits solo-docs desde el último verde = flake, no regresión. No tocar
+  el test ni el límite para "arreglarlo".
 
 ---
 
