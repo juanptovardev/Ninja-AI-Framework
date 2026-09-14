@@ -271,6 +271,10 @@ escribe `kiosapi-validator.log`; el humo se verifica con el texto de respuesta.
 - Toda extracción de `server.ts` exige **suite idéntica antes/después**. Si un test cambia,
   el refactor está mal: revertir (`git checkout --`), no maquillar.
 - Dead code encontrado en el camino: se LISTA en el dossier, no se borra (scope creep).
+- **Flakes de integración (shutdown/lifecycle, timeouts 20s):** antes de culpar al obrero,
+  matar huérfanos (`Get-Process node` + `Stop-Process`), re-ejecutar los 3 archivos aislados,
+  y solo entonces la suite completa. Dos verdes aislados = contención, no regresión. Los
+  procesos node de workers muertos acumulan CPU y falsean los timeouts: limpiarlos es G0.
 
 ---
 
