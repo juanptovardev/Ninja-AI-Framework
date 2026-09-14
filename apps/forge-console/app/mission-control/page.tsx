@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { PageHeader, Metric, ProTable, BarList, Badge, Button, Spinner } from '@ninja/ui-kit';
+import { PageHeader, Metric, ProTable, BarList, Badge, Button } from '@ninja/ui-kit';
 import { api, WS_URL } from '../../lib/api';
 import type { DashboardData, TaskEntry } from '../../lib/types';
 import { useWsClient } from '../../lib/ws-client';

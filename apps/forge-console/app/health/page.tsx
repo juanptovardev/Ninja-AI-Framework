@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Card, Badge, Spinner, PageHeader } from '@ninja/ui-kit';
+import { Badge, PageHeader } from '@ninja/ui-kit';
 import { fetchHealthPulse } from '../../lib/api';
 import type { PulseData as HealthStatus } from '../../lib/types';
 import gsap from 'gsap';

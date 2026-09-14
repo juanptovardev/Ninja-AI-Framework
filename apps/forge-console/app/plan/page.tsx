@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef } from 'react';
-import { Card, Button, Badge, PageHeader } from '@ninja/ui-kit';
+import { Button, Badge, PageHeader } from '@ninja/ui-kit';
 import { api } from '../../lib/api';
 import type { IntakeResponse } from '../../lib/types';
 import gsap from 'gsap';

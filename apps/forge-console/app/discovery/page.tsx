@@ -1,6 +1,6 @@
 'use client';
 
-import { PageHeader, EmptyState, Card, Badge } from '@ninja/ui-kit';
+import { PageHeader, EmptyState, Badge } from '@ninja/ui-kit';
 import { useRef } from 'react';
 import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
