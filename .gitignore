@@ -179,3 +179,7 @@ docs/*
 !docs/security/**
 !docs/operations/
 !docs/operations/**
+
+# opencode agent runtime (local only, regenerable)
+.opencode/node_modules/
+.opencode/*.log
