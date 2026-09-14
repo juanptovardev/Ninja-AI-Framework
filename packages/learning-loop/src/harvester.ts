@@ -7,16 +7,24 @@
 import { eventBus, createEvent } from '@ninja/events';
 import { createLogger } from '@ninja/logging';
 import { RunRepository, ArtifactRepository, SessionRepository } from '@ninja/trace-ledger';
-import type { Run, RunStatus } from '@ninja/trace-ledger';
+import type { Run, RunStatus, AgentLogEntry } from '@ninja/trace-ledger';
 import type { ID, Timestamp } from '@ninja/contracts';
 import type { LearningCandidate, LearningHarvestCompletedPayload } from './schema.js';
 
 const log = createLogger('learning-harvester');
 
+/**
+ * Consulta los logs de agente de un run (agent_log) para resolver el
+ * agentId REAL que ejecutó el run (EV-27). Inyectada por composición
+ * (el harvester no accede a la base de datos directamente).
+ */
+export type AgentLogLookup = (runId: ID) => readonly Pick<AgentLogEntry, 'agentId'>[];
+
 interface LearningHarvesterDeps {
   runRepository: RunRepository;
   artifactRepository: ArtifactRepository;
   sessionRepository: SessionRepository;
+  agentLogLookup?: AgentLogLookup;
   eventBus?: typeof eventBus;
 }
 
@@ -32,13 +40,16 @@ interface LearningHarvesterDeps {
 export class LearningHarvester {
   private runRepository: RunRepository;
   private artifactRepository: ArtifactRepository;
-  private sessionRepository: SessionRepository;
   private eventBus: typeof eventBus;
+  private agentLogLookup?: AgentLogLookup;
+
+  // sessionRepository permanece en deps (inyección estable en kage-runtime)
+  // pero ya no se usa para derivar agentId tras el fix EV-27.
 
   constructor(deps: LearningHarvesterDeps) {
     this.runRepository = deps.runRepository;
     this.artifactRepository = deps.artifactRepository;
-    this.sessionRepository = deps.sessionRepository;
+    this.agentLogLookup = deps.agentLogLookup;
     this.eventBus = deps.eventBus ?? eventBus;
   }
 
@@ -108,12 +119,11 @@ export class LearningHarvester {
       .join('\n---\n')
       .slice(0, 2000); // Limitar a 2000 chars para el candidato
 
-    // Obtener la sesión para extraer contexto
-    const session = this.sessionRepository.findById(run.sessionId);
-
-    // El agentId puede derivarse del contexto o usar un default
-    // Para ahora, usamos el sessionId como proxy del agent
-    const agentId = session?.workspaceId ?? run.sessionId;
+    // EV-27: el agentId del candidato es el agente REAL que ejecutó el run,
+    // registrado en agent_log. Sin lookup disponible o sin entrada, cae al
+    // sessionId del run (identificador estable del contexto de ejecución).
+    // ANTES (bug): usaba session.workspaceId — un id de workspace, no de agente.
+    const agentId = this.agentLogLookup?.(run.id)?.[0]?.agentId ?? run.sessionId;
 
     return {
       runId: run.id,

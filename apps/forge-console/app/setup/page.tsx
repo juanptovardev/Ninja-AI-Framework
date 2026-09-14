@@ -3,8 +3,9 @@
 /**
  * forge-console — app/setup/page.tsx
  * Wizard de onboarding de 4 pasos (WP-E3 / T7.1):
- * 1. Env check (GET /api/doctor) · 2. Test Connection (placeholder T7.4,
- * deshabilitado) · 3. Workspace (POST /api/session/init) · 4. Tour mínimo.
+ * 1. Env check (GET /api/doctor) · 2. Test Connection (GET
+ * /api/model-gateway/status, T7.4) · 3. Workspace (POST /api/session/init) ·
+ * 4. Tour mínimo.
  * Estados loading/success/error por paso con retry. Sin ShellLayout
  * (ClientLayout excluye /setup). Tokens: variables --ninja-* + utilidades
  * glass-card/skeleton/font-mono-data de globals.css (CONSISTENCIA_VISUAL §3).
@@ -139,19 +140,52 @@ function EnvCheckStep() {
   );
 }
 
-// ─── Paso 2: Test connection (placeholder fuera de alcance) ──
+// ─── Paso 2: Test connection (T7.4) ──────────────────────────
 
 function TestConnectionStep() {
+  const steps = useOnboarding((s) => s.steps);
+  const connectionResult = useOnboarding((s) => s.connectionResult);
+  const runTestConnection = useOnboarding((s) => s.runTestConnection);
+  const state = steps['test-connection'];
+
+  useEffect(() => {
+    if (state.status === 'idle') {
+      void runTestConnection();
+    }
+  }, [state.status, runTestConnection]);
+
+  if (state.status === 'idle' || state.status === 'loading') {
+    return <LoadingSkeletons rows={2} />;
+  }
+
+  if (state.status === 'error') {
+    return (
+      <div className="space-y-4">
+        <ErrorPanel message={state.error} onRetry={() => void runTestConnection()} />
+        <p className="text-xs text-[var(--ninja-text-muted)] font-mono-data">
+          La prueba consulta <code>GET /api/model-gateway/status</code> en el runtime (puerto
+          3141). Levántalo con `pnpm ninja` y reintenta.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
-      <Badge variant="accent">Próximamente</Badge>
+      <div className="flex flex-wrap items-center gap-3">
+        <Badge variant="success">Conexión operativa</Badge>
+        {connectionResult ? (
+          <Badge variant="info" className="font-mono-data">
+            {connectionResult.latencyMs}ms · {connectionResult.modelCount} modelos
+          </Badge>
+        ) : null}
+      </div>
       <p className="text-sm text-[var(--ninja-text-secondary)]">
-        La prueba de conexión con el proveedor de modelos llegará en la etapa de proveedores
-        (T7.4). Puedes continuar el asistente sin completarla: el runtime ya valida el acceso
-        al LLM en tiempo de ejecución.
+        El Kage Runtime responde y el Model Gateway tiene su catálogo cargado. Puedes afinar
+        proveedores con la prueba de conexión real en Settings.
       </p>
-      <Button variant="secondary" disabled>
-        Probar conexión
+      <Button variant="ghost" size="sm" onClick={() => void runTestConnection()}>
+        Volver a probar
       </Button>
     </div>
   );

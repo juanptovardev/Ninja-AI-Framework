@@ -10,6 +10,7 @@ import { initDb, closeDb } from '@ninja/storage';
 import type { Database } from '@ninja/storage';
 import { RunRepository, ArtifactRepository, SessionRepository } from '@ninja/trace-ledger';
 import type { Run, RunStatus, Session } from '@ninja/trace-ledger';
+import { logAgentResult, getAgentLogs } from '@ninja/trace-ledger';
 import { eventBus } from '@ninja/events';
 import { setGlobalLogLevel } from '@ninja/logging';
 import type { LogLevel } from '@ninja/logging';
@@ -34,6 +35,10 @@ const TRACE_DDL = `
   CREATE TABLE artifacts (
     id TEXT PRIMARY KEY, runId TEXT NOT NULL, type TEXT NOT NULL,
     name TEXT NOT NULL, content TEXT NOT NULL, createdAt TEXT NOT NULL
+  );
+  CREATE TABLE agent_log (
+    agentId TEXT NOT NULL, role TEXT NOT NULL, summary TEXT NOT NULL,
+    runId TEXT NOT NULL, timestamp TEXT NOT NULL
   );
 `;
 
@@ -67,6 +72,7 @@ function makeContext(): TestContext {
     runRepository,
     artifactRepository,
     sessionRepository,
+    agentLogLookup: (runId) => getAgentLogs(db, runId),
     eventBus: mockEventBus as unknown as typeof eventBus,
   });
   return { db, runRepository, artifactRepository, sessionRepository, mockEventBus, harvester };
@@ -121,7 +127,7 @@ describe('LearningHarvester — recolecta runs y produce candidatos', () => {
     setGlobalLogLevel(prevLogLevel);
   });
 
-  it('runs completados dentro de la ventana → candidatos con agentId del workspace de la sesión', async () => {
+  it('runs completados sin agent_log → agentId cae al sessionId del run (EV-27)', async () => {
     const { run } = seedCompletedRun(ctx, 1);
     ctx.artifactRepository.create({
       runId: run.id,
@@ -135,10 +141,38 @@ describe('LearningHarvester — recolecta runs y produce candidatos', () => {
     expect(candidates).toHaveLength(1);
     const c = candidates[0];
     expect(c.runId).toBe(run.id);
-    expect(c.agentId).toBe('ws-1');
+    // EV-27: el agentId NUNCA es el workspaceId de la sesión ('ws-1').
+    expect(c.agentId).toBe(run.sessionId);
+    expect(c.agentId).not.toBe('ws-1');
     expect(c.taskType).toBe('build');
     expect(c.result).toBe('export const app = () => 1;');
     expect(c.qualityScore).toBe(0);
+  });
+
+  it('EV-27 regresión: run con agent_log usa el agentId REAL del agente (≠ workspaceId)', async () => {
+    const { session, run } = seedCompletedRun(ctx, 1);
+    ctx.artifactRepository.create({
+      runId: run.id,
+      type: 'code',
+      name: 'impl',
+      content: 'export const app = () => 1;',
+    });
+    logAgentResult(ctx.db, {
+      agentId: 'ninja-coder',
+      role: 'coder',
+      summary: 'run completado',
+      runId: run.id,
+      timestamp: new Date().toISOString(),
+    });
+
+    const candidates = await ctx.harvester.harvest();
+
+    expect(candidates).toHaveLength(1);
+    const c = candidates[0];
+    expect(c.runId).toBe(run.id);
+    expect(c.agentId).toBe('ninja-coder');
+    expect(c.agentId).not.toBe(session.workspaceId);
+    expect(c.agentId).not.toBe(run.sessionId);
   });
 
   it('filtra por status: solo completed cosecha (failed/running/pending excluidos)', async () => {

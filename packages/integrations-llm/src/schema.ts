@@ -44,5 +44,13 @@ export type TokenUsage = {
   total_tokens: number;
 };
 
+/** Resultado de un ping de conectividad contra GET {baseUrl}/models. */
+export type LLMPingResult = {
+  /** Latencia total del ping en milisegundos. */
+  latencyMs: number;
+  /** IDs de modelos expuestos por el endpoint (puede ser []). */
+  models: string[];
+};
+
 // LLMError is now exported from @ninja/contracts (WP-B1)
 // Use: import { LLMError } from '@ninja/contracts';

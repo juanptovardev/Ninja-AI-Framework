@@ -9,13 +9,15 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const { getMock, postMock } = vi.hoisted(() => ({
+const { getMock, postMock, testConnMock } = vi.hoisted(() => ({
   getMock: vi.fn(),
   postMock: vi.fn(),
+  testConnMock: vi.fn(),
 }));
 
 vi.mock('../../lib/api', () => ({
   api: { get: getMock, post: postMock, put: vi.fn(), del: vi.fn() },
+  testModelGatewayConnection: testConnMock,
 }));
 
 const { useOnboarding, WIZARD_STEPS } = await import('../../lib/onboarding-store');
@@ -41,20 +43,19 @@ beforeEach(() => {
   useOnboarding.getState().reset();
   getMock.mockReset();
   postMock.mockReset();
+  testConnMock.mockReset();
 });
 
 describe('estado inicial y definición de pasos', () => {
-  it('WIZARD_STEPS define 4 pasos y test-connection es el único deshabilitado', () => {
+  it('WIZARD_STEPS define 4 pasos y todos habilitados tras T7.4', () => {
     expect(WIZARD_STEPS.map((s) => s.id)).toEqual([
       'env-check',
       'test-connection',
       'create-workspace',
       'tour',
     ]);
-    expect(WIZARD_STEPS.find((s) => s.id === 'test-connection')?.enabled).toBe(false);
-    expect(WIZARD_STEPS.filter((s) => s.enabled).every((s) => s.id !== 'test-connection')).toBe(
-      true
-    );
+    expect(WIZARD_STEPS.find((s) => s.id === 'test-connection')?.enabled).toBe(true);
+    expect(WIZARD_STEPS.every((s) => s.enabled)).toBe(true);
   });
 
   it('arranca en paso 0 con todos los pasos idle y resultados nulos', () => {
@@ -62,6 +63,7 @@ describe('estado inicial y definición de pasos', () => {
     expect(s.currentStep).toBe(0);
     expect(s.doctorResult).toBeNull();
     expect(s.sessionResult).toBeNull();
+    expect(s.connectionResult).toBeNull();
     for (const step of WIZARD_STEPS) {
       expect(s.steps[step.id]).toEqual({ status: 'idle', error: null });
     }
@@ -133,6 +135,50 @@ describe('createWorkspace (POST /api/session/init)', () => {
   });
 });
 
+describe('runTestConnection (GET /api/model-gateway/status, T7.4)', () => {
+  it('flujo de éxito: loading → success con latencia y modelos persistidos', async () => {
+    testConnMock.mockResolvedValue({
+      reachable: true,
+      latencyMs: 42,
+      modelCount: 5,
+      error: null,
+    });
+
+    const promise = useOnboarding.getState().runTestConnection();
+    expect(useOnboarding.getState().steps['test-connection'].status).toBe('loading');
+
+    await promise;
+    const s = useOnboarding.getState();
+    expect(s.steps['test-connection']).toEqual({ status: 'success', error: null });
+    expect(s.connectionResult).toEqual({ latencyMs: 42, modelCount: 5 });
+    expect(testConnMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('timeout/runtime caído → error con mensaje, connectionResult a null', async () => {
+    testConnMock.mockResolvedValue({
+      reachable: false,
+      latencyMs: 5001,
+      modelCount: 0,
+      error: 'Timeout tras 5000ms',
+    });
+
+    await useOnboarding.getState().runTestConnection();
+    const s = useOnboarding.getState();
+    expect(s.steps['test-connection'].status).toBe('error');
+    expect(s.steps['test-connection'].error).toBe('Timeout tras 5000ms');
+    expect(s.connectionResult).toBeNull();
+  });
+
+  it('error sin mensaje → fallback legible, sin throw', async () => {
+    testConnMock.mockResolvedValue({ reachable: false, latencyMs: 0, modelCount: 0, error: null });
+
+    await expect(useOnboarding.getState().runTestConnection()).resolves.toBeUndefined();
+    const s = useOnboarding.getState();
+    expect(s.steps['test-connection'].status).toBe('error');
+    expect(s.steps['test-connection'].error).toContain('Model Gateway');
+  });
+});
+
 describe('retryStep', () => {
   it('reintenta env-check tras error y lo deja en success', async () => {
     getMock.mockResolvedValueOnce({
@@ -160,14 +206,24 @@ describe('retryStep', () => {
     expect(postMock).toHaveBeenCalledTimes(1);
   });
 
-  it('pasos sin acción (test-connection, tour) son no-op: no llaman a la API', async () => {
+  it('reintenta test-connection despachando a su acción (T7.4)', async () => {
+    testConnMock.mockResolvedValue({
+      reachable: true,
+      latencyMs: 7,
+      modelCount: 2,
+      error: null,
+    });
     await useOnboarding.getState().retryStep('test-connection');
+    expect(useOnboarding.getState().steps['test-connection'].status).toBe('success');
+    expect(testConnMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('pasos sin acción (tour) son no-op: no llaman a la API', async () => {
     await useOnboarding.getState().retryStep('tour');
     expect(getMock).not.toHaveBeenCalled();
     expect(postMock).not.toHaveBeenCalled();
-    const s = useOnboarding.getState();
-    expect(s.steps['test-connection'].status).toBe('idle');
-    expect(s.steps['tour'].status).toBe('idle');
+    expect(testConnMock).not.toHaveBeenCalled();
+    expect(useOnboarding.getState().steps['tour'].status).toBe('idle');
   });
 });
 
@@ -210,7 +266,14 @@ describe('reset', () => {
   it('devuelve todo el wizard al estado inicial', async () => {
     getMock.mockResolvedValue({ data: doctorOk, error: null });
     postMock.mockResolvedValue({ data: { sessionId: 'x', status: 'initialized' }, error: null });
+    testConnMock.mockResolvedValue({
+      reachable: true,
+      latencyMs: 1,
+      modelCount: 1,
+      error: null,
+    });
     await useOnboarding.getState().runEnvCheck();
+    await useOnboarding.getState().runTestConnection();
     await useOnboarding.getState().createWorkspace();
     useOnboarding.getState().goToStep(2);
 
@@ -219,6 +282,7 @@ describe('reset', () => {
     expect(s.currentStep).toBe(0);
     expect(s.doctorResult).toBeNull();
     expect(s.sessionResult).toBeNull();
+    expect(s.connectionResult).toBeNull();
     for (const step of WIZARD_STEPS) {
       expect(s.steps[step.id]).toEqual({ status: 'idle', error: null });
     }
