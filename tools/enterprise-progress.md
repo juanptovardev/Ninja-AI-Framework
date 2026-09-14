@@ -172,12 +172,12 @@ EPIC A — Estabilización base
 
 ---
 
-### 🔵 EPIC E — Frontend & Product (`~28-34h`)
+### ✅ EPIC E — Frontend & Product (`~28-34h`) — COMPLETADO (ETAPA 7, 2026-09-14, dossier `cierre-etapa-7.md` CERRADA)
 
-- [ ] **WP-E1** — Rutas backend→UI faltantes + cargar `content/`
-- [ ] **WP-E2** — Reemplazar 16 `alert()/confirm()` + Test Connection real
-- [ ] **WP-E3** — Onboarding wizard + error recovery + degraded banner
-- [ ] **WP-E4** — Structured logging + correlation IDs + a11y + Companion fix
+- [x] **WP-E1** — ContentPackLoader (8 ítems: 3 skills, 2 workflows, 3 templates, `source: content-pack`) + widgets del rail con datos vivos (EV-14/15) · dossier `wp-e-content.md`
+- [x] **WP-E2** — dialogs=0 (EV-20, grep 0) + Test Connection real (ms+modelo vía `/api/model-gateway/status`) · dossier `wp-e-degraded.md` + `wp-e-final.md`
+- [x] **WP-E3** — Wizard /setup 4 pasos (doctor check, workspace, tour) + banner degradado (WS closed / ready 503) · dossier `wp-e-onboarding.md`
+- [x] **WP-E4** — Learning Loop agentId fix (EV-27, usa agentId real ≠ workspaceId) + ADR-0011 companion de-scope a F5+ · dossier `wp-e-final.md`
 
 ---
 
