@@ -1,13 +1,13 @@
 # GUÍA DE ORQUESTACIÓN PARA IA — Ninja AI Framework
 
-> **Versión:** 1.0.0 · **Fecha:** 2026-09-10 · **Audiencia:** cualquier IA orquestadora
+> **Versión:** 1.1.0 · **Fecha:** 2026-09-13 · **Audiencia:** cualquier IA orquestadora
 > (opencode/Codex/Claude) que ejecute trabajo en este repositorio, y los obreros que lance.
 >
-> Esta guía es la **capa operativa de orquestación** del Quality Manual. Prohibido contradecir
-> la Directiva de Coherencia (arquitectura) o el Quality Manual (proceso): si hay conflicto,
-> manda la Directiva, luego el Quality Manual, luego `PLAN_EJECUCION.md`, luego esta guía.
-> Casos no cubiertos aquí se resuelven con el principio rector: **aislamiento físico > disciplina
-> del prompt, y evidencia re-ejecutada > claims.**
+> Esta guía es la **capa operativa de orquestación** del Quality Manual, y la documentación
+> del agente orquestador. No contradigas la Directiva, el Quality Manual, `PLAN_EJECUCION.md`
+> ni `AGENTS.md`.
+>
+> Principio rector: **aislamiento físico > disciplina del prompt, y evidencia re-ejecutada > claims.**
 
 ---
 
@@ -41,18 +41,19 @@ Regla de oro anti-sesgo: **nadie califica su propio trabajo.** Obrero ≠ remata
 
 ## 2. Sistema de archivos del orquestador
 
-### 2.1 Archivos que YA EXISTEN — debes SEGUIRLOS (nunca duplicar su función)
+### 2.1 Archivos del sistema (orquestador)
 
-| Archivo | Función | Regla de uso |
-|---------|---------|--------------|
-| `PLAN_EJECUCION.md` | Plan operativo: fases F0–F5, etapas, KPIs, changelog | Cualquier cambio de estado = entrada en su changelog (§12) con fecha |
-| `docs/engineering/EXECUTION_BATCHES.md` | Prompts congelados A-n/T-n.m/C + guía de ejecución por etapa | Los prompts se citan, no se editan. Números stale (líneas, conteos) se corrigen vía **errata del orquestador** en el launcher, jamás editando el prompt |
-| `docs/engineering/QUALITY_MANUAL.md` | Normativa: gates G1–G4, capas L1–L5, testing, seguridad | Ante duda de proceso, manda este archivo |
-| `docs/architecture/coherencia-estructural.md` | 7 Leyes, nombres nativos, dependencias prohibidas | Ante duda de arquitectura, manda este archivo |
-| `docs/adr/` (0001–0012 + plantilla) | Decisiones de arquitectura con fecha y alternativas | Toda decisión arquitectónica nueva = ADR nuevo con su número |
-| `tools/verifications/wp-*.md` | Dossier por unidad de trabajo | **Sin dossier no hay merge.** Sin excepción |
-| `tools/enterprise-progress.md` | Tracker de EPICs y KPIs | Actualizar tras cada etapa cerrada |
-| `docs/errors.md` | Catálogo de códigos de error (generado) | `pnpm errors:check` debe estar verde; si añades códigos: `pnpm errors:docs` + commit |
+- `docs/engineering/ESTADO_ORQUESTACION.md` — **bitácora append-only**. Entrada por
+  unidad/veredicto. Salvavidas tras compactación: el siguiente orquestador arranca aquí.
+- `docs/engineering/CONSISTENCIA_VISUAL.md` — visual registry obligatorio antes de
+  tocar `.tsx/.css` de forge-console / office-grid / ui-kit / app-shell.
+- `docs/engineering/TRACE_FUNCIONES.md` — catálogo anti-reescritura; regla del 80% de
+  reutilización antes de crear código nuevo.
+- `tools/verifications/wp-*.md` / `cierre-etapa-N.md` — dossiers. **Sin dossier no hay merge.**
+- `docs/adr/` — cada decisión de arquitectura nueva = ADR nuevo.
+- `.opencode/agents/` — **nuevo (v1.1):** definiciones de agentes que ejecutan este protocolo
+  (orquestador + fases como `sdd-apply` si las hubiera). El orquestador [ahora](#9-orquestador--agente)
+  existe como agente nombrado.
 
 **Choque de nombres de dossier:** si el WP ya tiene dossier (ej. `wp-d1-common-utils.md`
 existe de una fase previa y la ETAPA 6 también toca common-utils), NO lo sobrescribas
@@ -241,18 +242,21 @@ actualizar `PLAN_EJECUCION.md` (changelog), `enterprise-progress.md`,
 
 ## 5. Proveedores de modelo y escalera de fallback
 
-| Prioridad | Proveedor | Modelos | Nota |
-|-----------|-----------|---------|------|
-| 1 | kiosapi | glm-5.3-flash, oc/muse-spark-1.3-contributor, deepseek-v4-pro, qwen3.8-flash, oc/nemotron-3-ultra | Gate Telegram puede bloquear sesiones NUEVAS en outage |
-| 2 | nvidia | qwen3-coder-480b | Ha dado `UnknownError` en outage |
-| 3 | openrouter | gemma-4-26b:free | Ha dado `Provider returned error` |
-| 4 | Vía interna | Subagentes (Task tool) del propio opencode | **Probada:** rescató 3/6 slots en E-5 |
-| 5 | Humano | — | Solo si todo lo anterior falla o es lista §9 |
+| Prioridad | Proveedor | Modelos (verificados por validador + smoke en E-7) | Nota |
+|-----------|-----------|-----------------------------------------------------|------|
+| 1 | kiosapi | glm-5.3-flash, qwen3.8-flash, deepseek-v4-flash, kimi-k3, hy3, gpt-oss-20b, agnes-2.5-flash, oc/muse-spark-1.3-contributor | Gate Telegram: sesiones NUEVAS caen en outage; las abiertas sobreviven |
+| 2 | nvidia (NIM) | nemotron-3-super-120b-a12b, nemotron-3-ultra-550b-a55b, nemotron-3-nano-30b-a3b | 550b tiene límites por sesión; nano-30b es el más rápido |
+| 3 | openrouter (solo `:free`) | nvidia/nemotron-3-super-120b-a12b:free, poolside/laguna-xs-2.1:free | `:free` obligatorio; routers generales (`.../free`, `auto`, `fusion`) prohibidos |
+| 4 | opencode (modelo fijo free, no default) | opencode/muse-spark-1.3-contributor-free, opencode/nemotron-3.5-lightning-free, opencode/nemotron-3-ultra-free, opencode/mimo-v2.5-free | Solo variantes `-free` explícitas; EOL de un modelo = siguiente proveedor (no reintento) |
+| 5 | Vía interna | Subagentes (Task tool) del propio opencode | Probada: rescató 3/6 slots en E-5 |
+| 6 | Humano | — | Lista §9 |
 
-**Smoke pre-lanzamiento:** una llamada barata (<30s) al proveedor elegido; el validador
-previo deja log en `C:\Users\juanp_8h8f07l\.config\opencode\kiosapi-validator.log`.
-Outage declarado → saltar directo a vía interna; no quemar 6 lanzamientos sabiendo que
-morirán. Las sesiones ABIERTAS suelen sobrevivir a un outage; las NUEVAS no.
+**Prohibido:** modelos de pago, routers genéricos que eligen modelo automático
+(`openrouter/auto`, `orcarouter/auto`, y cualquier `:free` genérico sin modelo concreto).
+
+**Smoke previo:** una llamada por MODELO candidato (<30s) antes de lanzar N workers. El validador
+escribe `kiosapi-validator.log`; el humo se verifica con el texto de respuesta.
+
 
 ---
 
@@ -327,6 +331,19 @@ elimina la dependencia operativa del humano: este decide dirección, no pasos.
    (`ConstructorParameters<typeof SUT>`).
 8. Sesiones largas de worker se degradan: si un obrero repite acciones, cortar y renovar
    sesión con el mismo prompt — no negociar con la sesión.
+9. **Muerte silenciosa del obrero:** el proceso puede morir sin commit y sin log final.
+   Detectar por: log sin escribir >5 min + `git log` de la rama sin commit nuevo en >5 min +
+   cero procesos del worktree vivos (`Get-CimInstance Win32_Process` filtrado por ruta).
+   Entonces: matar, relanzar mismo prompt con nota de retome (el trabajo parcial sobrevive).
+10. **Credencial de git invisible:** si `git push` se queda colgado sin output y hay procesos
+    `git-credential-manager` con ventana "Select an account", el PAT está guardado pero falta
+    desambiguar usuario. Fix: `git config credential.https://github.com.username <usuario>`
+    (no toca secretos). Nunca matar a ciegas un push silencioso sin esta comprobación.
+11. **Gates en orden:** `turbo` cachea y puede reportar verde con `dist` viejo. En worktree
+    fresco siempre `pnpm build` → `pnpm typecheck` → tests. Si typecheck falla con TS2307
+    en `@ninja/*` tras build limpio, el dist no existe: es orden, no código.
+12. **Modelo EOL/endpoint retirado:** si el proveedor dice 410/Gone para un modelo antes OK,
+    no reintentar con ese modelo: cambiar de proveedor (fallback §5). El EOL es permanente.
 
 ---
 
@@ -335,3 +352,4 @@ elimina la dependencia operativa del humano: este decide dirección, no pasos.
 | Versión | Fecha | Cambio |
 |---------|-------|--------|
 | 1.0.0 | 2026-09-10 | Versión inicial especializada en este repo, destilada de la orquestación ETAPA 5 (cierre `tools/verifications/cierre-etapa-5.md`) |
+| 1.1.0 | 2026-09-13 | Autonomía: §2.1 documenta el agente orquestador; §5 escalera con pool real verificado en E-7 (kiosapi/nvidia/openrouter `:free`/opencode-free); §9 gotchas 9–12 (muerte silenciosa, credencial invisible, orden build→typecheck, modelo EOL); 2.1 añade CONSISTENCIA + TRACE + ESTADO como archivos del sistema |
