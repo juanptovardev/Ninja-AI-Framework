@@ -353,3 +353,4 @@ elimina la dependencia operativa del humano: este decide dirección, no pasos.
 |---------|-------|--------|
 | 1.0.0 | 2026-09-10 | Versión inicial especializada en este repo, destilada de la orquestación ETAPA 5 (cierre `tools/verifications/cierre-etapa-5.md`) |
 | 1.1.0 | 2026-09-13 | Autonomía: §2.1 documenta el agente orquestador; §5 escalera con pool real verificado en E-7 (kiosapi/nvidia/openrouter `:free`/opencode-free); §9 gotchas 9–12 (muerte silenciosa, credencial invisible, orden build→typecheck, modelo EOL); 2.1 añade CONSISTENCIA + TRACE + ESTADO como archivos del sistema |
+| 1.1.1 | 2026-09-13 | Agente `ninja-orquestador` registrado y verificado (AGENT-OK, qwen3.8-flash). Validador: denylist por prefijos eliminada — gate económico (paidRemoved) mantiene Free-only con `denegados=0`. `.opencode/node_modules` ignorado |
