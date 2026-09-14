@@ -2,8 +2,9 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { Button, Badge, PageHeader } from '@ninja/ui-kit';
-import { fetchProviders, fetchWorkspaceSettings, saveProvider, deleteProvider, saveWorkspaceSettings } from '../../lib/api';
+import { fetchProviders, fetchWorkspaceSettings, saveProvider, deleteProvider, saveWorkspaceSettings, testModelGatewayConnection } from '../../lib/api';
 import type { LLMProvider, WorkspaceSettings, ProviderType } from '../../lib/types';
+import type { ProviderTestResult } from '../../lib/api';
 import { providerTypeOptions, buildProviderFormDefaults } from '../../lib/settings';
 import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
@@ -119,10 +120,16 @@ export default function SettingsPage() {
   };
 
   const handleTestProvider = async (provider: LLMProvider) => {
+    setTestingProvider(provider.id);
     try {
-      setTestingProvider(provider.id);
-      await new Promise(r => setTimeout(r, 1000));
-      toast.success('Connection successful!');
+      const result: ProviderTestResult = await testModelGatewayConnection();
+      if (result.reachable) {
+        toast.success(
+          `${provider.name}: connection OK — ${result.latencyMs}ms · ${result.modelCount} models in gateway catalog`
+        );
+      } else {
+        toast.error(`${provider.name}: connection failed — ${result.error ?? 'runtime unreachable'}`);
+      }
     } catch (error) {
       toast.error('Connection test failed: ' + (error instanceof Error ? error.message : 'Unknown error'));
     } finally {

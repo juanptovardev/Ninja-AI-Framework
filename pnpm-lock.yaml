@@ -426,6 +426,9 @@ importers:
 
   packages/arsenal-registry:
     dependencies:
+      '@ninja/common-utils':
+        specifier: workspace:*
+        version: link:../common-utils
       '@ninja/contracts':
         specifier: workspace:*
         version: link:../contracts

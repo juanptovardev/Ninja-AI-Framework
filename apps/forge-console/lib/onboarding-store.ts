@@ -6,10 +6,11 @@
  * Lógica pura zustand (sin React) — testeable con vitest en entorno node,
  * patrón de lib/ws-client.ts. Los endpoints reales del runtime:
  * - GET  /api/doctor       → verificación de agentes (routes/installer.routes.ts)
+ * - GET  /api/model-gateway/status → prueba de conexión (T7.4, lib/api.ts)
  * - POST /api/session/init → bootstrap de sesión de trabajo (routes/session.routes.ts)
  */
 import { create } from 'zustand';
-import { api } from './api';
+import { api, testModelGatewayConnection } from './api';
 
 // ─── Types ───────────────────────────────────────────────────
 
@@ -37,6 +38,12 @@ export interface SessionInitResult {
   status: string;
 }
 
+/** Resultado de la prueba de conexión (T7.4): latencia + modelos del gateway. */
+export interface ConnectionTestOutcome {
+  latencyMs: number;
+  modelCount: number;
+}
+
 export interface StepView {
   id: StepId;
   label: string;
@@ -55,7 +62,7 @@ export const WIZARD_STEPS: StepView[] = [
     id: 'test-connection',
     label: 'Conexión',
     description: 'Prueba la conexión con el proveedor de modelos.',
-    enabled: false,
+    enabled: true,
   },
   {
     id: 'create-workspace',
@@ -94,7 +101,9 @@ export interface OnboardingState {
   steps: Record<StepId, StepState>;
   doctorResult: DoctorResult | null;
   sessionResult: SessionInitResult | null;
+  connectionResult: ConnectionTestOutcome | null;
   runEnvCheck: () => Promise<void>;
+  runTestConnection: () => Promise<void>;
   createWorkspace: () => Promise<void>;
   retryStep: (stepId: StepId) => Promise<void>;
   goToStep: (index: number) => void;
@@ -108,6 +117,7 @@ export const useOnboarding = create<OnboardingState>((set, get) => ({
   steps: initialSteps(),
   doctorResult: null,
   sessionResult: null,
+  connectionResult: null,
 
   runEnvCheck: async () => {
     set((s) => ({ steps: withStep(s.steps, 'env-check', { status: 'loading', error: null }) }));
@@ -124,6 +134,27 @@ export const useOnboarding = create<OnboardingState>((set, get) => ({
     set((s) => ({
       doctorResult: res.data,
       steps: withStep(s.steps, 'env-check', { status: 'success', error: null }),
+    }));
+  },
+
+  runTestConnection: async () => {
+    set((s) => ({
+      steps: withStep(s.steps, 'test-connection', { status: 'loading', error: null }),
+    }));
+    const result = await testModelGatewayConnection();
+    if (!result.reachable) {
+      set((s) => ({
+        connectionResult: null,
+        steps: withStep(s.steps, 'test-connection', {
+          status: 'error',
+          error: result.error ?? 'No se pudo contactar el Model Gateway',
+        }),
+      }));
+      return;
+    }
+    set((s) => ({
+      connectionResult: { latencyMs: result.latencyMs, modelCount: result.modelCount },
+      steps: withStep(s.steps, 'test-connection', { status: 'success', error: null }),
     }));
   },
 
@@ -152,6 +183,10 @@ export const useOnboarding = create<OnboardingState>((set, get) => ({
       await get().runEnvCheck();
       return;
     }
+    if (stepId === 'test-connection') {
+      await get().runTestConnection();
+      return;
+    }
     if (stepId === 'create-workspace') {
       await get().createWorkspace();
     }
@@ -171,6 +206,12 @@ export const useOnboarding = create<OnboardingState>((set, get) => ({
   },
 
   reset: () => {
-    set({ currentStep: 0, steps: initialSteps(), doctorResult: null, sessionResult: null });
+    set({
+      currentStep: 0,
+      steps: initialSteps(),
+      doctorResult: null,
+      sessionResult: null,
+      connectionResult: null,
+    });
   },
 }));

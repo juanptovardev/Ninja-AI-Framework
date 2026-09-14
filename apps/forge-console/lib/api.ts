@@ -125,6 +125,84 @@ export async function saveWorkspaceSettings(name: string): Promise<ApiResponse<W
   return post<WorkspaceSettings>('/api/settings/workspace', { name });
 }
 
+// ─── Test Connection (T7.4 / WP-E4) ───────────────────────────
+
+/**
+ * Resultado de una prueba de conexión contra el runtime (browser-safe:
+ * fetch con AbortController, sin importar @ninja/integrations-llm, que
+ * no es seguro de navegador — node:crypto/fs en su grafo de dependencias).
+ */
+export interface ProviderTestResult {
+  reachable: boolean;
+  latencyMs: number;
+  /** Modelos registrados en el catálogo del Model Gateway (0 si desconocido). */
+  modelCount: number;
+  error: string | null;
+}
+
+interface ModelGatewayStatusPayload {
+  catalogSize?: unknown;
+}
+
+/**
+ * Prueba de conexión real contra `GET /api/model-gateway/status`:
+ * verifica que el runtime responde y cuánto tarda, y reporta el tamaño
+ * del catálogo de modelos. Timeout duro via AbortController (5 s por defecto).
+ *
+ * Limitación documentada (dossier WP-E4): el runtime no expone hoy un
+ * endpoint de ping por-proveedor contra el LLM; este endpoint es el más
+ * cercano existente y valida runtime + gateway. Crear el endpoint queda
+ * fuera del alcance de esta tarea (no se toca kage-runtime).
+ */
+export async function testModelGatewayConnection(timeoutMs = 5000): Promise<ProviderTestResult> {
+  const startedAt = Date.now();
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const response = await fetch(`${BASE_URL}/api/model-gateway/status`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        ...authHeaders(),
+      },
+      signal: controller.signal,
+    });
+    const latencyMs = Date.now() - startedAt;
+
+    if (!response.ok) {
+      return {
+        reachable: false,
+        latencyMs,
+        modelCount: 0,
+        error: `HTTP ${response.status}`,
+      };
+    }
+
+    const body = (await response.json().catch(() => ({}))) as ModelGatewayStatusPayload;
+    const modelCount = typeof body.catalogSize === 'number' ? body.catalogSize : 0;
+    return { reachable: true, latencyMs, modelCount, error: null };
+  } catch (err: unknown) {
+    const latencyMs = Date.now() - startedAt;
+    if (controller.signal.aborted) {
+      return {
+        reachable: false,
+        latencyMs,
+        modelCount: 0,
+        error: `Timeout tras ${timeoutMs}ms`,
+      };
+    }
+    return {
+      reachable: false,
+      latencyMs,
+      modelCount: 0,
+      error: err instanceof Error ? err.message : String(err),
+    };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export const api = {
   get,
   post,
