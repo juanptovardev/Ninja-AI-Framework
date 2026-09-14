@@ -183,3 +183,6 @@ docs/*
 # opencode agent runtime (local only, regenerable)
 .opencode/node_modules/
 .opencode/*.log
+
+# Windows installer artifacts (T8.1 / ADR-0014) — regenerable, no versionar
+dist-installer/
