@@ -1,7 +1,7 @@
 {
   "private": true,
   "name": "@ninja/installer",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Ninja AI Framework — Ecosystem Installer (Gentle AI-compatible injection pipeline)",
   "type": "module",
   "main": "./dist/index.js",
