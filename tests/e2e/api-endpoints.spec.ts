@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { runtimeAuthHeaders } from './helpers/e2e-utils';
 
 const RUNTIME_URL = 'http://localhost:3141';
 
@@ -29,11 +30,13 @@ interface FileMetadata {
 }
 
 test.describe('Runtime API Endpoints', () => {
-
   test('POST /api/shell/execute with echo hello returns exitCode 0', async ({ request }) => {
     const body: ShellExecuteBody = { cmd: 'echo', args: ['hello'] };
 
-    const response = await request.post(`${RUNTIME_URL}/api/shell/execute`, { data: body });
+    const response = await request.post(`${RUNTIME_URL}/api/shell/execute`, {
+      data: body,
+      headers: runtimeAuthHeaders(),
+    });
     expect(response.status()).toBe(200);
 
     const result: ShellResult = await response.json();
@@ -44,7 +47,10 @@ test.describe('Runtime API Endpoints', () => {
   test('POST /api/shell/execute with rm -rf / is blocked by Sandbox', async ({ request }) => {
     const body: ShellExecuteBody = { cmd: 'rm', args: ['-rf', '/'] };
 
-    const response = await request.post(`${RUNTIME_URL}/api/shell/execute`, { data: body });
+    const response = await request.post(`${RUNTIME_URL}/api/shell/execute`, {
+      data: body,
+      headers: runtimeAuthHeaders(),
+    });
     expect(response.status()).toBe(403);
 
     const result = await response.json();
@@ -54,7 +60,9 @@ test.describe('Runtime API Endpoints', () => {
   });
 
   test('GET /api/git/status returns branch info', async ({ request }) => {
-    const response = await request.get(`${RUNTIME_URL}/api/git/status`);
+    const response = await request.get(`${RUNTIME_URL}/api/git/status`, {
+      headers: runtimeAuthHeaders(),
+    });
 
     if (response.status() === 200) {
       const body: GitStatusResponse = await response.json();
@@ -69,7 +77,9 @@ test.describe('Runtime API Endpoints', () => {
   });
 
   test('GET /api/fs/scan returns file data with count greater than 0', async ({ request }) => {
-    const response = await request.get(`${RUNTIME_URL}/api/fs/scan`);
+    const response = await request.get(`${RUNTIME_URL}/api/fs/scan`, {
+      headers: runtimeAuthHeaders(),
+    });
     expect(response.status()).toBe(200);
 
     const body: FileMetadata[] = await response.json();
@@ -81,5 +91,4 @@ test.describe('Runtime API Endpoints', () => {
     expect(first).toHaveProperty('name');
     expect(first).toHaveProperty('isDirectory');
   });
-
 });

@@ -33,6 +33,7 @@ playwright-report/
 playwright/.cache/
 /playwright/.auth
 test-results/
+tests/e2e/results/*/
 .vitest/
 .nyc_output/
 
@@ -184,5 +185,5 @@ docs/*
 .opencode/node_modules/
 .opencode/*.log
 
-# Windows installer artifacts (T8.1 / ADR-0014) — regenerable, no versionar
+# Windows installer artifacts (T8.1 / ADR-0014) ï¿½ regenerable, no versionar
 dist-installer/
