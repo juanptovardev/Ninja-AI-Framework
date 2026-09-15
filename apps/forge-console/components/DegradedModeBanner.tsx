@@ -18,15 +18,39 @@
  * Cero CSS ad-hoc, cero HEX literales, cero style={{}}, cero vars nuevas.
  */
 import { useCallback, useEffect, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { Badge, Button } from '@ninja/ui-kit';
 import { useWsClient } from '../lib/ws-client';
 import { BASE_URL, WS_URL } from '../lib/api';
+import esMessages from '../messages/es.json';
 
 export type DegradedReason = 'ws-closed' | 'runtime-not-ready';
 
-const REASON_LABEL: Record<DegradedReason, string> = {
-  'ws-closed': 'conexión en tiempo real perdida',
-  'runtime-not-ready': 'runtime no listo (health/ready 503)',
+/** Teclado de strings del banner en `messages/*.json` → bloque `banner`. */
+export type BannerKey =
+  | 'badge'
+  | 'prefix'
+  | 'retry'
+  | 'retryAria'
+  | 'reason.wsClosed'
+  | 'reason.runtimeNotReady';
+
+export type BannerTranslator = (key: BannerKey) => string;
+
+const ES_BANNER = esMessages.banner;
+
+const ES_FALLBACK: Record<BannerKey, string> = {
+  badge: ES_BANNER.badge,
+  prefix: ES_BANNER.prefix,
+  retry: ES_BANNER.retry,
+  retryAria: ES_BANNER.retryAria,
+  'reason.wsClosed': ES_BANNER.reason.wsClosed,
+  'reason.runtimeNotReady': ES_BANNER.reason.runtimeNotReady,
+};
+
+const REASON_KEY: Record<DegradedReason, BannerKey> = {
+  'ws-closed': 'reason.wsClosed',
+  'runtime-not-ready': 'reason.runtimeNotReady',
 };
 
 export function resolveDegradedReason(params: {
@@ -38,14 +62,16 @@ export function resolveDegradedReason(params: {
   return null;
 }
 
-export function degradedMessage(reason: DegradedReason): string {
-  return `Modo degradado: ${REASON_LABEL[reason]}`;
+export function degradedMessage(reason: DegradedReason, translate?: BannerTranslator): string {
+  const t = translate ?? ((key: BannerKey) => ES_FALLBACK[key]);
+  return `${t('prefix')}: ${t(REASON_KEY[reason])}`;
 }
 
 /** Intervalo del poll ligero de readiness (ms). */
 export const READINESS_POLL_MS = 15000;
 
 export function DegradedModeBanner() {
+  const t = useTranslations('banner');
   const wsStatus = useWsClient((s) => s.status);
   const connect = useWsClient((s) => s.connect);
   const [readyOk, setReadyOk] = useState<boolean | null>(null);
@@ -83,6 +109,8 @@ export function DegradedModeBanner() {
   const reason = resolveDegradedReason({ wsStatus, readyOk });
   if (reason === null) return null;
 
+  const translate: BannerTranslator = (key) => t(key);
+
   return (
     <div
       role="alert"
@@ -92,14 +120,14 @@ export function DegradedModeBanner() {
     >
       <div className="flex items-center gap-2 min-w-0">
         <Badge variant="warning" pulse aria-live="polite">
-          Degradado
+          {t('badge')}
         </Badge>
         <span className="text-sm font-medium text-[var(--ninja-text-primary)] truncate">
-          {degradedMessage(reason)}
+          {degradedMessage(reason, translate)}
         </span>
       </div>
-      <Button variant="secondary" size="sm" onClick={handleRetry} aria-label="Reintentar conexión">
-        Reintentar
+      <Button variant="secondary" size="sm" onClick={handleRetry} aria-label={t('retryAria')}>
+        {t('retry')}
       </Button>
     </div>
   );

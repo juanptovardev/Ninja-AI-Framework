@@ -1,4 +1,5 @@
 import type { NextConfig } from 'next';
+import createNextIntlPlugin from 'next-intl/plugin';
 
 const nextConfig: NextConfig = {
   // No transpilePackages needed for library-based consumption
@@ -8,4 +9,4 @@ const nextConfig: NextConfig = {
   allowedDevOrigins: ['127.0.0.1', 'localhost', '172.16.0.2'],
 };
 
-export default nextConfig;
+export default createNextIntlPlugin('./i18n/request.ts')(nextConfig);
