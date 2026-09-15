@@ -1,0 +1,141 @@
+{
+  "banner": {
+    "badge": "Degradado",
+    "prefix": "Modo degradado",
+    "retry": "Reintentar",
+    "retryAria": "Reintentar conexión",
+    "reason": {
+      "wsClosed": "conexión en tiempo real perdida",
+      "runtimeNotReady": "runtime no listo (health/ready 503)"
+    }
+  },
+  "palette": {
+    "aria": "Paleta de comandos",
+    "placeholder": "Buscar comandos…",
+    "empty": "No se encontraron comandos.",
+    "group": "Navegar",
+    "goTo": "Ir a {target}",
+    "open": "Abrir {target}",
+    "navigate": "navegar",
+    "select": "seleccionar",
+    "toggle": "Ctrl+K para alternar"
+  },
+  "locale": {
+    "aria": "Idioma",
+    "switchTo": "Cambiar a {lang}",
+    "spanish": "Español",
+    "english": "Inglés"
+  },
+  "eula": {
+    "title": "Acuerdo de Licencia de Usuario Final (EULA)",
+    "version": "Versión {version} · Ninja AI Framework · Todos los derechos reservados © 2026",
+    "intro": "Este software se instala y ejecuta en tu máquina. Para continuar debes aceptar los términos del acuerdo.",
+    "licenseTitle": "Licencia de uso",
+    "licenseBody": "Ninja AI Framework se concede para uso personal bajo licencia expresa. Cualquier uso comercial, redistribución o sublicencia requiere autorización escrita. All Rights Reserved 2026.",
+    "warrantyTitle": "Sin garantías",
+    "warrantyBody": "El software se proporciona «tal cual», sin garantías de ningún tipo, expresas o implícitas, incluidas las de comerciabilidad, exactitud y aptitud para un propósito particular. Úsalo bajo tu responsabilidad.",
+    "privacyTitle": "Datos locales",
+    "privacyBody": "La ejecución es local-first: ningún dato abandona tu entorno salvo que configures explícitamente servicios externos.",
+    "accept": "Aceptar",
+    "decline": "Declinar",
+    "declinedTitle": "Licencia declinada",
+    "declinedBody": "No es posible usar el Forge Console sin aceptar el EULA. Cierra esta pestaña para salir."
+  },
+  "wizard": {
+    "headerTitle": "Configuración inicial",
+    "headerSubtitle": "Asistente de 4 pasos para dejar el Ninja AI Framework operativo en tu equipo.",
+    "home": "Inicio",
+    "setup": "Setup",
+    "stepsAria": "Pasos del asistente",
+    "stepN": "Paso {n}",
+    "labels": {
+      "envCheck": "Entorno",
+      "testConnection": "Conexión",
+      "createWorkspace": "Workspace",
+      "tour": "Tour"
+    },
+    "descriptions": {
+      "envCheck": "Verifica el Kage Runtime y los agentes instalados.",
+      "testConnection": "Prueba la conexión con el proveedor de modelos.",
+      "createWorkspace": "Inicializa la primera sesión de trabajo sobre el workspace activo.",
+      "tour": "Recorre las vistas clave del Forge Console."
+    },
+    "badge": {
+      "gated": "T7.4",
+      "completed": "Completado",
+      "error": "Error",
+      "running": "En curso",
+      "pending": "Pendiente"
+    },
+    "loadingAria": "Cargando",
+    "errorGeneric": "Algo salió mal al contactar con el runtime.",
+    "retry": "Reintentar",
+    "envErrorHint": "El runtime escucha en el puerto 3141. Levántalo con pnpm ninja y reintenta.",
+    "connErrorHint": "La prueba consulta {endpoint} en el runtime (puerto 3141). Levántalo con pnpm ninja y reintenta.",
+    "doctorBadge": "{passed}/{total} agentes verificados",
+    "doctorFailed": "{count} con archivos faltantes",
+    "doctorNone": "No se detectaron clientes de agente (Cursor, VS Code, Claude…) en este equipo. Puedes continuar; la instalación de agentes se gestiona desde Arsenal.",
+    "reportMissing": "faltan: {files}",
+    "reportPresent": "{count} archivos presentes",
+    "reportWarnings": " · {count} avisos",
+    "reportOk": "OK",
+    "reportIncomplete": "Incompleto",
+    "reverify": "Volver a verificar",
+    "retest": "Volver a probar",
+    "connOk": "Conexión operativa",
+    "connLatency": "{ms}ms · {count} modelos",
+    "connBody": "El Kage Runtime responde y el Model Gateway tiene su catálogo cargado. Puedes afinar proveedores con la prueba de conexión real en Settings.",
+    "sessionBadge": "Sesión inicializada",
+    "sessionIdLabel": "Session ID",
+    "workspaceBody": "El workspace activo queda listo para recibir misiones desde Mission Control.",
+    "workspaceIntro": "Crea la primera sesión de trabajo sobre el workspace activo del runtime. Es el paso que deja el motor operativo para orquestar agentes.",
+    "workspaceAction": "Inicializar workspace y sesión",
+    "tourIntro": "Todo listo. Estas son las cuatro vistas clave del Forge Console:",
+    "tour": {
+      "missionControl": "Estado operativo del motor, métricas y tareas recientes.",
+      "office": "La oficina digital: agentes trabajando en tiempo real.",
+      "arsenal": "Herramientas y skills disponibles para los agentes.",
+      "settings": "Proveedores de modelos y configuración del workspace."
+    },
+    "tourFinish": "Finalizar configuración",
+    "back": "Atrás",
+    "continue": "Continuar",
+    "continueUnproven": "Continuar (sin probar)"
+  },
+  "pages": {
+    "approvals": {
+      "title": "Aprobaciones",
+      "subtitle": "Gestiona solicitudes de acción de agentes y anulaciones de políticas de seguridad."
+    },
+    "artifacts": {
+      "title": "Artefactos de Datos",
+      "subtitle": "Explora anclas de memoria, planes, PRDs y código generado."
+    },
+    "discovery": {
+      "title": "Discovery Lab",
+      "subtitle": "Módulo en desarrollo para análisis de repositorios externos y normalización de skills.",
+      "inDevelopment": "Módulo en desarrollo"
+    },
+    "health": {
+      "title": "Salud del Sistema",
+      "subtitle": "Telemetría en tiempo real y estabilidad arquitectónica."
+    },
+    "missionControl": {
+      "title": "Mission Control",
+      "subtitle": "Resumen del sistema, ejecuciones activas y orquestación global de agentes."
+    },
+    "office": {
+      "title": "Oficina Digital",
+      "subtitle": "Espacio de trabajo de agentes en tiempo real y lienzo colaborativo."
+    },
+    "plan": {
+      "title": "Constructor de Planes",
+      "subtitle": "Describe lo que quieres construir y el Engine lo descompondrá en tareas."
+    },
+    "settings": {
+      "title": "Ajustes",
+      "subtitle": "Configura el entorno del workspace y los proveedores de modelos.",
+      "deleteProvider": "Eliminar proveedor"
+    }
+  }
+}

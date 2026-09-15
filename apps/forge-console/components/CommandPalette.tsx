@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Command } from 'cmdk';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import {
   AppWindow,
   GitBranch,
@@ -16,20 +17,21 @@ import {
   Database,
 } from '@phosphor-icons/react';
 
-const COMMANDS = [
-  { id: 'dashboard', label: 'Go to Mission Control', path: '/mission-control', icon: <AppWindow className="w-4 h-4" /> },
-  { id: 'commits', label: 'Go to Commits', path: '/commits', icon: <GitBranch className="w-4 h-4" /> },
-  { id: 'arsenal', label: 'Go to Arsenal', path: '/arsenal', icon: <Package className="w-4 h-4" /> },
-  { id: 'office', label: 'Go to Office', path: '/office', icon: <Buildings className="w-4 h-4" /> },
-  { id: 'approvals', label: 'Go to Approvals', path: '/approvals', icon: <CheckSquare className="w-4 h-4" /> },
-  { id: 'plan', label: 'Go to Plan', path: '/plan', icon: <MapTrifold className="w-4 h-4" /> },
-  { id: 'health', label: 'Go to Health', path: '/health', icon: <Heartbeat className="w-4 h-4" /> },
-  { id: 'artifacts', label: 'Go to Artifacts', path: '/artifacts', icon: <Database className="w-4 h-4" /> },
-  { id: 'discovery', label: 'Go to Discovery', path: '/discovery', icon: <Compass className="w-4 h-4" /> },
-  { id: 'settings', label: 'Open Settings', path: '/settings', icon: <SlidersHorizontal className="w-4 h-4" /> },
+const COMMANDS: { id: string; target: string; path: string; icon: ReactNode; action: 'goTo' | 'open' }[] = [
+  { id: 'dashboard', target: 'Mission Control', action: 'goTo', path: '/mission-control', icon: <AppWindow className="w-4 h-4" /> },
+  { id: 'commits', target: 'Commits', action: 'goTo', path: '/commits', icon: <GitBranch className="w-4 h-4" /> },
+  { id: 'arsenal', target: 'Arsenal', action: 'goTo', path: '/arsenal', icon: <Package className="w-4 h-4" /> },
+  { id: 'office', target: 'Office', action: 'goTo', path: '/office', icon: <Buildings className="w-4 h-4" /> },
+  { id: 'approvals', target: 'Approvals', action: 'goTo', path: '/approvals', icon: <CheckSquare className="w-4 h-4" /> },
+  { id: 'plan', target: 'Plan', action: 'goTo', path: '/plan', icon: <MapTrifold className="w-4 h-4" /> },
+  { id: 'health', target: 'Health', action: 'goTo', path: '/health', icon: <Heartbeat className="w-4 h-4" /> },
+  { id: 'artifacts', target: 'Artifacts', action: 'goTo', path: '/artifacts', icon: <Database className="w-4 h-4" /> },
+  { id: 'discovery', target: 'Discovery', action: 'goTo', path: '/discovery', icon: <Compass className="w-4 h-4" /> },
+  { id: 'settings', target: 'Settings', action: 'open', path: '/settings', icon: <SlidersHorizontal className="w-4 h-4" /> },
 ];
 
 export function CommandPalette() {
+  const t = useTranslations('palette');
   const [open, setOpen] = useState(false);
   const router = useRouter();
 
@@ -60,14 +62,14 @@ export function CommandPalette() {
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
-        aria-label="Command palette"
+        aria-label={t('aria')}
       >
         <Command className="flex flex-col">
           <div className="flex items-center gap-3 px-4 py-3 border-b border-[var(--ninja-border-subtle)]">
             <span className="text-[var(--ninja-text-muted)]">⌘</span>
             <Command.Input
               autoFocus
-              placeholder="Search commands..."
+              placeholder={t('placeholder')}
               className="flex-1 bg-transparent text-[var(--ninja-text-primary)] placeholder-[var(--ninja-text-muted)] text-sm outline-none"
             />
             <kbd className="text-[10px] font-mono text-[var(--ninja-text-muted)] border border-[var(--ninja-border)] rounded px-1.5 py-0.5">ESC</kbd>
@@ -75,14 +77,14 @@ export function CommandPalette() {
 
           <Command.List className="max-h-64 overflow-y-auto p-2">
             <Command.Empty className="py-8 text-center text-sm text-[var(--ninja-text-muted)]">
-              No commands found.
+              {t('empty')}
             </Command.Empty>
 
-            <Command.Group heading="Navigate" className="[&>[cmdk-group-heading]]:text-[10px] [&>[cmdk-group-heading]]:uppercase [&>[cmdk-group-heading]]:tracking-widest [&>[cmdk-group-heading]]:text-[var(--ninja-text-muted)] [&>[cmdk-group-heading]]:px-3 [&>[cmdk-group-heading]]:py-1.5 [&>[cmdk-group-heading]]:font-bold">
+            <Command.Group heading={t('group')} className="[&>[cmdk-group-heading]]:text-[10px] [&>[cmdk-group-heading]]:uppercase [&>[cmdk-group-heading]]:tracking-widest [&>[cmdk-group-heading]]:text-[var(--ninja-text-muted)] [&>[cmdk-group-heading]]:px-3 [&>[cmdk-group-heading]]:py-1.5 [&>[cmdk-group-heading]]:font-bold">
               {COMMANDS.map((cmd) => (
                 <Command.Item
                   key={cmd.id}
-                  value={cmd.label}
+                  value={`${cmd.id} ${cmd.target}`}
                   onSelect={() => {
                     router.push(cmd.path);
                     setOpen(false);
@@ -90,16 +92,16 @@ export function CommandPalette() {
                   className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-[var(--ninja-text-secondary)] cursor-pointer transition-colors aria-selected:bg-[var(--ninja-surface)] aria-selected:text-[var(--ninja-text-primary)] aria-selected:text-[var(--ninja-accent)]"
                 >
                   <span className="text-[var(--ninja-accent)]">{cmd.icon}</span>
-                  {cmd.label}
+                  {t(cmd.action, { target: cmd.target })}
                 </Command.Item>
               ))}
             </Command.Group>
           </Command.List>
 
           <div className="px-4 py-2 border-t border-[var(--ninja-border-subtle)] flex items-center gap-4 text-[10px] text-[var(--ninja-text-muted)]">
-            <span><kbd className="font-mono border border-[var(--ninja-border)] rounded px-1">↑↓</kbd> navigate</span>
-            <span><kbd className="font-mono border border-[var(--ninja-border)] rounded px-1">↵</kbd> select</span>
-            <span className="ml-auto">Ctrl+K to toggle</span>
+            <span><kbd className="font-mono border border-[var(--ninja-border)] rounded px-1">↑↓</kbd> {t('navigate')}</span>
+            <span><kbd className="font-mono border border-[var(--ninja-border)] rounded px-1">↵</kbd> {t('select')}</span>
+            <span className="ml-auto">{t('toggle')}</span>
           </div>
         </Command>
       </div>

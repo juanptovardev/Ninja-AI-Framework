@@ -1,4 +1,6 @@
 import type { Metadata } from 'next';
+import { NextIntlClientProvider } from 'next-intl';
+import { getLocale } from 'next-intl/server';
 import './globals.css';
 import { ClientLayout } from './ClientLayout';
 import { CommandPalette } from '../components/CommandPalette';
@@ -9,18 +11,21 @@ export const metadata: Metadata = {
   description: 'AI-powered multi-agent software construction and supervision dashboard',
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const locale = await getLocale();
   return (
-    <html lang="en" className="antialiased">
+    <html lang={locale} className="antialiased">
       <body suppressHydrationWarning>
-        <ErrorBoundary>
-          <ClientLayout>{children}</ClientLayout>
-          <CommandPalette />
-        </ErrorBoundary>
+        <NextIntlClientProvider>
+          <ErrorBoundary>
+            <ClientLayout>{children}</ClientLayout>
+            <CommandPalette />
+          </ErrorBoundary>
+        </NextIntlClientProvider>
       </body>
     </html>
   );

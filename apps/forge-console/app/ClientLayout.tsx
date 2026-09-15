@@ -16,6 +16,8 @@ import type { AgentInfo } from '@ninja/ui-kit';
 import { Toaster } from 'sonner';
 import * as RadixTooltip from '@radix-ui/react-tooltip';
 import { DegradedModeBanner } from '../components/DegradedModeBanner';
+import { EulaGate } from '../components/EulaGate';
+import { LocaleSwitcher } from '../components/LocaleSwitcher';
 
 interface GlobalState {
   sessionStart: number;
@@ -181,7 +183,7 @@ function ContextPanelWrapper() {
   );
 }
 
-export function ClientLayout({ children }: { children: React.ReactNode }) {
+function LayoutContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
 
@@ -193,6 +195,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
         <GlobalStateProvider>
           <Toaster richColors position="top-right" />
           <DegradedModeBanner />
+          <LocaleSwitcher />
           {children}
         </GlobalStateProvider>
       </RadixTooltip.Provider>
@@ -206,6 +209,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
       <GlobalStateProvider>
         <Toaster richColors position="top-right" />
         <DegradedModeBanner />
+        <LocaleSwitcher />
         <ShellLayout
           sidebarProps={{
             activePath,
@@ -219,5 +223,13 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
         </ShellLayout>
       </GlobalStateProvider>
     </RadixTooltip.Provider>
+  );
+}
+
+export function ClientLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <EulaGate>
+      <LayoutContent>{children}</LayoutContent>
+    </EulaGate>
   );
 }

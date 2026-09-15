@@ -1,0 +1,141 @@
+{
+  "banner": {
+    "badge": "Degraded",
+    "prefix": "Degraded mode",
+    "retry": "Retry",
+    "retryAria": "Retry connection",
+    "reason": {
+      "wsClosed": "real-time connection lost",
+      "runtimeNotReady": "runtime not ready (health/ready 503)"
+    }
+  },
+  "palette": {
+    "aria": "Command palette",
+    "placeholder": "Search commands…",
+    "empty": "No commands found.",
+    "group": "Navigate",
+    "goTo": "Go to {target}",
+    "open": "Open {target}",
+    "navigate": "navigate",
+    "select": "select",
+    "toggle": "Ctrl+K to toggle"
+  },
+  "locale": {
+    "aria": "Language",
+    "switchTo": "Switch to {lang}",
+    "spanish": "Spanish",
+    "english": "English"
+  },
+  "eula": {
+    "title": "End-User License Agreement (EULA)",
+    "version": "Version {version} · Ninja AI Framework · All Rights Reserved © 2026",
+    "intro": "This software installs and runs on your machine. To continue you must accept the terms below.",
+    "licenseTitle": "Usage license",
+    "licenseBody": "Ninja AI Framework is granted for personal use under an express license. Any commercial use, redistribution or sublicensing requires written authorization. All Rights Reserved 2026.",
+    "warrantyTitle": "No warranty",
+    "warrantyBody": "The software is provided \"as is\", without warranties of any kind, express or implied, including merchantability, accuracy and fitness for a particular purpose. Use it at your own risk.",
+    "privacyTitle": "Local data",
+    "privacyBody": "Execution is local-first: no data leaves your environment unless you explicitly configure external services.",
+    "accept": "Accept",
+    "decline": "Decline",
+    "declinedTitle": "License declined",
+    "declinedBody": "You cannot use Forge Console without accepting the EULA. Close this tab to exit."
+  },
+  "wizard": {
+    "headerTitle": "Initial setup",
+    "headerSubtitle": "A 4-step wizard to get the Ninja AI Framework running on your machine.",
+    "home": "Home",
+    "setup": "Setup",
+    "stepsAria": "Wizard steps",
+    "stepN": "Step {n}",
+    "labels": {
+      "envCheck": "Environment",
+      "testConnection": "Connection",
+      "createWorkspace": "Workspace",
+      "tour": "Tour"
+    },
+    "descriptions": {
+      "envCheck": "Verify the Kage Runtime and installed agents.",
+      "testConnection": "Test the connection with the model provider.",
+      "createWorkspace": "Initialize the first work session on the active workspace.",
+      "tour": "Walk through the key views of the Forge Console."
+    },
+    "badge": {
+      "gated": "T7.4",
+      "completed": "Completed",
+      "error": "Error",
+      "running": "In progress",
+      "pending": "Pending"
+    },
+    "loadingAria": "Loading",
+    "errorGeneric": "Something went wrong contacting the runtime.",
+    "retry": "Retry",
+    "envErrorHint": "The runtime listens on port 3141. Start it with pnpm ninja and retry.",
+    "connErrorHint": "The test queries {endpoint} on the runtime (port 3141). Start it with pnpm ninja and retry.",
+    "doctorBadge": "{passed}/{total} agents verified",
+    "doctorFailed": "{count} with missing files",
+    "doctorNone": "No agent clients (Cursor, VS Code, Claude…) detected on this machine. You can continue; agent installation is managed from Arsenal.",
+    "reportMissing": "missing: {files}",
+    "reportPresent": "{count} files present",
+    "reportWarnings": " · {count} warnings",
+    "reportOk": "OK",
+    "reportIncomplete": "Incomplete",
+    "reverify": "Re-verify",
+    "retest": "Re-test",
+    "connOk": "Connection operational",
+    "connLatency": "{ms}ms · {count} models",
+    "connBody": "The Kage Runtime responds and the Model Gateway has its catalog loaded. You can fine-tune providers with the real connection test in Settings.",
+    "sessionBadge": "Session initialized",
+    "sessionIdLabel": "Session ID",
+    "workspaceBody": "The active workspace is ready to receive missions from Mission Control.",
+    "workspaceIntro": "Create the first work session on the runtime's active workspace. This is the step that leaves the engine ready to orchestrate agents.",
+    "workspaceAction": "Initialize workspace and session",
+    "tourIntro": "All set. These are the four key views of the Forge Console:",
+    "tour": {
+      "missionControl": "Operational state of the engine, metrics and recent tasks.",
+      "office": "The digital office: agents working in real time.",
+      "arsenal": "Tools and skills available to the agents.",
+      "settings": "Model providers and workspace configuration."
+    },
+    "tourFinish": "Finish setup",
+    "back": "Back",
+    "continue": "Continue",
+    "continueUnproven": "Continue (untested)"
+  },
+  "pages": {
+    "approvals": {
+      "title": "Approvals",
+      "subtitle": "Manage agent action requests and security policy overrides."
+    },
+    "artifacts": {
+      "title": "Data Artifacts",
+      "subtitle": "Explore memory anchors, plans, PRDs, and generated code."
+    },
+    "discovery": {
+      "title": "Discovery Lab",
+      "subtitle": "Research module for external repository analysis and skill normalization.",
+      "inDevelopment": "Module in Development"
+    },
+    "health": {
+      "title": "System Health",
+      "subtitle": "Real-time telemetry and architectural stability."
+    },
+    "missionControl": {
+      "title": "Mission Control",
+      "subtitle": "System overview, active runs, and global agent orchestration."
+    },
+    "office": {
+      "title": "Digital Office",
+      "subtitle": "Real-time agent workspace and collaborative canvas."
+    },
+    "plan": {
+      "title": "Plan Builder",
+      "subtitle": "Describe what you want to build and the Engine will break it down into tasks."
+    },
+    "settings": {
+      "title": "Settings",
+      "subtitle": "Configure your workspace environment and model providers.",
+      "deleteProvider": "Delete Provider"
+    }
+  }
+}
