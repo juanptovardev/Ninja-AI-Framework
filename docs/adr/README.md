@@ -17,3 +17,7 @@ Este directorio contiene los ADRs del Ninja AI Framework.
 | [0002](0002-error-migration-scope.md) | Error migration scope (B1) | accepted |
 | [0003](0003-llm-fallback-semantics.md) | LLM fallback semantics + NINJA_LLM_FAIL_MODE | accepted |
 | [0004](0004-env-validation-strategy.md) | Env validation strategy (WP-B2) | accepted |
+| [0014](0014-windows-portable-packaging.md) | Windows portable-ZIP packaging (WP-F4) | accepted |
+
+<!-- Nota: los ADR 0005–0013 existen en `docs/adr/` pero aún no están indexados en esta
+     tabla (laguna preexistente, no introducida por ADR-0014). Registrarlos excede T8.1. -->
