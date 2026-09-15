@@ -1,7 +1,10 @@
 import { test, expect } from '@playwright/test';
-import { navigateTo } from './helpers/e2e-utils';
+import { navigateTo, seedLocale } from './helpers/e2e-utils';
 
 test.describe('Dashboard Navigation', () => {
+  test.beforeEach(async ({ page }) => {
+    await seedLocale(page, 'en');
+  });
 
   test('navigate to Mission Control renders the page', async ({ page }) => {
     await navigateTo(page, '/mission-control');
@@ -26,5 +29,4 @@ test.describe('Dashboard Navigation', () => {
     await page.waitForURL('**/settings');
     await expect(page.getByRole('heading', { name: /Settings/i }).first()).toBeVisible();
   });
-
 });

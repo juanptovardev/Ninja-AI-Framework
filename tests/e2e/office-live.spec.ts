@@ -4,9 +4,13 @@
  * NOTE: requires `pnpm console:dev` (forge-console on :3001) to pass.
  */
 import { test, expect } from '@playwright/test';
-import { navigateTo } from './helpers/e2e-utils';
+import { navigateTo, seedLocale } from './helpers/e2e-utils';
 
 test.describe('Office Grid live route', () => {
+  test.beforeEach(async ({ page }) => {
+    await seedLocale(page, 'en');
+  });
+
   test('/office route loads without 404', async ({ page }) => {
     await navigateTo(page, '/office');
     // Page should not show a Next.js 404 page
@@ -16,7 +20,10 @@ test.describe('Office Grid live route', () => {
   test('/office page contains Office or Agent heading', async ({ page }) => {
     await navigateTo(page, '/office');
     // Accepts any heading containing "Office" or "Agent" or "Grid"
-    const heading = page.getByRole('heading').filter({ hasText: /office|agent|grid/i }).first();
+    const heading = page
+      .getByRole('heading')
+      .filter({ hasText: /office|agent|grid/i })
+      .first();
     await expect(heading).toBeVisible();
   });
 });

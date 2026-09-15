@@ -3,11 +3,25 @@ export const BASE_URL = `http://127.0.0.1:${RUNTIME_PORT}`;
 export const WS_URL =
   process.env.NEXT_PUBLIC_RUNTIME_WS_URL ?? `ws://127.0.0.1:${RUNTIME_PORT}/ws/events`;
 
-// WP-B11: X-Ninja-Key header for authenticated runtime requests
+// WP-B11: X-Ninja-Key header for authenticated runtime requests.
+// Local-first key sources (in order): NEXT_PUBLIC_RUNTIME_API_KEY env, then a
+// locally configured key in localStorage (`ninja.runtime.key` — single-user,
+// single-machine product; the E2E seeds it from ~/.ninja/runtime.key).
 const RUNTIME_API_KEY = process.env.NEXT_PUBLIC_RUNTIME_API_KEY ?? '';
+const LOCAL_KEY_STORAGE = 'ninja.runtime.key';
+
+function readLocalRuntimeKey(): string {
+  if (typeof window === 'undefined') return '';
+  try {
+    return window.localStorage.getItem(LOCAL_KEY_STORAGE) ?? '';
+  } catch {
+    return '';
+  }
+}
 
 function authHeaders(): Record<string, string> {
-  return RUNTIME_API_KEY ? { 'X-Ninja-Key': RUNTIME_API_KEY } : {};
+  const key = RUNTIME_API_KEY || readLocalRuntimeKey();
+  return key ? { 'X-Ninja-Key': key } : {};
 }
 
 export interface ApiError {
