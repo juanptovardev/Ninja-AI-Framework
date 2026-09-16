@@ -1,6 +1,6 @@
 # Plan Maestro Enterprise — Ninja AI Framework
-> **Rama activa**: `main` · **Última actualización**: 2026-09-11 (ETAPA 6 CERRADA-CON-RESERVAS)
-> **Operativo:** `PLAN_EJECUCION.md` v2.4 · ETAPA 6 ✅ (T6.1→T6.6 + micro-fix tsx) · siguiente: ETAPA 7 (bloqueada por tu veredicto)
+> **Rama activa**: `main` · **Última actualización**: 2026-09-16 (**v1.0.0 TAGGED + pusheado**)
+> **Operativo:** `PLAN_EJECUCION.md` v2.7 · ETAPA 8 ✅ · **RELEASE v1.0.0** (tag + bundle + instalador 8.57MB)
 
 ---
 
@@ -258,11 +258,11 @@ EPIC G  ░░░░░░░░░░   0%
 | EPIC A (S0–S5) | 44–50h | ✅ CERRADO |
 | EPIC B (correctitud + seguridad P0) | 38–48h | ✅ CERRADO (B1-B15) |
 | EPIC C (resiliencia) | 18–22h | ✅ CERRADO (4 d reales, 2026-09-03→09-07) |
-| EPIC D (calidad + testing) | 30–36h | 🟡 D3 ✅ (E-5); siguiente D1=T6.1 (D3→D1→D2→D4→D5) |
-| EPIC E (frontend) | 28–34h | ⏳ |
-| EPIC F (devops) | 20–26h | ⏳ (CI adelantada revertida 2026-08-24) |
-| EPIC G (extensibilidad) | 24–30h | ⏳ |
-| Total v1 (A–G) | **~202–246h** | **~52h ejecutadas (~23%)** |
+| EPIC D (calidad + testing) | 30–36h | ✅ CERRADO (ETAPA 6: as-any 0, server 394, thumbnails 50/70) |
+| EPIC E (frontend/producto) | 28–34h | ✅ CERRADO (ETAPA 7, dossier cierre-etapa-7 CERRADA) |
+| EPIC F (devops — núcleo) | 20–26h | 🟡 instalador (T8.1, ADR-0014) ✅ · backup/monitor diferido v1.x |
+| EPIC G (extensibilidad) | 24–30h | 🟡 Release/i18n/EULA hecho (T8.2); API OpenAPI/RBAC diferido v1.x |
+| **RELEASE v1.0.0** | — | ✅ **TAGGED 2026-09-16** (tag + bundle + instalador 8.57MB; audit 0) |
 | Fase H (v2.0 opcional) | +60–100h | 🔒 requiere aprobación |
 
 ---
